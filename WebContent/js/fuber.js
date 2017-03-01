@@ -13,7 +13,7 @@
 			lon: '78.466646'
 		});
 		$.ajax({
-			url : '/FRoot/api/book',
+			url : '/cab/api/book',
 			data : data
 		}).done(function(data) {
 			$("#cabForm").hide();
@@ -42,7 +42,7 @@
 	};
 	getCabs=function(){
 		$.ajax({
-			url : '/FRoot/api/cabs'
+			url : '/cab/api/cabs'
 		}).done(function(data) {
 			if( $.isArray(data) && data.length >0 ) {
 				var tableDiv = makeTable(data);
@@ -67,7 +67,7 @@
 								});
 								$.ajax({
 									type: "POST",
-									url : '/FRoot/api/book',
+									url : '/cab/api/book',
 									data : data
 								}).done(function(data) {
 								    document.getElementById("demo").innerHTML = "Booked ="+data.result;
