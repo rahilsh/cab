@@ -2,6 +2,11 @@
 
 This project was tested on tomcat 8.0 server. Welcome page displays list of available cabs and provides a button to book nearest cab.
 
+Dependencies
+
+1. java-json.jar
+2. mysql-connector-java-6.0.5.jar
+
 Description of APIs
 
 /cab/api/cabs - To get the list of available cabs
