@@ -1,4 +1,5 @@
+.pmd
+build
 .classpath
 .project
 .settings/
-build/classes/.gitignore

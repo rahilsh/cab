@@ -22,7 +22,6 @@ import com.fuber.constants.FuberConstants;
  */
 public class FuberApp {
 	String method;
-	String op;
 	HttpServletRequest request;
 	HttpServletResponse response;
 
@@ -36,9 +35,6 @@ public class FuberApp {
 			String[] paths = path.split("/");
 			if (paths.length > 1) {
 				method = paths[1];
-				if (paths.length > 2) {
-					op = paths[2];
-				}
 			}
 		}
 		if (method == null) {
