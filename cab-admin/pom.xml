@@ -9,7 +9,7 @@
     <version>2.1.2.RELEASE</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
-  <groupId>in.rahilsh.cab.admin</groupId>
+  <groupId>in.r.cab.admin</groupId>
   <artifactId>cab-admin</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>cab-admin</name>
