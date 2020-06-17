@@ -1,7 +1,6 @@
 package in.r.cab.admin.store;
 
 import in.r.cab.admin.model.City;
-
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,8 +9,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class CityStore {
 
-  static Map<Integer, City> cities = new HashMap<>();
-  static int globalId = 0;
+  private static final Map<Integer, City> cities = new HashMap<>();
+  private static int globalId = 0;
 
   public void add(String name) {
     Integer cityId = ++globalId;

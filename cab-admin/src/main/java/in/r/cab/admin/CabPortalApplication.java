@@ -10,4 +10,3 @@ public class CabPortalApplication {
     SpringApplication.run(CabPortalApplication.class, args);
   }
 }
-

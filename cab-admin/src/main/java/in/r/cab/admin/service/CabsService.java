@@ -1,9 +1,8 @@
 package in.r.cab.admin.service;
 
-import in.r.cab.admin.store.CabStore;
 import in.r.cab.admin.model.Cab;
 import in.r.cab.admin.model.Cab.State;
-
+import in.r.cab.admin.store.CabStore;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -14,10 +13,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class CabsService {
 
+  private final CabStore cabStore;
+  private final CityService cityService;
+
   @Autowired
-  CabStore cabStore;
-  @Autowired
-  CityService cityService;
+  public CabsService(CabStore cabStore, CityService cityService) {
+    this.cabStore = cabStore;
+    this.cityService = cityService;
+  }
 
   public void addCab(Integer driverId, Integer cityId, String model) {
     // checkIfDriverIsValid(driverId);

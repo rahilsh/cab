@@ -10,8 +10,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class CabStore {
 
-  static Map<Integer, Cab> cabs = new HashMap<>();
-  static int globalId = 0;
+  private static final Map<Integer, Cab> cabs = new HashMap<>();
+  private static int globalId = 0;
 
   public void add(Integer driverId, Integer cityId, String model, State state) {
     Integer cabId = ++globalId;
@@ -37,5 +37,4 @@ public class CabStore {
       cab.setIdleFrom(idleFrom);
     }
   }
-
 }

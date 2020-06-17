@@ -9,8 +9,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class CityService {
 
+  private final CityStore cityStore;
+
   @Autowired
-  CityStore cityStore;
+  public CityService(CityStore cityStore) {
+    this.cityStore = cityStore;
+  }
 
   public void addCity(String name) {
     cityStore.add(name);

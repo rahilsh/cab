@@ -11,12 +11,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class BookingService {
 
+  private final CabsService cabsService;
+  private final BookingStore bookingStore;
+  private final CityService cityService;
+
   @Autowired
-  CabsService cabsService;
-  @Autowired
-  BookingStore bookingStore;
-  @Autowired
-  CityService cityService;
+  public BookingService(
+      CabsService cabsService, BookingStore bookingStore, CityService cityService) {
+    this.cabsService = cabsService;
+    this.bookingStore = bookingStore;
+    this.cityService = cityService;
+  }
 
   public Booking bookCab(Integer employeeId, Integer fromCity, Integer toCity) {
     // checkIfEmployeeExists()
