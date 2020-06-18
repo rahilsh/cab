@@ -6,7 +6,7 @@
 	<display-name>cab</display-name>
 	<servlet>
 		<servlet-name>api</servlet-name>
-		<servlet-class>in.r.cab.user.servlet.APIServlet</servlet-class>
+		<servlet-class>in.rsh.cab.user.servlet.APIServlet</servlet-class>
 		<load-on-startup>0</load-on-startup>
 	</servlet>
 	<servlet-mapping>
