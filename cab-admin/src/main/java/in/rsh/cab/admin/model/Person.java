@@ -7,6 +7,6 @@ import lombok.Getter;
 @Getter
 public class Person {
 
-  Integer id;
-  String name;
+  private final Integer id;
+  private final String name;
 }

@@ -9,12 +9,12 @@ import lombok.Setter;
 @Setter
 public class Cab {
 
-  Integer cabId;
-  Integer driverId;
-  Integer cityId;
-  String model;
-  State state;
-  Long idleFrom;
+  private final Integer cabId;
+  private final Integer driverId;
+  private Integer cityId;
+  private final String model;
+  private State state;
+  private Long idleFrom;
 
   public enum State {
     IDLE,

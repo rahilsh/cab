@@ -8,13 +8,9 @@ import lombok.Getter;
 @AllArgsConstructor
 public class AddCabRequest {
 
-  @NotNull
-  Integer cityId;
-  @NotNull
-  Integer driverId;
-  @NotNull
-  String model;
-
+  @NotNull private final Integer cityId;
+  @NotNull private final Integer driverId;
+  @NotNull private final String model;
 
   public void validate() {
     if (cityId == null || driverId == null || model == null) {

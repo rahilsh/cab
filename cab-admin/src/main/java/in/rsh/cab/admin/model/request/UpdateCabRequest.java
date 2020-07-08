@@ -8,8 +8,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public class UpdateCabRequest {
 
-  String state;
-  Integer cityId;
+  private final String state;
+  private final Integer cityId;
 
   public void validate() {
     if ((state == null && cityId == null)) {

@@ -25,12 +25,12 @@ import org.springframework.test.web.servlet.MockMvc;
 @ExtendWith(SpringExtension.class)
 @SpringBootTest
 @AutoConfigureMockMvc
-public class BookingControllerTest {
+class BookingControllerTest {
 
   @Autowired private MockMvc mvc;
 
   @Test
-  public void testBookings() throws Exception {
+  void testBookings() throws Exception {
     onboardCities();
     final BookCabRequest bookCabRequest = onboardCab();
     bookCab(bookCabRequest);
@@ -75,7 +75,7 @@ public class BookingControllerTest {
   }
 
   @Test
-  public void testGetAllBookings() throws Exception {
+  void testGetAllBookings() throws Exception {
     mvc.perform(get("/bookings").contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andDo(print())

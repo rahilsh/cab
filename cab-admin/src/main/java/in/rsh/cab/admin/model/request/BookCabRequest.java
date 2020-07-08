@@ -7,9 +7,9 @@ import lombok.Getter;
 @Getter
 public class BookCabRequest {
 
-  Integer employeeId;
-  Integer fromCity;
-  Integer toCity;
+  private final Integer employeeId;
+  private final Integer fromCity;
+  private final Integer toCity;
 
   public void validate() {
     if (employeeId == null || fromCity == null || toCity == null) {

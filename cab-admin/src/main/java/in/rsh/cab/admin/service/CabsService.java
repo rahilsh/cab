@@ -4,7 +4,6 @@ import in.rsh.cab.admin.model.Cab;
 import in.rsh.cab.admin.model.Cab.State;
 import in.rsh.cab.admin.store.CabStore;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,12 +49,8 @@ public class CabsService {
     if (idleCabs == null || idleCabs.isEmpty()) {
       throw new RuntimeException("No cabs Available");
     }
-    Collections.sort(idleCabs, (a, b) -> (int) (a.getIdleFrom() - b.getIdleFrom()));
+    idleCabs.sort((a, b) -> (int) (a.getIdleFrom() - b.getIdleFrom()));
     return idleCabs.get(0);
-  }
-
-  public void update(Integer cabId, State state) {
-    update(cabId, state, null);
   }
 
   public void update(Integer cabId, Integer cityId, State state) {

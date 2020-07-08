@@ -29,7 +29,7 @@ public class CabController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public void cabs(@RequestBody AddCabRequest request) {
+  public void addCab(@RequestBody AddCabRequest request) {
     request.validate();
     cabsService.addCab(request.getDriverId(), request.getCityId(), request.getModel());
   }

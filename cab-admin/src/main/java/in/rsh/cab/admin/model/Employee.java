@@ -5,7 +5,10 @@ import lombok.Getter;
 @Getter
 public class Employee extends Person {
 
-  public Employee(Integer id, String name) {
+  private final String empId;
+
+  public Employee(Integer id, String name, String empId) {
     super(id, name);
+    this.empId = empId;
   }
 }

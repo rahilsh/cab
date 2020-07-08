@@ -7,8 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public class AddCityRequest {
 
-  String name;
-  String state;
+  private final String name;
+  private final String state;
 
   public void validate() {
     if (name == null) {

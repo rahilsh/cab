@@ -26,7 +26,7 @@ public class CityController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public void cities(@RequestBody AddCityRequest request) {
+  public void addCity(@RequestBody AddCityRequest request) {
     request.validate();
     cityService.addCity(request.getName());
   }

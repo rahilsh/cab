@@ -7,6 +7,6 @@ import lombok.Getter;
 @Getter
 public class City {
 
-  Integer id;
-  String name;
+  private final Integer id;
+  private final String name;
 }

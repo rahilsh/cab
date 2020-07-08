@@ -26,7 +26,7 @@ public class BookingController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public String bookings(@RequestBody BookCabRequest request) {
+  public String bookingCab(@RequestBody BookCabRequest request) {
     request.validate();
     return new Gson()
         .toJson(

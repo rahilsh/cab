@@ -5,11 +5,7 @@ import lombok.Getter;
 @Getter
 public class Driver extends Person {
 
-  String licenseNo;
-
-  public Driver(Integer id, String name) {
-    super(id, name);
-  }
+  private final String licenseNo;
 
   public Driver(Integer id, String name, String licenseNo) {
     super(id, name);

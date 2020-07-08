@@ -7,11 +7,10 @@ import lombok.Getter;
 @Getter
 public class Booking {
 
-  Integer id;
-  Integer cabId;
-  Integer employeeId;
-  Integer fromCity;
-  Integer toCity;
-  Long startTime;
-
+  private final Integer id;
+  private final Integer cabId;
+  private final Integer employeeId;
+  private final Integer fromCity;
+  private final Integer toCity;
+  private final Long startTime;
 }
