@@ -26,7 +26,7 @@ public class CityService {
 
   public void validateCityOrThrow(Integer cityId) {
     if (cityStore.getCity(cityId) == null) {
-      throw new RuntimeException("City does not exists");
+      throw new IllegalArgumentException("City does not exists");
     }
   }
 }

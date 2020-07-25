@@ -1,18 +1,17 @@
 package in.rsh.cab.user.service;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import in.rsh.cab.user.model.Driver;
 import in.rsh.cab.user.model.DrivingLicense;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-// TODO: Use JUnit5
-public class DriverServiceTest {
+class DriverServiceTest {
 
   private final DriverService driverService = new DriverService();
 
   @Test
-  public void registerDriver() {
+  void registerDriver() {
 
     Driver driver =
         driverService.registerDriver(
@@ -27,8 +26,8 @@ public class DriverServiceTest {
   }
 
   @Test
-  public void updateDriver() {}
+  void updateDriver() {}
 
   @Test
-  public void getDriver() {}
+  void getDriver() {}
 }

@@ -1,16 +1,15 @@
 package in.rsh.cab.user.service;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-// TODO: Use JUnit5
-public class CabServiceTest {
-
-  @Test
-  public void registerCab() {}
+class CabServiceTest {
 
   @Test
-  public void updateCabLocation() {}
+  void registerCab() {}
 
   @Test
-  public void updateCabStatus() {}
+  void updateCabLocation() {}
+
+  @Test
+  void updateCabStatus() {}
 }

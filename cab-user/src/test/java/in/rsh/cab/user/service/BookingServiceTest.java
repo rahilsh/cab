@@ -1,16 +1,16 @@
 package in.rsh.cab.user.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import in.rsh.cab.user.model.Booking;
 import in.rsh.cab.user.model.Cab;
 import in.rsh.cab.user.model.Driver;
 import in.rsh.cab.user.model.DrivingLicense;
 import in.rsh.cab.user.model.Location;
 import in.rsh.cab.user.model.Rider;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-// TODO: Use JUnit5
-public class BookingServiceTest {
+class BookingServiceTest {
 
   private final BookingService bookingService = new BookingService();
   private final RiderService riderService = new RiderService();
@@ -18,7 +18,7 @@ public class BookingServiceTest {
   private final CabService cabService = new CabService();
 
   @Test
-  public void bookCab() {
+  void bookCab() {
     Rider rider =
         riderService.registerRider(
             Rider.builder()
@@ -42,9 +42,9 @@ public class BookingServiceTest {
             Cab.builder().driverId(driver.getPersonId()).location(new Location(1, 1)).build());
 
     Booking booking = bookingService.bookCab(rider);
-    Assert.assertEquals(cab.getCabId(), booking.getCabId());
+    assertEquals(cab.getCabId(), booking.getCabId());
   }
 
   @Test
-  public void getBookingsForRider() {}
+  void testGetBookingsForRider() {}
 }
