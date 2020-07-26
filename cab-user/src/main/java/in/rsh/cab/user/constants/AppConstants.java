@@ -1,7 +1,3 @@
-//$Id$
-/**
- *
- */
 package in.rsh.cab.user.constants;
 
 /**

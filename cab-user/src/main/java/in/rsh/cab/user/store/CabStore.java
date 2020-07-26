@@ -1,8 +1,5 @@
-// $Id$
-/**
- *
- */
-package in.rsh.cab.user.DB;
+
+package in.rsh.cab.user.store;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -13,14 +10,16 @@ import java.sql.Statement;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** @author rahil */
-public class DBStore {
+/**
+ * @author rahil
+ */
+public class CabStore {
 
   public static JSONArray cabs(float lat, float lon, boolean pink, String number) {
     Connection con = null;
     Statement stmt = null;
     try {
-      String sql = null;
+      String sql;
       if (lat == 0.0 && lon == 0.0) {
         sql = "select * from cabs where isAvailable=true";
         if (pink == true) {

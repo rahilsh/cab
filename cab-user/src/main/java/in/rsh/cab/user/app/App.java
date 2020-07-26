@@ -1,11 +1,7 @@
-// $Id$
-/**
- *
- */
 package in.rsh.cab.user.app;
 
-import in.rsh.cab.user.DB.DBStore;
 import in.rsh.cab.user.constants.AppConstants;
+import in.rsh.cab.user.store.CabStore;
 import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -56,21 +52,21 @@ public class App {
     String lon = request.getParameter("lat");
     float distance =
         Float.parseFloat(
-            DBStore.cabs(Float.parseFloat(lat), Float.parseFloat(lon), false, number)
+            CabStore.cabs(Float.parseFloat(lat), Float.parseFloat(lon), false, number)
                 .getJSONObject(0)
                 .getString("distance"));
 
     double fare = fare(distance, type, Integer.parseInt(duration));
-    DBStore.update(lat, lon, fare);
+    CabStore.update(lat, lon, fare);
     response.getWriter().write(new JSONObject("{\"result\":\"Fare is " + fare + "\"}").toString());
   }
 
   private double fare(float distance, String type, int duration) {
-    return (double) ((1 * duration) + (distance * 1.60934) + (type == "pink" ? 5 : 0));
+    return (1 * duration) + (distance * 1.60934) + (type == "pink" ? 5 : 0);
   }
 
   private void cabs() throws IOException {
-    JSONArray cabs = DBStore.cabs(0F, 0F, false, null);
+    JSONArray cabs = CabStore.cabs(0F, 0F, false, null);
     response.getWriter().write(cabs.toString());
   }
 
@@ -89,7 +85,7 @@ public class App {
             Float.parseFloat(user.get("lon").toString()),
             pink);
     if (number != null) {
-      status = DBStore.book(number, user);
+      status = CabStore.book(number, user);
     }
     if (status == true) {
       result = "Cab booked !! Number: " + number;
@@ -100,7 +96,7 @@ public class App {
   }
 
   private String getNearestCab(float lat, float lon, boolean pink) throws JSONException {
-    JSONArray cabs = DBStore.cabs(lat, lon, pink, null);
+    JSONArray cabs = CabStore.cabs(lat, lon, pink, null);
     if (cabs.length() > 0) {
       return cabs.getJSONObject(0).getString("number");
     } else {
