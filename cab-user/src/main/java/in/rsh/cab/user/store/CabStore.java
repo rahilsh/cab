@@ -1,4 +1,3 @@
-
 package in.rsh.cab.user.store;
 
 import java.sql.Connection;
@@ -6,60 +5,62 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- * @author rahil
- */
+/** @author rahil */
 public class CabStore {
 
   public static JSONArray cabs(float lat, float lon, boolean pink, String number) {
     Connection con = null;
-    Statement stmt = null;
+    PreparedStatement prepStmt = null;
     try {
       String sql;
+      con = getConnection();
+
       if (lat == 0.0 && lon == 0.0) {
         sql = "select * from cabs where isAvailable=true";
-        if (pink == true) {
+        if (pink) {
           sql = sql + " and type='pink'";
         }
+        prepStmt = con.prepareStatement(sql);
       } else {
-        if (pink == true) {
+        if (pink) {
           sql =
-              "SELECT number, ( 3959 * acos( cos( radians("
-                  + lat
-                  + ") ) * cos( radians( lat ) ) * cos( radians( lng ) - radians("
-                  + lon
-                  + ") ) + sin( radians("
-                  + lat
-                  + ") ) * sin( radians( lat ) ) ) ) AS distance,type,isAvailable FROM cabs HAVING distance < 10 and type='pink' and isAvailable=true ORDER BY distance LIMIT 0 , 1;";
+              "SELECT number, ( 3959 * acos( cos( radians( ? ) ) * cos( radians( lat ) ) "
+                  + "* cos( radians( lng ) - radians(?) ) sin( radians(?) ) "
+                  + "* sin( radians( lat ) ) ) ) AS distance,type,isAvailable "
+                  + "FROM cabs HAVING distance < 10 and type='pink' "
+                  + "and isAvailable=true ORDER BY distance LIMIT 0 , 1;";
+          prepStmt = con.prepareStatement(sql);
+          prepStmt.setFloat(1, lat);
+          prepStmt.setFloat(2, lon);
+          prepStmt.setFloat(3, lat);
+
         } else if (number != null) {
           sql =
-              "SELECT  number,( 3959 * acos( cos( radians("
-                  + lat
-                  + ") ) * cos( radians( lat ) ) * cos( radians( lng ) - radians("
-                  + lon
-                  + ") ) + sin( radians("
-                  + lat
-                  + ") ) * sin( radians( lat ) ) ) ) AS distance and number='"
-                  + number
-                  + "' FROM cabs;";
+              "SELECT  number,( 3959 * acos( cos( radians(?) ) * cos( radians( lat ) ) "
+                  + "* cos( radians( lng ) - radians(?) ) + sin( radians(?) ) "
+                  + "* sin( radians( lat ) ) ) ) AS distance and number= ? FROM cabs;";
+          prepStmt = con.prepareStatement(sql);
+          prepStmt.setFloat(1, lat);
+          prepStmt.setFloat(2, lon);
+          prepStmt.setFloat(3, lat);
+          prepStmt.setString(4, number);
         } else {
           sql =
-              "SELECT  number,( 3959 * acos( cos( radians("
-                  + lat
-                  + ") ) * cos( radians( lat ) ) * cos( radians( lng ) - radians("
-                  + lon
-                  + ") ) + sin( radians("
-                  + lat
-                  + ") ) * sin( radians( lat ) ) ) ) AS distance,type,isAvailable and isAvailable=true FROM cabs HAVING distance < 10  ORDER BY distance LIMIT 0 , 1;";
+              "SELECT  number,( 3959 * acos( cos( radians(?) ) * cos( radians( lat ) ) "
+                  + "* cos( radians( lng ) - radians(?) ) + sin( radians(?) ) "
+                  + "* sin( radians( lat ) ) ) ) AS distance,type,isAvailable "
+                  + "and isAvailable=true FROM cabs HAVING distance < 10  "
+                  + "ORDER BY distance LIMIT 0 , 1;";
+          prepStmt = con.prepareStatement(sql);
+          prepStmt.setFloat(1, lat);
+          prepStmt.setFloat(2, lon);
+          prepStmt.setFloat(3, lat);
         }
       }
-      con = getConnection();
-      stmt = con.createStatement();
-      ResultSet rs = stmt.executeQuery(sql);
+      ResultSet rs = prepStmt.executeQuery(sql);
       JSONArray array = new JSONArray();
       while (rs.next()) {
         JSONObject cabs = new JSONObject();
@@ -79,28 +80,25 @@ public class CabStore {
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
-      if (stmt != null) {
-        try {
-          stmt.close();
-        } catch (SQLException e) {
-          e.printStackTrace();
-        }
-      }
-      if (con != null) {
-        try {
-          con.close();
-        } catch (SQLException e) {
-          e.printStackTrace();
-        }
-      }
+      closeIfNotNull(con);
+      closeIfNotNull(prepStmt);
     }
     return null;
   }
 
+  private static void closeIfNotNull(AutoCloseable autoCloseable) {
+    if (autoCloseable != null) {
+      try {
+        autoCloseable.close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
   public static Connection getConnection() throws SQLException, ClassNotFoundException {
     Class.forName("com.mysql.jdbc.Driver");
-    Connection con = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "root", "");
-    return con;
+    return DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "root", "");
   }
 
   public static boolean book(String number, JSONObject user) {
@@ -129,39 +127,21 @@ public class CabStore {
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
-      if (insertQuery != null) {
-        try {
-          insertQuery.close();
-        } catch (SQLException e) {
-          e.printStackTrace();
-        }
-      }
-      if (updateTotal != null) {
-        try {
-          updateTotal.close();
-        } catch (SQLException e) {
-          e.printStackTrace();
-        }
-      }
-      if (con != null) {
-        try {
-          con.close();
-        } catch (SQLException e) {
-          e.printStackTrace();
-        }
-      }
+      closeIfNotNull(insertQuery);
+      closeIfNotNull(con);
+      closeIfNotNull(updateTotal);
     }
     return false;
   }
 
   public static void main(String[] args) {
     try {
-      /*
-       * System.out .println(DBStore .book("1234", new JSONObject(
-       * "{\"number\":\"9999\",\"name\":\"test\",\"cabnumber\":\"1234\",\"source\":\"00.00\"}"
-       * )));
-       */
-      // System.out.println(DBStore.cabs());
+      System.out.println(
+          CabStore.book(
+              "1234",
+              new JSONObject(
+                  "{\"number\":\"9999\",\"name\":\"test\",\"cabnumber\":\"1234\",\"source\":\"00.00\"}")));
+      //System.out.println(CabStore.cabs());
     } catch (Exception e) {
       e.printStackTrace();
     }

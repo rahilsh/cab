@@ -1,6 +1,6 @@
 # cab
 
-This project was tested on tomcat 8.0 server. Welcome page displays list of available cabs and provides a button to book nearest cab.
+This project was tested on tomcat 8.0 server. Welcome page displays list of available cabs and provides a button to book the nearest cab.
 
 Description of APIs
 
