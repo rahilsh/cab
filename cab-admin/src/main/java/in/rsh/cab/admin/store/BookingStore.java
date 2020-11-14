@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class BookingStore {
 
-  private static int globalId = 0;
   private static final Map<Integer, Booking> bookings = new HashMap<>();
+  private static int globalId = 0;
 
   public Booking addBooking(Integer cabId, Integer employeeId, Integer fromCity, Integer toCity) {
     int bookingId = ++globalId;

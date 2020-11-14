@@ -8,7 +8,6 @@ import in.rsh.cab.user.model.Rider;
 import in.rsh.cab.user.store.GenericStore;
 import in.rsh.cab.user.store.StoreFactory;
 import in.rsh.cab.user.util.IDUtil;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -60,7 +59,8 @@ public class BookingService {
   }
 
   private int getNearestCab(Location location, Location location1) {
-    return ((location.getLatitude() + location.getLongitude()) - (location1.getLatitude() + location1.getLongitude()));
+    return ((location.getLatitude() + location.getLongitude())
+        - (location1.getLatitude() + location1.getLongitude()));
   }
 
   public List<Booking> getBookingsForRider(Rider rider) {

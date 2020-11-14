@@ -23,12 +23,9 @@ public class DriverService {
   public Driver updateDriver(Driver driver) {
     store.put(driver.getPersonId(), driver);
     return store.get(driver.getPersonId());
-
   }
 
-  public Driver getDriver(String driverId){
+  public Driver getDriver(String driverId) {
     return store.get(driverId);
   }
-
-
 }

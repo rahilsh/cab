@@ -1,5 +1,3 @@
 package in.rsh.cab.user.exception;
 
-public class CabNotAvailableException extends RuntimeException {
-
-}
+public class CabNotAvailableException extends RuntimeException {}

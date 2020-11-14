@@ -19,6 +19,7 @@ public class RiderService {
     store.put(riderId, newRider);
     return newRider;
   }
+
   public Rider getRider(String riderId) {
     return store.get(riderId);
   }

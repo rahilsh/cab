@@ -1,8 +1,8 @@
 package in.rsh.cab.user.service;
 
-import in.rsh.cab.user.model.Location;
 import in.rsh.cab.user.model.Cab;
 import in.rsh.cab.user.model.Cab.CabStatus;
+import in.rsh.cab.user.model.Location;
 import in.rsh.cab.user.store.GenericStore;
 import in.rsh.cab.user.store.StoreFactory;
 import in.rsh.cab.user.util.IDUtil;

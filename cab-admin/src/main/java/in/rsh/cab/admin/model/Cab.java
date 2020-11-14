@@ -11,8 +11,8 @@ public class Cab {
 
   private final Integer cabId;
   private final Integer driverId;
-  private Integer cityId;
   private final String model;
+  private Integer cityId;
   private State state;
   private Long idleFrom;
 

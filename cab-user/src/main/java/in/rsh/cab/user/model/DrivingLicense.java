@@ -9,5 +9,4 @@ public class DrivingLicense {
 
   private final String photoURL;
   private final String licenseNo;
-
 }

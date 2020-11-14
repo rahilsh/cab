@@ -15,7 +15,7 @@ public class CabStore {
 
   public void add(Integer driverId, Integer cityId, String model, State state) {
     Integer cabId = ++globalId;
-    cabs.put(cabId, new Cab(cabId, driverId, cityId, model, state, System.currentTimeMillis()));
+    cabs.put(cabId, new Cab(cabId, driverId, model, cityId, state, System.currentTimeMillis()));
   }
 
   public Collection<Cab> cabs() {

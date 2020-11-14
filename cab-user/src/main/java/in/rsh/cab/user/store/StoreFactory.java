@@ -4,26 +4,24 @@ import in.rsh.cab.user.model.Booking;
 import in.rsh.cab.user.model.Cab;
 import in.rsh.cab.user.model.Driver;
 import in.rsh.cab.user.model.Rider;
-
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
 public class StoreFactory {
-  Map<Type, GenericStore> storeMapping = new HashMap<>();
-
   private static StoreFactory storeFactory = null;
-
-  public static StoreFactory getInstance() {
-    if (storeFactory == null) storeFactory = new StoreFactory();
-    return storeFactory;
-  }
+  Map<Type, GenericStore> storeMapping = new HashMap<>();
 
   private StoreFactory() {
     storeMapping.put(Rider.class, new GenericStore<Rider>());
     storeMapping.put(Driver.class, new GenericStore<Driver>());
     storeMapping.put(Cab.class, new GenericStore<Cab>());
     storeMapping.put(Booking.class, new GenericStore<Booking>());
+  }
+
+  public static StoreFactory getInstance() {
+    if (storeFactory == null) storeFactory = new StoreFactory();
+    return storeFactory;
   }
 
   public <T> GenericStore<T> getStore(Class<T> t) {
