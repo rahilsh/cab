@@ -5,7 +5,12 @@
 
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "cab-admin" # See documentation for possible values
+    directory: "cab-admin/" # Location of package manifests
+    schedule:
+      interval: "weekly"
+      
+  - package-ecosystem: "cab-user" # See documentation for possible values
+    directory: "cab-user/" # Location of package manifests
     schedule:
       interval: "weekly"
