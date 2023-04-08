@@ -43,7 +43,7 @@ class BookingControllerTest {
                 .content(new Gson().toJson(bookCabRequest)))
         .andExpect(status().isOk())
         .andDo(print())
-        .andExpect(jsonPath("$.employeeId", is(bookCabRequest.getEmployeeId())))
+        .andExpect(jsonPath("$.employeeId", is(bookCabRequest.employeeId())))
         .andExpect(jsonPath("$.cabId", is(1)));
   }
 

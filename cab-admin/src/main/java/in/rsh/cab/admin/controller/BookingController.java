@@ -31,7 +31,7 @@ public class BookingController {
     return new Gson()
         .toJson(
             bookingService.bookCab(
-                request.getEmployeeId(), request.getFromCity(), request.getToCity()));
+                request.employeeId(), request.fromCity(), request.toCity()));
   }
 
   @GetMapping(

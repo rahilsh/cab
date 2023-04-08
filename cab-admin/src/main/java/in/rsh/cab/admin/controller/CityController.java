@@ -28,7 +28,7 @@ public class CityController {
   @ResponseBody
   public void addCity(@RequestBody AddCityRequest request) {
     request.validate();
-    cityService.addCity(request.getName());
+    cityService.addCity(request.name());
   }
 
   @GetMapping(

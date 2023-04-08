@@ -1,12 +1,5 @@
 package in.rsh.cab.admin.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+public record City(Integer id, String name) {
 
-@AllArgsConstructor
-@Getter
-public class City {
-
-  private final Integer id;
-  private final String name;
 }

@@ -1,16 +1,9 @@
 package in.rsh.cab.admin.model.request;
 
-import javax.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import jakarta.validation.constraints.NotNull;
 
-@Getter
-@AllArgsConstructor
-public class AddCabRequest {
-
-  @NotNull private final Integer cityId;
-  @NotNull private final Integer driverId;
-  @NotNull private final String model;
+public record AddCabRequest(@NotNull Integer cityId, @NotNull Integer driverId,
+                            @NotNull String model) {
 
   public void validate() {
     if (cityId == null || driverId == null || model == null) {

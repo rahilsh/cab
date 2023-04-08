@@ -31,7 +31,7 @@ public class CabController {
   @ResponseBody
   public void addCab(@RequestBody AddCabRequest request) {
     request.validate();
-    cabsService.addCab(request.getDriverId(), request.getCityId(), request.getModel());
+    cabsService.addCab(request.driverId(), request.cityId(), request.model());
   }
 
   @PostMapping(
@@ -42,7 +42,7 @@ public class CabController {
   public void updateCab(
       @PathVariable("cabId") Integer cabId, @RequestBody UpdateCabRequest request) {
     request.validate();
-    cabsService.updateCab(cabId, request.getCityId(), State.valueOf(request.getState()));
+    cabsService.updateCab(cabId, request.cityId(), State.valueOf(request.state()));
   }
 
   @GetMapping(

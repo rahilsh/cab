@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public class Person {
+public abstract class Person {
 
   private final Integer id;
   private final String name;
