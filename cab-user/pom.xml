@@ -39,7 +39,7 @@
       <artifactId>junit-jupiter</artifactId>
       <groupId>org.junit.jupiter</groupId>
       <scope>test</scope>
-      <version>5.10.0</version>
+      <version>5.10.1</version>
     </dependency>
   </dependencies>
   <groupId>in.r.cab.user</groupId>
