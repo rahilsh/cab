@@ -1,14 +1,12 @@
 package in.rsh.cab.admin.model;
 
+import in.rsh.cab.commons.model.Person;
 import lombok.Getter;
 
 @Getter
 public class Employee extends Person {
 
-  private final String empId;
-
-  public Employee(Integer id, String name, String empId) {
-    super(id, name);
-    this.empId = empId;
+  public Employee(String empId, String name, String email, String phoneNumber, String photoURL) {
+    super(empId, name, email, phoneNumber, photoURL);
   }
 }

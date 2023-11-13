@@ -1,4 +1,4 @@
-package in.rsh.cab.user.model;
+package in.rsh.cab.commons.model;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -21,31 +21,11 @@ public class Driver extends Person {
 
   public static class DriverBuilder {
 
-    private String personId;
-    private String name;
-    private String email;
-    private String phoneNumber;
-    private String photoURL;
-
-    public String getPersonId() {
-      return personId;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public String getEmail() {
-      return email;
-    }
-
-    public String getPhoneNumber() {
-      return phoneNumber;
-    }
-
-    public String getPhotoURL() {
-      return photoURL;
-    }
+    @Getter private String personId;
+    @Getter private String name;
+    @Getter private String email;
+    @Getter private String phoneNumber;
+    @Getter private String photoURL;
 
     public DriverBuilder personId(String personId) {
       this.personId = personId;

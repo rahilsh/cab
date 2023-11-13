@@ -8,6 +8,7 @@
   <modules>
     <module>cab-user</module>
     <module>cab-admin</module>
+    <module>cab-commons</module>
   </modules>
   <name>cab</name>
   <packaging>pom</packaging>

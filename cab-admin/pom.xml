@@ -32,6 +32,11 @@
     </dependency>
 
     <dependency>
+      <groupId>in.rsh.cab.commons</groupId>
+      <artifactId>cab-commons</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
       <artifactId>lombok</artifactId>
       <groupId>org.projectlombok</groupId>
       <optional>true</optional>

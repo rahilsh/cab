@@ -1,10 +1,11 @@
 package in.rsh.cab.admin.controller;
 
+import static in.rsh.cab.commons.model.Cab.*;
+
 import com.google.gson.Gson;
-import in.rsh.cab.admin.model.Cab.State;
 import in.rsh.cab.admin.model.request.AddCabRequest;
 import in.rsh.cab.admin.model.request.UpdateCabRequest;
-import in.rsh.cab.admin.service.CabsService;
+import in.rsh.cab.admin.service.CabService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class CabController {
 
-  private final CabsService cabsService;
+  private final CabService cabService;
 
   @Autowired
-  public CabController(CabsService cabsService) {
-    this.cabsService = cabsService;
+  public CabController(CabService cabService) {
+    this.cabService = cabService;
   }
 
   @PostMapping(
@@ -31,7 +32,7 @@ public class CabController {
   @ResponseBody
   public void addCab(@RequestBody AddCabRequest request) {
     request.validate();
-    cabsService.addCab(request.driverId(), request.cityId(), request.model());
+    cabService.addCab(request.driverId(), request.cityId(), request.model());
   }
 
   @PostMapping(
@@ -42,7 +43,7 @@ public class CabController {
   public void updateCab(
       @PathVariable("cabId") Integer cabId, @RequestBody UpdateCabRequest request) {
     request.validate();
-    cabsService.updateCab(cabId, request.cityId(), State.valueOf(request.state()));
+    cabService.updateCab(cabId, request.cityId(), CabStatus.valueOf(request.state()));
   }
 
   @GetMapping(
@@ -51,6 +52,6 @@ public class CabController {
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
   public String getAllCabs() {
-    return new Gson().toJson(cabsService.getAllCabs());
+    return new Gson().toJson(cabService.getAllCabs());
   }
 }

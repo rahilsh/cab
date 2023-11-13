@@ -1,4 +1,4 @@
-package in.rsh.cab.user.model;
+package in.rsh.cab.commons.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,6 +1,6 @@
 package in.rsh.cab.user.service;
 
-import in.rsh.cab.user.model.Driver;
+import in.rsh.cab.commons.model.Driver;
 import in.rsh.cab.user.store.GenericStore;
 import in.rsh.cab.user.store.StoreFactory;
 import in.rsh.cab.user.util.IDUtil;

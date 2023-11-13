@@ -1,6 +1,6 @@
 package in.rsh.cab.admin.model.request;
 
-import in.rsh.cab.admin.model.Cab;
+import static in.rsh.cab.commons.model.Cab.*;
 
 public record UpdateCabRequest(String state, Integer cityId) {
 
@@ -8,7 +8,7 @@ public record UpdateCabRequest(String state, Integer cityId) {
     if ((state == null && cityId == null)) {
       throw new IllegalArgumentException("Invalid Params");
     }
-    if (state != null && Cab.State.valueOf(state).equals(Cab.State.ON_TRIP)) {
+    if (state != null && CabStatus.valueOf(state).equals(CabStatus.ON_RIDE)) {
       throw new IllegalArgumentException("Invalid State Transition");
     }
   }

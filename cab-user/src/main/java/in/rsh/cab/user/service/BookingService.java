@@ -1,9 +1,9 @@
 package in.rsh.cab.user.service;
 
 import in.rsh.cab.user.exception.CabNotAvailableException;
-import in.rsh.cab.user.model.Booking;
-import in.rsh.cab.user.model.Cab;
-import in.rsh.cab.user.model.Location;
+import in.rsh.cab.commons.model.Booking;
+import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.commons.model.Location;
 import in.rsh.cab.user.model.Rider;
 import in.rsh.cab.user.store.GenericStore;
 import in.rsh.cab.user.store.StoreFactory;
