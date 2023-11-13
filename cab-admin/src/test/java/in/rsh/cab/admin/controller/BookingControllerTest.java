@@ -9,10 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.google.gson.Gson;
+import com.google.gson.*;
 import in.rsh.cab.admin.model.request.AddCabRequest;
 import in.rsh.cab.admin.model.request.AddCityRequest;
 import in.rsh.cab.admin.model.request.BookCabRequest;
+import in.rsh.cab.commons.adapter.LocalDateTimeDeserializer;
+import in.rsh.cab.commons.adapter.LocalDateTimeSerializer;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +31,11 @@ import org.springframework.test.web.servlet.MockMvc;
 class BookingControllerTest {
 
   @Autowired private MockMvc mvc;
+  private final Gson gson =
+      new GsonBuilder()
+          .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeDeserializer())
+          .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeSerializer())
+          .create();
 
   @Test
   void testBookings() throws Exception {
@@ -40,18 +48,18 @@ class BookingControllerTest {
     mvc.perform(
             post("/bookings")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new Gson().toJson(bookCabRequest)))
+                .content(gson.toJson(bookCabRequest)))
         .andExpect(status().isOk())
         .andDo(print())
-        .andExpect(jsonPath("$.employeeId", is(bookCabRequest.employeeId())))
-        .andExpect(jsonPath("$.cabId", is(1)));
+        .andExpect(jsonPath("$.bookedBy", is(String.valueOf(bookCabRequest.employeeId()))))
+        .andExpect(jsonPath("$.cabId", is(String.valueOf(1))));
   }
 
   private BookCabRequest onboardCab() throws Exception {
     mvc.perform(
             post("/cabs")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new Gson().toJson(new AddCabRequest(1, 1, "HECTOR"))))
+                .content(gson.toJson(new AddCabRequest(1, 1, "HECTOR"))))
         .andExpect(status().isOk())
         .andDo(print());
 
@@ -62,14 +70,14 @@ class BookingControllerTest {
     mvc.perform(
             post("/cities")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new Gson().toJson(new AddCityRequest("BLR", "KA"))))
+                .content(gson.toJson(new AddCityRequest("BLR", "KA"))))
         .andExpect(status().isOk())
         .andDo(print());
 
     mvc.perform(
             post("/cities")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new Gson().toJson(new AddCityRequest("MUM", "MH"))))
+                .content(gson.toJson(new AddCityRequest("MUM", "MH"))))
         .andExpect(status().isOk())
         .andDo(print());
   }
@@ -80,7 +88,7 @@ class BookingControllerTest {
         .andExpect(status().isOk())
         .andDo(print())
         .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
-        .andExpect(jsonPath("$[0].cabId", is(1)))
-        .andExpect(jsonPath("$[0].employeeId", is(1)));
+        .andExpect(jsonPath("$[0].cabId", is(String.valueOf(1))))
+        .andExpect(jsonPath("$[0].bookedBy", is(String.valueOf(1))));
   }
 }

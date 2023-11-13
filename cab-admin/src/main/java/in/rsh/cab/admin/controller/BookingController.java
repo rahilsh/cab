@@ -1,8 +1,11 @@
 package in.rsh.cab.admin.controller;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import in.rsh.cab.admin.model.request.BookCabRequest;
 import in.rsh.cab.admin.service.BookingService;
+import in.rsh.cab.commons.adapter.*;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +19,12 @@ public class BookingController {
 
   private final BookingService bookingService;
 
+  private final Gson gson =
+      new GsonBuilder()
+          .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeDeserializer())
+          .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeSerializer())
+          .create();
+
   @Autowired
   public BookingController(BookingService bookingService) {
     this.bookingService = bookingService;
@@ -28,10 +37,8 @@ public class BookingController {
   @ResponseBody
   public String bookingCab(@RequestBody BookCabRequest request) {
     request.validate();
-    return new Gson()
-        .toJson(
-            bookingService.bookCab(
-                request.employeeId(), request.fromCity(), request.toCity()));
+    return gson.toJson(
+        bookingService.bookCab(request.employeeId(), request.fromCity(), request.toCity()));
   }
 
   @GetMapping(
@@ -40,6 +47,6 @@ public class BookingController {
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
   public String getAllBookings() {
-    return new Gson().toJson(bookingService.getAllBookings());
+    return gson.toJson(bookingService.getAllBookings());
   }
 }

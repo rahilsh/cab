@@ -1,11 +1,13 @@
 package in.rsh.cab.user.model;
 
+import in.rsh.cab.commons.model.Location;
+import in.rsh.cab.commons.model.Person;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Getter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = true)
 @Builder(toBuilder = true)
 public class Rider extends Person {
 

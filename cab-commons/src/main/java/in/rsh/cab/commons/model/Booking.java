@@ -1,4 +1,4 @@
-package in.rsh.cab.user.model;
+package in.rsh.cab.commons.model;
 
 import java.time.LocalDateTime;
 import lombok.Builder;
@@ -14,6 +14,9 @@ public class Booking {
   private final String riderId;
   private final String cabId;
   private final BookingStatus status;
+  private final Location startLocation;
+  private final Location endLocation;
+  private final String bookedBy;
 
   public enum BookingStatus {
     IN_PROGRESS,

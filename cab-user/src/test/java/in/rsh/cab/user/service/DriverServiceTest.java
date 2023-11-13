@@ -2,8 +2,8 @@ package in.rsh.cab.user.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import in.rsh.cab.user.model.Driver;
-import in.rsh.cab.user.model.DrivingLicense;
+import in.rsh.cab.commons.model.Driver;
+import in.rsh.cab.commons.model.DrivingLicense;
 import org.junit.jupiter.api.Test;
 
 class DriverServiceTest {

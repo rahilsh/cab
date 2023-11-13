@@ -1,8 +1,8 @@
 package in.rsh.cab.user.store;
 
-import in.rsh.cab.user.model.Booking;
-import in.rsh.cab.user.model.Cab;
-import in.rsh.cab.user.model.Driver;
+import in.rsh.cab.commons.model.Booking;
+import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.commons.model.Driver;
 import in.rsh.cab.user.model.Rider;
 import java.lang.reflect.Type;
 import java.util.HashMap;
