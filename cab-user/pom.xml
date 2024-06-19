@@ -31,7 +31,7 @@
     <dependency>
       <artifactId>json</artifactId>
       <groupId>org.json</groupId>
-      <version>20231013</version>
+      <version>20240303</version>
     </dependency>
     <dependency>
       <artifactId>junit-jupiter</artifactId>
