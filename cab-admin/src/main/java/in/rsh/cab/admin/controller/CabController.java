@@ -1,7 +1,5 @@
 package in.rsh.cab.admin.controller;
 
-import static in.rsh.cab.commons.model.Cab.*;
-
 import com.google.gson.Gson;
 import in.rsh.cab.admin.model.request.AddCabRequest;
 import in.rsh.cab.admin.model.request.UpdateCabRequest;
@@ -14,6 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import static in.rsh.cab.commons.model.Cab.CabStatus;
 
 @RestController
 public class CabController {

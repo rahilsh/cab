@@ -1,14 +1,15 @@
 package in.rsh.cab.admin.service;
 
-import static in.rsh.cab.commons.model.Cab.*;
-
 import in.rsh.cab.admin.store.CabStore;
 import in.rsh.cab.commons.model.Cab;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+
+import static in.rsh.cab.commons.model.Cab.CabStatus;
 
 @Service
 public class CabService {

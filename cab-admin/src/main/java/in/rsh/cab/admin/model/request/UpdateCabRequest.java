@@ -1,6 +1,6 @@
 package in.rsh.cab.admin.model.request;
 
-import static in.rsh.cab.commons.model.Cab.*;
+import static in.rsh.cab.commons.model.Cab.CabStatus;
 
 public record UpdateCabRequest(String state, Integer cityId) {
 

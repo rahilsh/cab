@@ -1,12 +1,13 @@
 package in.rsh.cab.admin.store;
 
-import static in.rsh.cab.commons.model.Cab.*;
-
 import in.rsh.cab.commons.model.Cab;
+import org.springframework.stereotype.Service;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import org.springframework.stereotype.Service;
+
+import static in.rsh.cab.commons.model.Cab.CabStatus;
 
 @Service
 public class CabStore {

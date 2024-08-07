@@ -2,9 +2,10 @@ package in.rsh.cab.admin.service;
 
 import in.rsh.cab.admin.model.City;
 import in.rsh.cab.admin.store.CityStore;
-import java.util.Collection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Collection;
 
 @Service
 public class CityService {

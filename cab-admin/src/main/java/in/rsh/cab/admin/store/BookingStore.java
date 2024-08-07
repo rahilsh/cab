@@ -2,11 +2,12 @@ package in.rsh.cab.admin.store;
 
 import in.rsh.cab.commons.model.Booking;
 import in.rsh.cab.commons.model.Location;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import org.springframework.stereotype.Service;
 
 @Service
 public class BookingStore {
