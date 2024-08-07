@@ -53,14 +53,14 @@ public class BookingService {
 
   private boolean isDistanceMoreThanThreshold(Location currentLocation, Location location) {
     return (Math.sqrt(
-            Math.pow(currentLocation.getLatitude() - location.getLatitude(), 2)
-                + Math.pow(currentLocation.getLongitude() - location.getLongitude(), 2)))
+            Math.pow(currentLocation.latitude() - location.latitude(), 2)
+                + Math.pow(currentLocation.longitude() - location.longitude(), 2)))
         > MAX_DISTANCE_DRIVER_CAN_TRAVEL;
   }
 
   private int getNearestCab(Location location, Location location1) {
-    return ((location.getLatitude() + location.getLongitude())
-        - (location1.getLatitude() + location1.getLongitude()));
+    return ((location.latitude() + location.longitude())
+        - (location1.latitude() + location1.longitude()));
   }
 
   public List<Booking> getBookingsForRider(Rider rider) {

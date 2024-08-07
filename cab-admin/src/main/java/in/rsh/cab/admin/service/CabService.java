@@ -52,7 +52,7 @@ public class CabService {
       throw new RuntimeException("No cabs Available");
     }
     idleCabs.sort((a, b) -> (int) (a.getIdleFrom() - b.getIdleFrom()));
-    return idleCabs.get(0);
+    return idleCabs.getFirst();
   }
 
   public void update(Integer cabId, Integer cityId, CabStatus state) {
