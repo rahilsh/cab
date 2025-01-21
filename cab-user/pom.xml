@@ -19,13 +19,13 @@
     <dependency>
       <artifactId>json</artifactId>
       <groupId>org.json</groupId>
-      <version>20240303</version>
+      <version>20250107</version>
     </dependency>
     <dependency>
       <artifactId>junit-jupiter</artifactId>
       <groupId>org.junit.jupiter</groupId>
       <scope>test</scope>
-      <version>5.11.3</version>
+      <version>5.11.4</version>
     </dependency>
   </dependencies>
   <groupId>in.r.cab.user</groupId>
