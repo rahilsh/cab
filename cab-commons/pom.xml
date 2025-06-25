@@ -43,7 +43,7 @@
             <artifactId>junit-jupiter</artifactId>
             <groupId>org.junit.jupiter</groupId>
             <scope>test</scope>
-            <version>5.12.2</version>
+            <version>5.13.2</version>
         </dependency>
     </dependencies>
     <build>
