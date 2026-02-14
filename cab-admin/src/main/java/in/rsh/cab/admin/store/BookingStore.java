@@ -34,4 +34,11 @@ public class BookingStore {
   public Collection<Booking> bookings() {
     return bookings.values();
   }
+
+  public Booking getBookingByCabId(Integer cabId) {
+    return bookings.values().stream()
+        .filter(booking -> booking.getCabId().equals(String.valueOf(cabId)))
+        .findFirst()
+        .orElse(null);
+  }
 }

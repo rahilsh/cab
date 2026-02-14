@@ -46,15 +46,10 @@ public class BookingService {
   }
 
   private Booking createBooking(Integer employeeId, Integer fromCity, Integer toCity) {
-    // checkIfEmployeeExists()
-    // checkIfEmployeeIsAlreadyOnARide()
     validateCities(fromCity, toCity);
     Cab cab = cabService.reserveMostSuitableCab(fromCity, toCity);
-    Booking booking =
-        bookingStore.addBooking(Integer.valueOf(cab.getCabId()), employeeId, fromCity, toCity);
-    cabService.update(
-        Integer.valueOf(cab.getCabId()), Cab.CabStatus.UNAVAILABLE, System.currentTimeMillis());
-    return booking;
+    bookingStore.addBooking(Integer.valueOf(cab.getCabId()), employeeId, fromCity, toCity);
+    return bookingStore.getBookingByCabId(Integer.valueOf(cab.getCabId()));
   }
 
   private void validateCities(Integer fromCity, Integer toCity) {

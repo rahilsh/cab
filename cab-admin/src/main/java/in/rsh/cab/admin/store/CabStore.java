@@ -1,6 +1,8 @@
 package in.rsh.cab.admin.store;
 
 import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.commons.state.CabState;
+import in.rsh.cab.commons.state.CabStateFactory;
 import org.springframework.stereotype.Service;
 
 import in.rsh.cab.admin.exception.CabNotAvailableException;
@@ -52,7 +54,8 @@ public class CabStore {
       throw new CabNotAvailableException("No cabs available");
     }
     Cab cab = idleCabs.get(0);
-    cab.setStatus(CabStatus.UNAVAILABLE);
+    CabState state = CabStateFactory.getState(cab.getStatus());
+    state.makeUnavailable(cab);
     if (toCity != null) {
       cab.setCityId(toCity);
     }
@@ -68,7 +71,15 @@ public class CabStore {
       cab.setCityId(cityId);
     }
     if (state != null) {
-      cab.setStatus(state);
+      CabState cabState = CabStateFactory.getState(cab.getStatus());
+      CabState newState = CabStateFactory.getState(state);
+      if (state == CabStatus.AVAILABLE) {
+        newState.makeAvailable(cab);
+      } else if (state == CabStatus.UNAVAILABLE) {
+        newState.makeUnavailable(cab);
+      } else if (state == CabStatus.ON_RIDE) {
+        newState.startRide(cab);
+      }
     }
     if (idleFrom != null) {
       cab.setIdleFrom(idleFrom);
