@@ -6,17 +6,18 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class BookingStore {
 
-  private static final Map<Integer, Booking> bookings = new HashMap<>();
-  private static int globalId = 0;
+  private final Map<Integer, Booking> bookings = new ConcurrentHashMap<>();
+  private final AtomicInteger globalId = new AtomicInteger(0);
 
   public Booking addBooking(Integer cabId, Integer employeeId, Integer fromCity, Integer toCity) {
-    int bookingId = ++globalId;
+    int bookingId = globalId.incrementAndGet();
     Booking booking =
         Booking.builder()
             .bookingId(String.valueOf(bookingId))

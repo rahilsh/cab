@@ -30,7 +30,11 @@ public class CabService {
   }
 
   public boolean updateCabLocation(String cabId, Location location) {
-    Cab updatedCab = store.get(cabId).toBuilder().location(location).build();
+    Cab existingCab = store.get(cabId);
+    if (existingCab == null) {
+      return false;
+    }
+    Cab updatedCab = existingCab.toBuilder().location(location).build();
     updateCab(updatedCab);
     return true;
   }
@@ -40,7 +44,11 @@ public class CabService {
   }
 
   public boolean updateCabStatus(String cabId, CabStatus cabStatus) {
-    Cab updatedCab = store.get(cabId).toBuilder().status(cabStatus).build();
+    Cab existingCab = store.get(cabId);
+    if (existingCab == null) {
+      return false;
+    }
+    Cab updatedCab = existingCab.toBuilder().status(cabStatus).build();
     updateCab(updatedCab);
     return true;
   }

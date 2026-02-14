@@ -1,11 +1,13 @@
 package in.rsh.cab.admin.service;
 
+import in.rsh.cab.admin.exception.CabNotAvailableException;
 import in.rsh.cab.admin.store.CabStore;
 import in.rsh.cab.commons.model.Cab;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,10 +52,16 @@ public class CabService {
   public Cab getMostSuitableCab(Integer fromCity) {
     List<Cab> idleCabs = getIdleCabsInCity(fromCity);
     if (idleCabs == null || idleCabs.isEmpty()) {
-      throw new RuntimeException("No cabs Available");
+      throw new CabNotAvailableException("No cabs available");
     }
-    idleCabs.sort((a, b) -> (int) (a.getIdleFrom() - b.getIdleFrom()));
-    return idleCabs.getFirst();
+    idleCabs.sort(
+        Comparator.comparingLong(
+            cab -> cab.getIdleFrom() == null ? Long.MAX_VALUE : cab.getIdleFrom()));
+    return idleCabs.get(0);
+  }
+
+  public Cab reserveMostSuitableCab(Integer fromCity, Integer toCity) {
+    return cabStore.reserveMostSuitableCab(fromCity, toCity);
   }
 
   public void update(Integer cabId, Integer cityId, CabStatus state) {

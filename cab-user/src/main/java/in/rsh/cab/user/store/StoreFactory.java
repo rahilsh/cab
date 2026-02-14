@@ -5,13 +5,12 @@ import in.rsh.cab.commons.model.Cab;
 import in.rsh.cab.commons.model.Driver;
 import in.rsh.cab.user.model.Rider;
 
-import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class StoreFactory {
-  private static StoreFactory storeFactory = null;
-  Map<Type, GenericStore> storeMapping = new HashMap<>();
+  private static final StoreFactory INSTANCE = new StoreFactory();
+  private final Map<Class<?>, GenericStore<?>> storeMapping = new ConcurrentHashMap<>();
 
   private StoreFactory() {
     storeMapping.put(Rider.class, new GenericStore<Rider>());
@@ -21,8 +20,7 @@ public class StoreFactory {
   }
 
   public static StoreFactory getInstance() {
-    if (storeFactory == null) storeFactory = new StoreFactory();
-    return storeFactory;
+    return INSTANCE;
   }
 
   public <T> GenericStore<T> getStore(Class<T> t) {

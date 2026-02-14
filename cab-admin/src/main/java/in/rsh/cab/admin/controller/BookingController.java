@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,10 +38,13 @@ public class BookingController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public String bookingCab(@RequestBody BookCabRequest request) {
+  public String bookingCab(
+      @RequestBody BookCabRequest request,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
     request.validate();
     return gson.toJson(
-        bookingService.bookCab(request.employeeId(), request.fromCity(), request.toCity()));
+        bookingService.bookCab(
+            request.employeeId(), request.fromCity(), request.toCity(), idempotencyKey));
   }
 
   @GetMapping(

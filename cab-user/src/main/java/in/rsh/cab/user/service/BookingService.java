@@ -19,6 +19,7 @@ public class BookingService {
   public static final double MAX_DISTANCE_DRIVER_CAN_TRAVEL = 10.0;
   private final GenericStore<Booking> bookingStore;
   private final GenericStore<Cab> cabStore;
+  private final Object bookingLock = new Object();
 
   public BookingService() {
     bookingStore = StoreFactory.getInstance().getStore(Booking.class);
@@ -26,30 +27,32 @@ public class BookingService {
   }
 
   public Booking bookCab(Rider rider) {
-    Optional<Cab> cabOptional =
-        cabStore.getAll().stream()
-            .filter(cab -> cab.getStatus().equals(Cab.CabStatus.AVAILABLE))
-            .min((c1, c2) -> getNearestCab(c1.getLocation(), c2.getLocation()));
-    if (cabOptional.isPresent()) {
-      if (isDistanceMoreThanThreshold(
-          rider.getCurrentLocation(), cabOptional.get().getLocation())) {
-        throw new CabNotAvailableException();
-      }
-      Cab cab = cabOptional.get().toBuilder().status(Cab.CabStatus.ON_RIDE).build();
-      cabStore.put(cab.getCabId(), cab);
+    synchronized (bookingLock) {
+      Optional<Cab> cabOptional =
+          cabStore.getAll().stream()
+              .filter(cab -> cab.getStatus().equals(Cab.CabStatus.AVAILABLE))
+              .min((c1, c2) -> getNearestCab(c1.getLocation(), c2.getLocation()));
+      if (cabOptional.isPresent()) {
+        if (isDistanceMoreThanThreshold(
+            rider.getCurrentLocation(), cabOptional.get().getLocation())) {
+          throw new CabNotAvailableException();
+        }
+        Cab cab = cabOptional.get().toBuilder().status(Cab.CabStatus.ON_RIDE).build();
+        cabStore.put(cab.getCabId(), cab);
 
-      Booking booking =
-          Booking.builder()
-              .bookingId(IDUtil.generateID())
-              .cabId(cab.getCabId())
-              .riderId(rider.getPersonId())
-              .startTime(LocalDateTime.now())
-              .status(Booking.BookingStatus.IN_PROGRESS)
-              .build();
-      bookingStore.put(booking.getBookingId(), booking);
-      return booking;
+        Booking booking =
+            Booking.builder()
+                .bookingId(IDUtil.generateID())
+                .cabId(cab.getCabId())
+                .riderId(rider.getPersonId())
+                .startTime(LocalDateTime.now())
+                .status(Booking.BookingStatus.IN_PROGRESS)
+                .build();
+        bookingStore.put(booking.getBookingId(), booking);
+        return booking;
+      }
+      throw new CabNotAvailableException();
     }
-    throw new CabNotAvailableException();
   }
 
   private boolean isDistanceMoreThanThreshold(Location currentLocation, Location location) {

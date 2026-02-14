@@ -4,17 +4,18 @@ import in.rsh.cab.admin.model.City;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class CityStore {
 
-  private static final Map<Integer, City> cities = new HashMap<>();
-  private static int globalId = 0;
+  private final Map<Integer, City> cities = new ConcurrentHashMap<>();
+  private final AtomicInteger globalId = new AtomicInteger(0);
 
   public void add(String name) {
-    Integer cityId = ++globalId;
+    Integer cityId = globalId.incrementAndGet();
     // throwErrorIfCityExistsWithSameName
     cities.put(cityId, new City(cityId, name));
   }

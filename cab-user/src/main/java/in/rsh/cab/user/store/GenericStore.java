@@ -1,19 +1,19 @@
 package in.rsh.cab.user.store;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GenericStore<T> {
-  private final Map<Object, T> store = new HashMap<>();
+  private final Map<Object, T> store = new ConcurrentHashMap<>();
 
   public T get(Object id) {
     return store.get(id);
   }
 
   public List<T> getAll() {
-    return store.values().parallelStream().collect(Collectors.toList());
+    return new ArrayList<>(store.values());
   }
 
   public void update(Object id, T object) {

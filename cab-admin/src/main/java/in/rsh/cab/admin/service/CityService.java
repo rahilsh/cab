@@ -1,5 +1,6 @@
 package in.rsh.cab.admin.service;
 
+import in.rsh.cab.admin.exception.NotFoundException;
 import in.rsh.cab.admin.model.City;
 import in.rsh.cab.admin.store.CityStore;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ public class CityService {
 
   public void validateCityOrThrow(Integer cityId) {
     if (cityStore.getCity(cityId) == null) {
-      throw new IllegalArgumentException("City does not exists");
+      throw new NotFoundException("City does not exist");
     }
   }
 }
