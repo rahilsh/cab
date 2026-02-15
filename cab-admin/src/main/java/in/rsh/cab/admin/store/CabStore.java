@@ -72,13 +72,12 @@ public class CabStore {
     }
     if (state != null) {
       CabState cabState = CabStateFactory.getState(cab.getStatus());
-      CabState newState = CabStateFactory.getState(state);
       if (state == CabStatus.AVAILABLE) {
-        newState.makeAvailable(cab);
+        cabState.makeAvailable(cab);
       } else if (state == CabStatus.UNAVAILABLE) {
-        newState.makeUnavailable(cab);
+        cabState.makeUnavailable(cab);
       } else if (state == CabStatus.ON_RIDE) {
-        newState.startRide(cab);
+        cabState.startRide(cab);
       }
     }
     if (idleFrom != null) {
