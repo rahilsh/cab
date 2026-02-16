@@ -3,6 +3,10 @@ package in.rsh.cab.admin.store;
 import in.rsh.cab.admin.exception.CabNotAvailableException;
 import in.rsh.cab.admin.exception.NotFoundException;
 import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.commons.model.Location;
+import in.rsh.cab.commons.strategy.CabSelectionStrategy;
+import in.rsh.cab.commons.strategy.DistanceBasedSelectionStrategy;
+import in.rsh.cab.commons.strategy.IdleTimeSelectionStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -148,6 +152,37 @@ class CabStoreTest {
       
       Cab cab = cabStore.cabs().iterator().next();
       assertEquals(idleFrom, cab.getIdleFrom());
+    }
+  }
+
+  @Nested
+  class SelectionStrategyTests {
+
+    @Test
+    void getSelectionStrategy_shouldReturnDefaultIdleTimeStrategy() {
+      CabSelectionStrategy strategy = cabStore.getSelectionStrategy();
+      assertInstanceOf(IdleTimeSelectionStrategy.class, strategy);
+    }
+
+    @Test
+    void setSelectionStrategy_shouldChangeStrategy() {
+      cabStore.setSelectionStrategy(new DistanceBasedSelectionStrategy());
+      
+      CabSelectionStrategy strategy = cabStore.getSelectionStrategy();
+      assertInstanceOf(DistanceBasedSelectionStrategy.class, strategy);
+    }
+
+    @Test
+    void reserveMostSuitableCab_withPickupLocation_shouldUseStrategy() {
+      cabStore.setSelectionStrategy(new DistanceBasedSelectionStrategy());
+      
+      cabStore.add(1, 1, "Toyota", Cab.CabStatus.AVAILABLE);
+      cabStore.add(2, 1, "Honda", Cab.CabStatus.AVAILABLE);
+      
+      Location pickupLocation = new Location(10, 10);
+      Cab reserved = cabStore.reserveMostSuitableCab(1, 2, pickupLocation);
+      
+      assertNotNull(reserved);
     }
   }
 }

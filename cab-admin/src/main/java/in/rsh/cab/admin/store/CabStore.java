@@ -1,15 +1,17 @@
 package in.rsh.cab.admin.store;
 
 import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.commons.model.Location;
 import in.rsh.cab.commons.state.CabState;
 import in.rsh.cab.commons.state.CabStateFactory;
+import in.rsh.cab.commons.strategy.CabSelectionStrategy;
+import in.rsh.cab.commons.strategy.IdleTimeSelectionStrategy;
 import org.springframework.stereotype.Service;
 
 import in.rsh.cab.admin.exception.CabNotAvailableException;
 import in.rsh.cab.admin.exception.NotFoundException;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,6 +24,15 @@ public class CabStore {
 
   private final Map<Integer, Cab> cabs = new ConcurrentHashMap<>();
   private final AtomicInteger globalId = new AtomicInteger(0);
+  private CabSelectionStrategy selectionStrategy = new IdleTimeSelectionStrategy();
+
+  public void setSelectionStrategy(CabSelectionStrategy selectionStrategy) {
+    this.selectionStrategy = selectionStrategy;
+  }
+
+  public CabSelectionStrategy getSelectionStrategy() {
+    return selectionStrategy;
+  }
 
   public void add(Integer driverId, Integer cityId, String model, CabStatus state) {
     Integer cabId = globalId.incrementAndGet();
@@ -42,13 +53,16 @@ public class CabStore {
   }
 
   public synchronized Cab reserveMostSuitableCab(Integer fromCity, Integer toCity) {
+    return reserveMostSuitableCab(fromCity, toCity, null);
+  }
+
+  public synchronized Cab reserveMostSuitableCab(
+      Integer fromCity, Integer toCity, Location pickupLocation) {
     List<Cab> idleCabs =
         cabs.values().stream()
             .filter(cab -> cab.getCityId().equals(fromCity))
             .filter(cab -> cab.getStatus().equals(CabStatus.AVAILABLE))
-            .sorted(
-                Comparator.comparingLong(
-                    cab -> cab.getIdleFrom() == null ? Long.MAX_VALUE : cab.getIdleFrom()))
+            .sorted(selectionStrategy.getComparator(pickupLocation))
             .toList();
     if (idleCabs.isEmpty()) {
       throw new CabNotAvailableException("No cabs available");
