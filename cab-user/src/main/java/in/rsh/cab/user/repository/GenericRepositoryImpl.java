@@ -1,11 +1,11 @@
-package in.rsh.cab.user.store;
+package in.rsh.cab.user.repository;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GenericStore<T> {
+public class GenericRepositoryImpl<T> {
   private final Map<Object, T> store = new ConcurrentHashMap<>();
 
   public T get(Object id) {

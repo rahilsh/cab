@@ -1,16 +1,16 @@
 package in.rsh.cab.user.service;
 
 import in.rsh.cab.user.model.Rider;
-import in.rsh.cab.user.store.GenericStore;
-import in.rsh.cab.user.store.StoreFactory;
+import in.rsh.cab.user.repository.GenericRepositoryImpl;
+import in.rsh.cab.user.repository.RepositoryFactory;
 import in.rsh.cab.user.util.IDUtil;
 
 public class RiderService {
 
-  private final GenericStore<Rider> store;
+  private final GenericRepositoryImpl<Rider> store;
 
   public RiderService() {
-    store = StoreFactory.getInstance().getStore(Rider.class);
+    store = RepositoryFactory.getInstance().getRepository(Rider.class);
   }
 
   public Rider registerRider(Rider rider) {

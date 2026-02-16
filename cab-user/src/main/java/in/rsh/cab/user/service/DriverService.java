@@ -1,16 +1,16 @@
 package in.rsh.cab.user.service;
 
 import in.rsh.cab.commons.model.Driver;
-import in.rsh.cab.user.store.GenericStore;
-import in.rsh.cab.user.store.StoreFactory;
+import in.rsh.cab.user.repository.GenericRepositoryImpl;
+import in.rsh.cab.user.repository.RepositoryFactory;
 import in.rsh.cab.user.util.IDUtil;
 
 public class DriverService {
 
-  private final GenericStore<Driver> store;
+  private final GenericRepositoryImpl<Driver> store;
 
   public DriverService() {
-    store = StoreFactory.getInstance().getStore(Driver.class);
+    store = RepositoryFactory.getInstance().getRepository(Driver.class);
   }
 
   public Driver registerDriver(Driver driver) {

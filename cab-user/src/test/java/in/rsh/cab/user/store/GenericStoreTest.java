@@ -1,6 +1,7 @@
 package in.rsh.cab.user.store;
 
 import in.rsh.cab.commons.model.Cab;
+import in.rsh.cab.user.repository.GenericRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -11,11 +12,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GenericStoreTest {
 
-  private GenericStore<Cab> store;
+  private GenericRepositoryImpl<Cab> store;
 
   @BeforeEach
   void setUp() {
-    store = new GenericStore<>();
+    store = new GenericRepositoryImpl<>();
   }
 
   @Nested

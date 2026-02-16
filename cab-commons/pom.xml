@@ -45,6 +45,15 @@
             <scope>test</scope>
             <version>6.0.2</version>
         </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -84,7 +93,9 @@
                                 <exclude>**/model/*Status*</exclude>
                                 <exclude>**/model/Driver*</exclude>
                                 <exclude>**/model/DrivingLicense*</exclude>
+                                <exclude>**/model/City*</exclude>
                                 <exclude>**/adapter/*</exclude>
+                                <exclude>**/entity/*</exclude>
                             </excludes>
                             <rules>
                                 <rule>

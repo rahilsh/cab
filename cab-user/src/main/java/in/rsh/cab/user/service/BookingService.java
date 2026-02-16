@@ -5,8 +5,8 @@ import in.rsh.cab.commons.model.Cab;
 import in.rsh.cab.commons.model.Location;
 import in.rsh.cab.user.exception.CabNotAvailableException;
 import in.rsh.cab.user.model.Rider;
-import in.rsh.cab.user.store.GenericStore;
-import in.rsh.cab.user.store.StoreFactory;
+import in.rsh.cab.user.repository.GenericRepositoryImpl;
+import in.rsh.cab.user.repository.RepositoryFactory;
 import in.rsh.cab.user.util.IDUtil;
 
 import java.time.LocalDateTime;
@@ -17,13 +17,13 @@ import java.util.stream.Collectors;
 public class BookingService {
 
   public static final double MAX_DISTANCE_DRIVER_CAN_TRAVEL = 10.0;
-  private final GenericStore<Booking> bookingStore;
-  private final GenericStore<Cab> cabStore;
+  private final GenericRepositoryImpl<Booking> bookingStore;
+  private final GenericRepositoryImpl<Cab> cabStore;
   private final Object bookingLock = new Object();
 
   public BookingService() {
-    bookingStore = StoreFactory.getInstance().getStore(Booking.class);
-    cabStore = StoreFactory.getInstance().getStore(Cab.class);
+    bookingStore = RepositoryFactory.getInstance().getRepository(Booking.class);
+    cabStore = RepositoryFactory.getInstance().getRepository(Cab.class);
   }
 
   public Booking bookCab(Rider rider) {

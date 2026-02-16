@@ -3,18 +3,18 @@ package in.rsh.cab.user.service;
 import in.rsh.cab.commons.model.Cab;
 import in.rsh.cab.commons.model.Cab.CabStatus;
 import in.rsh.cab.commons.model.Location;
-import in.rsh.cab.user.store.GenericStore;
-import in.rsh.cab.user.store.StoreFactory;
+import in.rsh.cab.user.repository.GenericRepositoryImpl;
+import in.rsh.cab.user.repository.RepositoryFactory;
 import in.rsh.cab.user.util.IDUtil;
 
 import java.util.Optional;
 
 public class CabService {
 
-  private final GenericStore<Cab> store;
+  private final GenericRepositoryImpl<Cab> store;
 
   public CabService() {
-    store = StoreFactory.getInstance().getStore(Cab.class);
+    store = RepositoryFactory.getInstance().getRepository(Cab.class);
   }
 
   public Cab registerCab(Cab cab) {

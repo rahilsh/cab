@@ -1,8 +1,8 @@
 package in.rsh.cab.admin.service;
 
 import in.rsh.cab.admin.exception.NotFoundException;
-import in.rsh.cab.admin.model.City;
-import in.rsh.cab.admin.store.CityStore;
+import in.rsh.cab.commons.entity.CityEntity;
+import in.rsh.cab.commons.repository.CityJpaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ import static org.mockito.Mockito.*;
 class CityServiceTest {
 
   @Mock
-  private CityStore cityStore;
+  private CityJpaRepository cityJpaRepository;
 
   @InjectMocks
   private CityService cityService;
@@ -35,7 +35,7 @@ class CityServiceTest {
     void addCity_shouldCallStoreAdd() {
       cityService.addCity("Bangalore");
       
-      verify(cityStore).add("Bangalore");
+      verify(cityJpaRepository).save(any(CityEntity.class));
     }
   }
 
@@ -44,12 +44,12 @@ class CityServiceTest {
 
     @Test
     void getAllCities_shouldReturnAllCities() {
-      when(cityStore.cities()).thenReturn(List.of());
+      when(cityJpaRepository.findAll()).thenReturn(List.of());
       
       var cities = cityService.getAllCities();
       
       assertNotNull(cities);
-      verify(cityStore).cities();
+      verify(cityJpaRepository).findAll();
     }
   }
 
@@ -58,14 +58,14 @@ class CityServiceTest {
 
     @Test
     void validateCityOrThrow_withValidCity_shouldNotThrow() {
-      when(cityStore.getCity(1)).thenReturn(new City(1, "Bangalore"));
+      when(cityJpaRepository.findById(1)).thenReturn(java.util.Optional.of(new CityEntity("Bangalore")));
       
       assertDoesNotThrow(() -> cityService.validateCityOrThrow(1));
     }
 
     @Test
     void validateCityOrThrow_withInvalidCity_shouldThrowNotFoundException() {
-      when(cityStore.getCity(999)).thenReturn(null);
+      when(cityJpaRepository.findById(999)).thenReturn(java.util.Optional.empty());
       
       NotFoundException exception = assertThrows(
           NotFoundException.class,

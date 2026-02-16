@@ -1,8 +1,9 @@
 package in.rsh.cab.admin.service;
 
 import in.rsh.cab.admin.exception.NotFoundException;
-import in.rsh.cab.admin.model.City;
-import in.rsh.cab.admin.store.CityStore;
+import in.rsh.cab.commons.entity.CityEntity;
+import in.rsh.cab.commons.model.City;
+import in.rsh.cab.commons.repository.CityJpaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,24 +12,29 @@ import java.util.Collection;
 @Service
 public class CityService {
 
-  private final CityStore cityStore;
+  private final CityJpaRepository cityJpaRepository;
 
   @Autowired
-  public CityService(CityStore cityStore) {
-    this.cityStore = cityStore;
+  public CityService(CityJpaRepository cityJpaRepository) {
+    this.cityJpaRepository = cityJpaRepository;
   }
 
   public void addCity(String name) {
-    cityStore.add(name);
+    cityJpaRepository.save(new CityEntity(name));
   }
 
   public Collection<City> getAllCities() {
-    return cityStore.cities();
+    return cityJpaRepository.findAll().stream().map(this::toModel).toList();
   }
 
   public void validateCityOrThrow(Integer cityId) {
-    if (cityStore.getCity(cityId) == null) {
+    if (cityJpaRepository.findById(cityId).isEmpty()) {
       throw new NotFoundException("City does not exist");
     }
+  }
+
+  private City toModel(CityEntity entity) {
+    if (entity == null) return null;
+    return new City(entity.getId(), entity.getName());
   }
 }
