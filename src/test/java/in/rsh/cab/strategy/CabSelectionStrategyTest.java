@@ -1,27 +1,48 @@
 package in.rsh.cab.strategy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
 
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
+import in.rsh.cab.service.RedisGeoService;
 import java.util.Comparator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 class CabSelectionStrategyTest {
+
+  @Mock
+  private RedisGeoService redisGeoService;
+
+  @BeforeEach
+  void setUp() {
+    MockitoAnnotations.openMocks(this);
+  }
 
   @Nested
   class DistanceBasedSelectionStrategyTests {
 
     @Test
     void getName_shouldReturnDistance() {
-      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy();
+      when(redisGeoService.getDistanceInMeters(anyInt(), any(Location.class)))
+          .thenReturn(1000L);
+      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy(redisGeoService);
       assertEquals("DISTANCE", strategy.getName());
     }
 
     @Test
     void getComparator_shouldSortByDistance() {
-      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy();
+      when(redisGeoService.getDistanceInMeters(1, new Location(10, 10))).thenReturn(111000L);
+      when(redisGeoService.getDistanceInMeters(2, new Location(10, 10))).thenReturn(555000L);
+      when(redisGeoService.getDistanceInMeters(3, new Location(10, 10))).thenReturn(222000L);
+
+      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy(redisGeoService);
       Location pickup = new Location(10, 10);
 
       Cab cab1 = Cab.builder().cabId(1).location(new Location(10, 11)).build();
@@ -37,7 +58,7 @@ class CabSelectionStrategyTest {
 
     @Test
     void getComparator_withNullCabLocation_shouldReturnMaxValue() {
-      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy();
+      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy(redisGeoService);
       Location pickup = new Location(10, 10);
 
       Cab cab1 = Cab.builder().cabId(1).location(null).build();
@@ -50,7 +71,7 @@ class CabSelectionStrategyTest {
 
     @Test
     void getComparator_withNullPickupLocation_shouldReturnMaxValue() {
-      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy();
+      DistanceBasedSelectionStrategy strategy = new DistanceBasedSelectionStrategy(redisGeoService);
 
       Cab cab1 = Cab.builder().cabId(1).location(null).build();
       Cab cab2 = Cab.builder().cabId(2).location(null).build();

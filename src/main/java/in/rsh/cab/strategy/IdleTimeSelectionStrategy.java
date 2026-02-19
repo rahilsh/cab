@@ -3,7 +3,11 @@ package in.rsh.cab.strategy;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
 import java.util.Comparator;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
+@Component
+@Qualifier("idleTimeSelectionStrategy")
 public class IdleTimeSelectionStrategy implements CabSelectionStrategy {
 
   public static final String NAME = "IDLE_TIME";

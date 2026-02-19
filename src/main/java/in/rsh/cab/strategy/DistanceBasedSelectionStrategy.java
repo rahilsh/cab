@@ -2,11 +2,24 @@ package in.rsh.cab.strategy;
 
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
+import in.rsh.cab.service.RedisGeoService;
 import java.util.Comparator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
+@Component
+@Qualifier("distanceBasedSelectionStrategy")
 public class DistanceBasedSelectionStrategy implements CabSelectionStrategy {
 
   public static final String NAME = "DISTANCE";
+
+  private final RedisGeoService redisGeoService;
+
+  @Autowired
+  public DistanceBasedSelectionStrategy(RedisGeoService redisGeoService) {
+    this.redisGeoService = redisGeoService;
+  }
 
   @Override
   public Comparator<Cab> getComparator(Location pickupLocation) {
@@ -16,7 +29,7 @@ public class DistanceBasedSelectionStrategy implements CabSelectionStrategy {
           if (cabLocation == null || pickupLocation == null) {
             return Long.MAX_VALUE;
           }
-          return calculateDistance(cabLocation, pickupLocation);
+          return calculateDistanceInMeters(cab.getCabId(), pickupLocation);
         });
   }
 
@@ -25,9 +38,7 @@ public class DistanceBasedSelectionStrategy implements CabSelectionStrategy {
     return NAME;
   }
 
-  private long calculateDistance(Location from, Location to) {
-    int latDiff = from.latitude() - to.latitude();
-    int lonDiff = from.longitude() - to.longitude();
-    return (long) Math.sqrt((long) latDiff * latDiff + (long) lonDiff * lonDiff);
+  private long calculateDistanceInMeters(Integer cabId, Location to) {
+    return redisGeoService.getDistanceInMeters(cabId, to);
   }
 }

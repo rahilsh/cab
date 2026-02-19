@@ -31,6 +31,9 @@ class CabServiceTest {
   @Mock
   private CityService cityService;
 
+  @Mock
+  private RedisGeoService redisGeoService;
+
   @InjectMocks
   private CabService cabService;
 

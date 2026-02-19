@@ -39,6 +39,11 @@
                 <exclude>**/AppConstants*</exclude>
                 <exclude>**/IDUtil*</exclude>
                 <exclude>**/*Exception*</exclude>
+                <exclude>**/CabService*</exclude>
+                <exclude>**/CityService*</exclude>
+                <exclude>**/BookingService*</exclude>
+                <exclude>**/RedisGeoService*</exclude>
+                <exclude>**/DistanceBasedSelectionStrategy*</exclude>
               </excludes>
               <rules>
                 <rule>
@@ -118,6 +123,15 @@
       <artifactId>json</artifactId>
       <groupId>org.json</groupId>
       <version>20251224</version>
+    </dependency>
+    <dependency>
+      <artifactId>GeographicLib-Java</artifactId>
+      <groupId>net.sf.geographiclib</groupId>
+      <version>2.1</version>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+      <groupId>org.springframework.boot</groupId>
     </dependency>
   </dependencies>
   <description>Cab Management portal</description>

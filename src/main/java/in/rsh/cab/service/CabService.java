@@ -11,12 +11,14 @@ import in.rsh.cab.repository.CabJpaRepository;
 import in.rsh.cab.state.CabState;
 import in.rsh.cab.state.CabStateFactory;
 import in.rsh.cab.strategy.CabSelectionStrategy;
+import in.rsh.cab.strategy.DistanceBasedSelectionStrategy;
 import in.rsh.cab.strategy.IdleTimeSelectionStrategy;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,13 +27,17 @@ public class CabService {
 
   private final CabJpaRepository cabJpaRepository;
   private final CityService cityService;
-  private final AtomicInteger globalId = new AtomicInteger(0);
-  private CabSelectionStrategy selectionStrategy = new IdleTimeSelectionStrategy();
+  private final RedisGeoService redisGeoService;
+  private CabSelectionStrategy selectionStrategy;
 
   @Autowired
-  public CabService(CabJpaRepository cabJpaRepository, CityService cityService) {
+  public CabService(CabJpaRepository cabJpaRepository, CityService cityService, 
+      RedisGeoService redisGeoService,
+      @Qualifier("distanceBasedSelectionStrategy") CabSelectionStrategy selectionStrategy) {
     this.cabJpaRepository = cabJpaRepository;
     this.cityService = cityService;
+    this.redisGeoService = redisGeoService;
+    this.selectionStrategy = selectionStrategy;
   }
 
   public void addCab(Integer driverId, Integer cityId, String model) {
@@ -130,6 +136,7 @@ public class CabService {
     entity.setLocationX(location.latitude());
     entity.setLocationY(location.longitude());
     cabJpaRepository.save(entity);
+    redisGeoService.updateCabLocation(cabId, location);
     return true;
   }
 
