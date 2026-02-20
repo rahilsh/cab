@@ -143,7 +143,7 @@
     <artifactId>spring-boot-starter-parent</artifactId>
     <groupId>org.springframework.boot</groupId>
     <relativePath/>
-    <version>4.0.2</version>
+    <version>4.0.3</version>
   </parent>
 
   <properties>
