@@ -68,7 +68,7 @@ public class BookingService {
         .cabId(cab.getCabId())
         .bookedBy(String.valueOf(employeeId))
         .startLocationX(fromCity)
-        .startLocationY(fromCity)
+        .startLocationY(toCity)
         .endLocationX(toCity)
         .endLocationY(toCity)
         .startTime(LocalDateTime.now())
