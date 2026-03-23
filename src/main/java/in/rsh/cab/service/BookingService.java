@@ -35,10 +35,6 @@ public class BookingService {
     this.idempotencyKeyJpaRepository = idempotencyKeyJpaRepository;
   }
 
-  public Booking bookCab(Integer employeeId, Integer fromCity, Integer toCity) {
-    return createBooking(employeeId, fromCity, toCity);
-  }
-
   @Transactional
   public Booking bookCab(
       Integer employeeId, Integer fromCity, Integer toCity, String idempotencyKey) {

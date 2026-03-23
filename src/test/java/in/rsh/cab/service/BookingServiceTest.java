@@ -51,38 +51,6 @@ class BookingServiceTest {
   class BookCabTests {
 
     @Test
-    void bookCab_shouldCreateBooking() {
-      doNothing().when(cityService).validateCityOrThrow(1);
-      doNothing().when(cityService).validateCityOrThrow(2);
-
-      Cab cab = Cab.builder()
-          .cabId(1)
-          .status(Cab.CabStatus.AVAILABLE)
-          .cityId(1)
-          .build();
-      when(cabService.reserveMostSuitableCab(1, 2)).thenReturn(cab);
-
-      when(bookingJpaRepository.save(any())).thenAnswer(i -> {
-        BookingEntity entity = i.getArgument(0);
-        entity.setBookingId(1);
-        return entity;
-      });
-
-      Booking result = bookingService.bookCab(1, 1, 2);
-
-      assertNotNull(result);
-      verify(bookingJpaRepository).save(any());
-    }
-
-    @Test
-    void bookCab_withSameFromAndToCity_shouldThrowException() {
-      doNothing().when(cityService).validateCityOrThrow(1);
-
-      assertThrows(InvalidRequestException.class,
-          () -> bookingService.bookCab(1, 1, 1));
-    }
-
-    @Test
     void bookCab_withIdempotencyKey_shouldReturnSameBookingForSameKey() {
       doNothing().when(cityService).validateCityOrThrow(1);
       doNothing().when(cityService).validateCityOrThrow(2);
