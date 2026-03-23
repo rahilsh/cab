@@ -149,7 +149,16 @@ public class CabService {
       return false;
     }
     CabEntity entity = optionalEntity.get();
-    entity.setStatus(CabEntity.CabStatus.valueOf(cabStatus.name()));
+    Cab cab = toModel(entity);
+    CabState cabState = CabStateFactory.getState(cab.getStatus());
+    if (cabStatus == Cab.CabStatus.AVAILABLE) {
+      cabState.makeAvailable(cab);
+    } else if (cabStatus == Cab.CabStatus.UNAVAILABLE) {
+      cabState.makeUnavailable(cab);
+    } else if (cabStatus == Cab.CabStatus.ON_RIDE) {
+      cabState.startRide(cab);
+    }
+    entity.setStatus(CabEntity.CabStatus.valueOf(cab.getStatus().name()));
     cabJpaRepository.save(entity);
     return true;
   }

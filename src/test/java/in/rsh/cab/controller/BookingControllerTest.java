@@ -83,7 +83,7 @@ class BookingControllerTest {
         .andExpect(status().isOk())
         .andDo(print());
 
-    return new BookCabRequest(1, 1, 2);
+    return new BookCabRequest("1", 1, 2);
   }
 
   private void onboardCities() throws Exception {

@@ -71,8 +71,8 @@ class BookingServiceTest {
           .thenReturn(Optional.of(new IdempotencyKeyEntity("key1", 1)));
       when(bookingJpaRepository.findById(1)).thenReturn(Optional.of(new BookingEntity()));
 
-      Booking result1 = bookingService.bookCab(1, 1, 2, "key1");
-      Booking result2 = bookingService.bookCab(1, 1, 2, "key1");
+      Booking result1 = bookingService.bookCab("emp1", 1, 2, "key1");
+      Booking result2 = bookingService.bookCab("emp1", 1, 2, "key1");
 
       assertNotNull(result1);
       assertNotNull(result2);
@@ -97,7 +97,7 @@ class BookingServiceTest {
         return entity;
       });
 
-      Booking result = bookingService.bookCab(1, 1, 2, "   ");
+      Booking result = bookingService.bookCab("emp1", 1, 2, "   ");
 
       assertNotNull(result);
       verify(bookingJpaRepository, times(1)).save(any());
@@ -125,7 +125,7 @@ class BookingServiceTest {
           .when(idempotencyKeyJpaRepository).save(any(IdempotencyKeyEntity.class));
 
       assertThrows(RuntimeException.class,
-          () -> bookingService.bookCab(1, 1, 2, "fail-key"));
+          () -> bookingService.bookCab("emp1", 1, 2, "fail-key"));
 
       verify(bookingJpaRepository).deleteById(1);
     }

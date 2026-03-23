@@ -37,7 +37,7 @@ public class BookingService {
 
   @Transactional
   public Booking bookCab(
-      Integer employeeId, Integer fromCity, Integer toCity, String idempotencyKey) {
+      String employeeId, Integer fromCity, Integer toCity, String idempotencyKey) {
     if (idempotencyKey == null || idempotencyKey.isBlank()) {
       return createBooking(employeeId, fromCity, toCity);
     }
@@ -61,12 +61,12 @@ public class BookingService {
     return booking;
   }
 
-  private Booking createBooking(Integer employeeId, Integer fromCity, Integer toCity) {
+  private Booking createBooking(String employeeId, Integer fromCity, Integer toCity) {
     validateCities(fromCity, toCity);
     Cab cab = cabService.reserveMostSuitableCab(fromCity, toCity);
     BookingEntity entity = BookingEntity.builder()
         .cabId(cab.getCabId())
-        .bookedBy(String.valueOf(employeeId))
+        .bookedBy(employeeId)
         .startLocationX(fromCity)
         .startLocationY(toCity)
         .endLocationX(toCity)
