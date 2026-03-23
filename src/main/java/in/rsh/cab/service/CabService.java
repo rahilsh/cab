@@ -2,21 +2,18 @@ package in.rsh.cab.service;
 
 import static in.rsh.cab.model.Cab.CabStatus;
 
+import in.rsh.cab.entity.CabEntity;
 import in.rsh.cab.exception.CabNotAvailableException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
-import in.rsh.cab.entity.CabEntity;
 import in.rsh.cab.repository.CabJpaRepository;
 import in.rsh.cab.state.CabState;
 import in.rsh.cab.state.CabStateFactory;
 import in.rsh.cab.strategy.CabSelectionStrategy;
-import in.rsh.cab.strategy.DistanceBasedSelectionStrategy;
-import in.rsh.cab.strategy.IdleTimeSelectionStrategy;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -62,8 +59,8 @@ public class CabService {
   }
 
   public List<Cab> getIdleCabsInCity(Integer fromCity) {
-    return cabJpaRepository.findByCityId(fromCity).stream()
-        .filter(cab -> cab.getStatus().equals(CabEntity.CabStatus.AVAILABLE))
+    return cabJpaRepository.findByCityIdAndStatus(fromCity, CabEntity.CabStatus.AVAILABLE)
+        .stream()
         .map(this::toModel)
         .toList();
   }
@@ -76,8 +73,7 @@ public class CabService {
   @Transactional
   public Cab reserveMostSuitableCab(
       Integer fromCity, Integer toCity, Location pickupLocation) {
-    List<CabEntity> idleCabs = cabJpaRepository.findByCityId(fromCity).stream()
-        .filter(cab -> cab.getStatus().equals(CabEntity.CabStatus.AVAILABLE))
+    List<CabEntity> idleCabs = cabJpaRepository.findAvailableCabsInCityWithLock(fromCity).stream()
         .sorted((c1, c2) -> {
           Cab cab1 = toModel(c1);
           Cab cab2 = toModel(c2);

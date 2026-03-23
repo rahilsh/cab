@@ -114,7 +114,8 @@ class CabServiceTest {
           .status(CabEntity.CabStatus.AVAILABLE)
           .cityId(1)
           .build();
-      when(cabJpaRepository.findByCityId(1)).thenReturn(List.of(cab));
+      when(cabJpaRepository.findByCityIdAndStatus(1, CabEntity.CabStatus.AVAILABLE))
+          .thenReturn(List.of(cab));
 
       var idleCabs = cabService.getIdleCabsInCity(1);
 
@@ -123,12 +124,8 @@ class CabServiceTest {
 
     @Test
     void getIdleCabsInCity_withNoIdleCabs_shouldReturnEmptyList() {
-      CabEntity cab = CabEntity.builder()
-          .id(1)
-          .status(CabEntity.CabStatus.UNAVAILABLE)
-          .cityId(1)
-          .build();
-      when(cabJpaRepository.findByCityId(1)).thenReturn(List.of(cab));
+      when(cabJpaRepository.findByCityIdAndStatus(1, CabEntity.CabStatus.AVAILABLE))
+          .thenReturn(List.of());
 
       var idleCabs = cabService.getIdleCabsInCity(1);
 
@@ -140,18 +137,27 @@ class CabServiceTest {
   class ReserveMostSuitableCabTests {
 
     @Test
-    void reserveMostSuitableCab_shouldCallStore() {
+    void reserveMostSuitableCab_shouldReserveCab() {
       CabEntity cab = CabEntity.builder()
           .id(1)
           .status(CabEntity.CabStatus.AVAILABLE)
           .cityId(1)
+          .driverId("D1")
           .build();
-      when(cabJpaRepository.findByCityId(1)).thenReturn(List.of(cab));
+      when(cabJpaRepository.findAvailableCabsInCityWithLock(1)).thenReturn(List.of(cab));
 
       var result = cabService.reserveMostSuitableCab(1, 2);
 
       assertNotNull(result);
       verify(cabJpaRepository).save(any(CabEntity.class));
+    }
+
+    @Test
+    void reserveMostSuitableCab_withNoCabs_shouldThrowException() {
+      when(cabJpaRepository.findAvailableCabsInCityWithLock(1)).thenReturn(List.of());
+
+      assertThrows(in.rsh.cab.exception.CabNotAvailableException.class,
+          () -> cabService.reserveMostSuitableCab(1, 2));
     }
   }
 

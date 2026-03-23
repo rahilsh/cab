@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -14,7 +16,10 @@ public interface CabJpaRepository extends JpaRepository<CabEntity, Integer> {
   Optional<CabEntity> findById(int cabId);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
-  List<CabEntity> findByCityId(Integer cityId);
+  @Query("SELECT c FROM CabEntity c WHERE c.cityId = :cityId AND c.status = 'AVAILABLE' ORDER BY c.id")
+  List<CabEntity> findAvailableCabsInCityWithLock(@Param("cityId") Integer cityId);
+
+  List<CabEntity> findByCityIdAndStatus(Integer cityId, CabEntity.CabStatus status);
 
   List<CabEntity> findByStatus(CabEntity.CabStatus status);
 }
