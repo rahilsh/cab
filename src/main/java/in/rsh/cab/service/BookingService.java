@@ -4,16 +4,13 @@ import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.model.Booking;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
-import in.rsh.cab.model.Rider;
 import in.rsh.cab.entity.BookingEntity;
 import in.rsh.cab.entity.IdempotencyKeyEntity;
 import in.rsh.cab.repository.BookingJpaRepository;
 import in.rsh.cab.repository.IdempotencyKeyJpaRepository;
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,13 +92,6 @@ public class BookingService {
 
   public Collection<Booking> getAllBookings() {
     return bookingJpaRepository.findAll().stream().map(this::toModel).toList();
-  }
-
-  public List<Booking> getBookingsForRider(Rider rider) {
-    return bookingJpaRepository.findAll().stream()
-        .filter(booking -> booking.getRiderId().equals(rider.getPersonId()))
-        .map(this::toModel)
-        .collect(Collectors.toList());
   }
 
   private Booking toModel(BookingEntity entity) {

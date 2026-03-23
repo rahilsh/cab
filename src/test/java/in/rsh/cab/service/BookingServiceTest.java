@@ -1,6 +1,5 @@
 package in.rsh.cab.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
@@ -15,7 +14,6 @@ import in.rsh.cab.entity.IdempotencyKeyEntity;
 import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.model.Booking;
 import in.rsh.cab.model.Cab;
-import in.rsh.cab.model.Rider;
 import in.rsh.cab.repository.BookingJpaRepository;
 import in.rsh.cab.repository.IdempotencyKeyJpaRepository;
 import java.util.List;
@@ -175,52 +173,6 @@ class BookingServiceTest {
       var bookings = bookingService.getAllBookings();
 
       assertNotNull(bookings);
-      verify(bookingJpaRepository).findAll();
-    }
-  }
-
-  @Nested
-  class GetBookingsForRiderTests {
-
-    @Test
-    void getBookingsForRider_shouldReturnBookingsForRider() {
-      String riderId = "rider-123";
-      Rider rider = Rider.builder().personId(riderId).build();
-
-      BookingEntity booking1 = new BookingEntity();
-      booking1.setBookingId(1);
-      booking1.setRiderId(riderId);
-      booking1.setCabId(10);
-
-      BookingEntity booking2 = new BookingEntity();
-      booking2.setBookingId(2);
-      booking2.setRiderId(riderId);
-      booking2.setCabId(20);
-
-      BookingEntity otherBooking = new BookingEntity();
-      otherBooking.setBookingId(3);
-      otherBooking.setRiderId("other-rider");
-      otherBooking.setCabId(30);
-
-      when(bookingJpaRepository.findAll()).thenReturn(List.of(booking1, booking2, otherBooking));
-
-      List<Booking> result = bookingService.getBookingsForRider(rider);
-
-      assertEquals(2, result.size());
-      assertEquals(1, result.get(0).getBookingId());
-      assertEquals(2, result.get(1).getBookingId());
-      verify(bookingJpaRepository).findAll();
-    }
-
-    @Test
-    void getBookingsForRider_shouldReturnEmptyListWhenNoBookings() {
-      Rider rider = Rider.builder().personId("rider-123").build();
-
-      when(bookingJpaRepository.findAll()).thenReturn(List.of());
-
-      List<Booking> result = bookingService.getBookingsForRider(rider);
-
-      assertEquals(0, result.size());
       verify(bookingJpaRepository).findAll();
     }
   }
