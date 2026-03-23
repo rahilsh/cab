@@ -24,6 +24,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.mockito.MockitoAnnotations;
 
 class BookingServiceTest {
 
@@ -136,12 +141,14 @@ class BookingServiceTest {
 
     @Test
     void getAllBookings_shouldReturnAllBookings() {
-      when(bookingJpaRepository.findAll()).thenReturn(List.of());
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<BookingEntity> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+      when(bookingJpaRepository.findAll(pageable)).thenReturn(emptyPage);
 
-      var bookings = bookingService.getAllBookings();
+      var bookings = bookingService.getAllBookings(pageable);
 
       assertNotNull(bookings);
-      verify(bookingJpaRepository).findAll();
+      verify(bookingJpaRepository).findAll(pageable);
     }
   }
 }

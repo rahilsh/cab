@@ -7,15 +7,18 @@ import in.rsh.cab.exception.CabNotAvailableException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
+import in.rsh.cab.model.response.CabResponse;
+import in.rsh.cab.model.response.LocationResponse;
 import in.rsh.cab.repository.CabJpaRepository;
 import in.rsh.cab.state.CabState;
 import in.rsh.cab.state.CabStateFactory;
 import in.rsh.cab.strategy.CabSelectionStrategy;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,8 +52,32 @@ public class CabService {
     cabJpaRepository.save(entity);
   }
 
-  public Collection<Cab> getAllCabs() {
-    return cabJpaRepository.findAll().stream().map(this::toModel).toList();
+  public Page<Cab> getAllCabs(Pageable pageable) {
+    return cabJpaRepository.findAll(pageable).map(this::toModel);
+  }
+
+  public List<CabResponse> getAllCabsResponse() {
+    return cabJpaRepository.findAll().stream()
+        .map(entity -> toResponse(toModel(entity)))
+        .toList();
+  }
+
+  private CabResponse toResponse(Cab cab) {
+    if (cab == null) {
+      return null;
+    }
+    return new CabResponse(
+        cab.getCabId(),
+        cab.getDriverId(),
+        cab.getCabNumber(),
+        cab.getStatus() != null ? cab.getStatus().name() : null,
+        cab.getType() != null ? cab.getType().name() : null,
+        cab.getLocation() != null
+            ? new LocationResponse(cab.getLocation().latitude(), cab.getLocation().longitude())
+            : null,
+        cab.getIdleFrom(),
+        cab.getCityId(),
+        cab.getModel());
   }
 
   public void updateCab(int cabId, Integer cityId, CabStatus state) {

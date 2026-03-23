@@ -3,8 +3,10 @@ package in.rsh.cab.service;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.entity.CityEntity;
 import in.rsh.cab.model.City;
+import in.rsh.cab.model.response.CityResponse;
 import in.rsh.cab.repository.CityJpaRepository;
 import java.util.Collection;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +26,12 @@ public class CityService {
 
   public Collection<City> getAllCities() {
     return cityJpaRepository.findAll().stream().map(this::toModel).toList();
+  }
+
+  public List<CityResponse> getAllCitiesResponse() {
+    return cityJpaRepository.findAll().stream()
+        .map(entity -> new CityResponse(entity.getId(), entity.getName()))
+        .toList();
   }
 
   public void validateCityOrThrow(Integer cityId) {

@@ -2,12 +2,14 @@ package in.rsh.cab.controller;
 
 import static in.rsh.cab.model.Cab.CabStatus;
 
-import com.google.gson.Gson;
 import in.rsh.cab.model.request.AddCabRequest;
 import in.rsh.cab.model.request.UpdateCabRequest;
+import in.rsh.cab.model.response.CabResponse;
 import in.rsh.cab.service.CabService;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,7 +53,7 @@ public class CabController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public String getAllCabs() {
-    return new Gson().toJson(cabService.getAllCabs());
+  public ResponseEntity<List<CabResponse>> getAllCabs() {
+    return ResponseEntity.ok(cabService.getAllCabsResponse());
   }
 }

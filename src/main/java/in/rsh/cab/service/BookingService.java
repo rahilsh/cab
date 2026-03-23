@@ -4,14 +4,18 @@ import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.model.Booking;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
+import in.rsh.cab.model.response.BookingResponse;
+import in.rsh.cab.model.response.LocationResponse;
 import in.rsh.cab.entity.BookingEntity;
 import in.rsh.cab.entity.IdempotencyKeyEntity;
 import in.rsh.cab.repository.BookingJpaRepository;
 import in.rsh.cab.repository.IdempotencyKeyJpaRepository;
 import java.time.LocalDateTime;
-import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,8 +90,40 @@ public class BookingService {
     }
   }
 
-  public Collection<Booking> getAllBookings() {
-    return bookingJpaRepository.findAll().stream().map(this::toModel).toList();
+  public Page<Booking> getAllBookings(Pageable pageable) {
+    return bookingJpaRepository.findAll(pageable).map(this::toModel);
+  }
+
+  public List<BookingResponse> getAllBookingsResponse() {
+    return bookingJpaRepository.findAll().stream()
+        .map(entity -> toResponse(toModel(entity)))
+        .toList();
+  }
+
+  public BookingResponse bookCabResponse(
+      String employeeId, Integer fromCity, Integer toCity, String idempotencyKey) {
+    Booking booking = bookCab(employeeId, fromCity, toCity, idempotencyKey);
+    return toResponse(booking);
+  }
+
+  private BookingResponse toResponse(Booking booking) {
+    if (booking == null) {
+      return null;
+    }
+    return new BookingResponse(
+        booking.getBookingId(),
+        booking.getStartTime(),
+        booking.getEndTime(),
+        booking.getRiderId(),
+        booking.getCabId(),
+        booking.getStatus() != null ? booking.getStatus().name() : null,
+        booking.getStartLocation() != null
+            ? new LocationResponse(booking.getStartLocation().latitude(), booking.getStartLocation().longitude())
+            : null,
+        booking.getEndLocation() != null
+            ? new LocationResponse(booking.getEndLocation().latitude(), booking.getEndLocation().longitude())
+            : null,
+        booking.getBookedBy());
   }
 
   private Booking toModel(BookingEntity entity) {

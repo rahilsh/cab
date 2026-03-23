@@ -1,10 +1,12 @@
 package in.rsh.cab.controller;
 
-import com.google.gson.Gson;
 import in.rsh.cab.model.request.AddCityRequest;
+import in.rsh.cab.model.response.CityResponse;
 import in.rsh.cab.service.CityService;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,7 +38,7 @@ public class CityController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public String getAllCities() {
-    return new Gson().toJson(cityService.getAllCities());
+  public ResponseEntity<List<CityResponse>> getAllCities() {
+    return ResponseEntity.ok(cityService.getAllCitiesResponse());
   }
 }

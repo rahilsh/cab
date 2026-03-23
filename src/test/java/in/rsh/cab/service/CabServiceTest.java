@@ -22,6 +22,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 class CabServiceTest {
 
@@ -69,12 +73,14 @@ class CabServiceTest {
 
     @Test
     void getAllCabs_shouldReturnAllCabs() {
-      when(cabJpaRepository.findAll()).thenReturn(List.of());
+      Pageable pageable = PageRequest.of(0, 20);
+      Page<CabEntity> emptyPage = new PageImpl<>(List.of(), pageable, 0);
+      when(cabJpaRepository.findAll(pageable)).thenReturn(emptyPage);
 
-      var cabs = cabService.getAllCabs();
+      var cabs = cabService.getAllCabs(pageable);
 
       assertNotNull(cabs);
-      verify(cabJpaRepository).findAll();
+      verify(cabJpaRepository).findAll(pageable);
     }
   }
 
