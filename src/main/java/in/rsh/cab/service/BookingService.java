@@ -55,7 +55,16 @@ public class BookingService {
     }
 
     Booking booking = createBooking(employeeId, fromCity, toCity);
-    idempotencyKeyJpaRepository.save(new IdempotencyKeyEntity(idempotencyKey, booking.getBookingId()));
+    try {
+      idempotencyKeyJpaRepository.save(new IdempotencyKeyEntity(idempotencyKey, booking.getBookingId()));
+    } catch (Exception e) {
+      try {
+        bookingJpaRepository.deleteById(booking.getBookingId());
+      } catch (Exception deleteEx) {
+        throw new IllegalStateException("Failed to create booking and cleanup failed. Booking ID: " + booking.getBookingId(), deleteEx);
+      }
+      throw e;
+    }
     return booking;
   }
 

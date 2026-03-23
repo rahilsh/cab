@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -134,6 +135,33 @@ class BookingServiceTest {
 
       assertNotNull(result);
       verify(bookingJpaRepository, times(1)).save(any());
+    }
+
+    @Test
+    void bookCab_withIdempotencyKey_whenKeySaveFails_shouldRollbackBooking() {
+      doNothing().when(cityService).validateCityOrThrow(1);
+      doNothing().when(cityService).validateCityOrThrow(2);
+
+      Cab cab = Cab.builder()
+          .cabId(1)
+          .status(Cab.CabStatus.AVAILABLE)
+          .cityId(1)
+          .build();
+      when(cabService.reserveMostSuitableCab(1, 2)).thenReturn(cab);
+
+      when(bookingJpaRepository.save(any())).thenAnswer(i -> {
+        BookingEntity entity = i.getArgument(0);
+        entity.setBookingId(1);
+        return entity;
+      });
+      when(idempotencyKeyJpaRepository.findById("fail-key")).thenReturn(Optional.empty());
+      doThrow(new RuntimeException("DB error"))
+          .when(idempotencyKeyJpaRepository).save(any(IdempotencyKeyEntity.class));
+
+      assertThrows(RuntimeException.class,
+          () -> bookingService.bookCab(1, 1, 2, "fail-key"));
+
+      verify(bookingJpaRepository).deleteById(1);
     }
   }
 
