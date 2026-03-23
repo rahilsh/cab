@@ -52,14 +52,15 @@ public class CabService {
     cabJpaRepository.save(entity);
   }
 
-  public Page<Cab> getAllCabs(Pageable pageable) {
-    return cabJpaRepository.findAll(pageable).map(this::toModel);
+  public Page<CabResponse> getAllCabs(Pageable pageable) {
+    return cabJpaRepository.findAll(pageable)
+        .map(this::toModel)
+        .map(this::toResponse);
   }
 
-  public List<CabResponse> getAllCabsResponse() {
-    return cabJpaRepository.findAll().stream()
-        .map(entity -> toResponse(toModel(entity)))
-        .toList();
+  public void updateCab(int cabId, Integer cityId, CabStatus state) {
+    cityService.validateCityOrThrow(cityId);
+    update(cabId, cityId, state, null);
   }
 
   private CabResponse toResponse(Cab cab) {
@@ -78,11 +79,6 @@ public class CabService {
         cab.getIdleFrom(),
         cab.getCityId(),
         cab.getModel());
-  }
-
-  public void updateCab(int cabId, Integer cityId, CabStatus state) {
-    cityService.validateCityOrThrow(cityId);
-    update(cabId, cityId, state, null);
   }
 
   public List<Cab> getIdleCabsInCity(Integer fromCity) {
@@ -170,24 +166,8 @@ public class CabService {
         .findFirst();
   }
 
-  public boolean updateCabStatus(int cabId, CabStatus cabStatus) {
-    Optional<CabEntity> optionalEntity = cabJpaRepository.findById(cabId);
-    if (optionalEntity.isEmpty()) {
-      return false;
-    }
-    CabEntity entity = optionalEntity.get();
-    Cab cab = toModel(entity);
-    CabState cabState = CabStateFactory.getState(cab.getStatus());
-    if (cabStatus == Cab.CabStatus.AVAILABLE) {
-      cabState.makeAvailable(cab);
-    } else if (cabStatus == Cab.CabStatus.UNAVAILABLE) {
-      cabState.makeUnavailable(cab);
-    } else if (cabStatus == Cab.CabStatus.ON_RIDE) {
-      cabState.startRide(cab);
-    }
-    entity.setStatus(CabEntity.CabStatus.valueOf(cab.getStatus().name()));
-    cabJpaRepository.save(entity);
-    return true;
+  public void updateCabStatus(int cabId, CabStatus cabStatus) {
+    update(cabId, null, cabStatus, null);
   }
 
   private Cab toModel(CabEntity entity) {

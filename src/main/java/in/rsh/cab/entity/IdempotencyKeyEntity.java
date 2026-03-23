@@ -1,5 +1,6 @@
 package in.rsh.cab.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -17,7 +18,8 @@ import lombok.Setter;
 public class IdempotencyKeyEntity {
 
   @Id
-  private String key;
+  @Column(name = "key_value")
+  private String keyValue;
 
   private Integer bookingId;
 }

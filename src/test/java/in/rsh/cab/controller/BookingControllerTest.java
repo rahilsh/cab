@@ -59,9 +59,10 @@ class BookingControllerTest {
     mvc.perform(get("/bookings").contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andDo(print())
-        .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
-        .andExpect(jsonPath("$[0].cabId", is(1)))
-        .andExpect(jsonPath("$[0].bookedBy", is(String.valueOf(bookCabRequest.employeeId()))));
+        .andExpect(jsonPath("$.content", hasSize(greaterThanOrEqualTo(1))))
+        .andExpect(jsonPath("$.totalElements", greaterThanOrEqualTo(1)))
+        .andExpect(jsonPath("$.content[0].cabId", is(1)))
+        .andExpect(jsonPath("$.content[0].bookedBy", is(bookCabRequest.employeeId())));
   }
 
   private void bookCab(BookCabRequest bookCabRequest) throws Exception {

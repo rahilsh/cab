@@ -13,6 +13,7 @@ import in.rsh.cab.repository.IdempotencyKeyJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -90,14 +91,10 @@ public class BookingService {
     }
   }
 
-  public Page<Booking> getAllBookings(Pageable pageable) {
-    return bookingJpaRepository.findAll(pageable).map(this::toModel);
-  }
-
-  public List<BookingResponse> getAllBookingsResponse() {
-    return bookingJpaRepository.findAll().stream()
-        .map(entity -> toResponse(toModel(entity)))
-        .toList();
+  public Page<BookingResponse> getAllBookings(Pageable pageable) {
+    return bookingJpaRepository.findAll(pageable)
+        .map(this::toModel)
+        .map(this::toResponse);
   }
 
   public BookingResponse bookCabResponse(

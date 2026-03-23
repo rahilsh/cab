@@ -269,19 +269,17 @@ class CabServiceTest {
           .build();
       when(cabJpaRepository.findById(1)).thenReturn(Optional.of(cabEntity));
 
-      boolean result = cabService.updateCabStatus(1, Cab.CabStatus.UNAVAILABLE);
+      cabService.updateCabStatus(1, Cab.CabStatus.UNAVAILABLE);
 
-      assertTrue(result);
       verify(cabJpaRepository).save(any(CabEntity.class));
     }
 
     @Test
-    void updateCabStatus_withInvalidCabId_shouldReturnFalse() {
+    void updateCabStatus_withInvalidCabId_shouldThrowException() {
       when(cabJpaRepository.findById(1)).thenReturn(Optional.empty());
 
-      boolean result = cabService.updateCabStatus(1, Cab.CabStatus.UNAVAILABLE);
-
-      assertEquals(false, result);
+      assertThrows(in.rsh.cab.exception.NotFoundException.class,
+          () -> cabService.updateCabStatus(1, Cab.CabStatus.UNAVAILABLE));
     }
   }
 }
