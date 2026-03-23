@@ -72,10 +72,6 @@
 
   <dependencies>
     <dependency>
-      <artifactId>spring-boot-starter-jersey</artifactId>
-      <groupId>org.springframework.boot</groupId>
-    </dependency>
-    <dependency>
       <artifactId>spring-boot-starter-web</artifactId>
       <groupId>org.springframework.boot</groupId>
     </dependency>
@@ -118,11 +114,6 @@
       <artifactId>h2</artifactId>
       <groupId>com.h2database</groupId>
       <scope>runtime</scope>
-    </dependency>
-    <dependency>
-      <artifactId>json</artifactId>
-      <groupId>org.json</groupId>
-      <version>20251224</version>
     </dependency>
     <dependency>
       <artifactId>GeographicLib-Java</artifactId>

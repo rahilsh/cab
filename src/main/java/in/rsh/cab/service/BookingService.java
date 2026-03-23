@@ -1,6 +1,5 @@
 package in.rsh.cab.service;
 
-import in.rsh.cab.exception.CabNotAvailableException;
 import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.model.Booking;
 import in.rsh.cab.model.Cab;
@@ -22,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class BookingService {
 
-  public static final double MAX_DISTANCE_DRIVER_CAN_TRAVEL = 10.0;
   private final CabService cabService;
   private final BookingJpaRepository bookingJpaRepository;
   private final CityService cityService;
@@ -88,45 +86,6 @@ public class BookingService {
 
   public Collection<Booking> getAllBookings() {
     return bookingJpaRepository.findAll().stream().map(this::toModel).toList();
-  }
-
-  @Transactional
-  public Booking bookCab(Rider rider) {
-    Optional<Cab> cabOptional =
-        cabService.getAllCabs().stream()
-            .filter(cab -> cab.getStatus().equals(Cab.CabStatus.AVAILABLE))
-            .min((c1, c2) -> getNearestCab(c1.getLocation(), c2.getLocation()));
-    if (cabOptional.isPresent()) {
-      if (isDistanceMoreThanThreshold(
-          rider.getCurrentLocation(), cabOptional.get().getLocation())) {
-        throw new CabNotAvailableException();
-      }
-      Cab cab = cabOptional.get();
-      cabService.updateCabStatus(cab.getCabId(), Cab.CabStatus.ON_RIDE);
-
-      BookingEntity booking =
-          BookingEntity.builder()
-              .cabId(cab.getCabId())
-              .riderId(rider.getPersonId())
-              .startTime(LocalDateTime.now())
-              .status(BookingEntity.BookingStatus.IN_PROGRESS)
-              .build();
-      BookingEntity saved = bookingJpaRepository.save(booking);
-      return toModel(saved);
-    }
-    throw new CabNotAvailableException();
-  }
-
-  private boolean isDistanceMoreThanThreshold(Location currentLocation, Location location) {
-    return (Math.sqrt(
-        Math.pow(currentLocation.latitude() - location.latitude(), 2)
-            + Math.pow(currentLocation.longitude() - location.longitude(), 2)))
-        > MAX_DISTANCE_DRIVER_CAN_TRAVEL;
-  }
-
-  private int getNearestCab(Location location, Location location1) {
-    return ((location.latitude() + location.longitude())
-        - (location1.latitude() + location1.longitude()));
   }
 
   public List<Booking> getBookingsForRider(Rider rider) {
