@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.entity.CityEntity;
+import in.rsh.cab.model.response.CityResponse;
 import in.rsh.cab.repository.CityJpaRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +55,44 @@ class CityServiceTest {
 
       assertNotNull(cities);
       verify(cityJpaRepository).findAll();
+    }
+
+    @Test
+    void getAllCities_shouldReturnMultipleCities() {
+      CityEntity city1 = new CityEntity("Bangalore");
+      CityEntity city2 = new CityEntity("Delhi");
+      when(cityJpaRepository.findAll()).thenReturn(List.of(city1, city2));
+
+      var cities = cityService.getAllCities();
+
+      assertEquals(2, cities.size());
+    }
+  }
+
+  @Nested
+  class GetAllCitiesResponseTests {
+
+    @Test
+    void getAllCitiesResponse_shouldReturnEmptyListWhenNoCities() {
+      when(cityJpaRepository.findAll()).thenReturn(List.of());
+
+      var cities = cityService.getAllCitiesResponse();
+
+      assertNotNull(cities);
+      assertEquals(0, cities.size());
+    }
+
+    @Test
+    void getAllCitiesResponse_shouldReturnCityResponses() {
+      CityEntity city1 = new CityEntity("Bangalore");
+      CityEntity city2 = new CityEntity("Delhi");
+      when(cityJpaRepository.findAll()).thenReturn(List.of(city1, city2));
+
+      List<CityResponse> cities = cityService.getAllCitiesResponse();
+
+      assertEquals(2, cities.size());
+      assertEquals("Bangalore", cities.get(0).name());
+      assertEquals("Delhi", cities.get(1).name());
     }
   }
 
