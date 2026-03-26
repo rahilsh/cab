@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.entity.CityEntity;
+import in.rsh.cab.mapper.CityMapper;
+import in.rsh.cab.model.City;
 import in.rsh.cab.model.response.CityResponse;
 import in.rsh.cab.repository.CityJpaRepository;
 import java.util.List;
@@ -25,12 +27,23 @@ class CityServiceTest {
   @Mock
   private CityJpaRepository cityJpaRepository;
 
+  @Mock
+  private CityMapper cityMapper;
+
   @InjectMocks
   private CityService cityService;
 
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
+    when(cityMapper.toModel(any(CityEntity.class))).thenAnswer(i -> {
+      CityEntity e = i.getArgument(0);
+      return new City(e.getId(), e.getName());
+    });
+    when(cityMapper.toResponse(any(City.class))).thenAnswer(i -> {
+      City c = i.getArgument(0);
+      return new CityResponse(c.id(), c.name());
+    });
   }
 
   @Nested

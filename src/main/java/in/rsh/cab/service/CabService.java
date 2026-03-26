@@ -5,10 +5,10 @@ import static in.rsh.cab.model.Cab.CabStatus;
 import in.rsh.cab.entity.CabEntity;
 import in.rsh.cab.exception.CabNotAvailableException;
 import in.rsh.cab.exception.NotFoundException;
+import in.rsh.cab.mapper.CabMapper;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.Location;
 import in.rsh.cab.model.response.CabResponse;
-import in.rsh.cab.model.response.LocationResponse;
 import in.rsh.cab.repository.CabJpaRepository;
 import in.rsh.cab.state.CabState;
 import in.rsh.cab.state.CabStateFactory;
@@ -28,16 +28,19 @@ public class CabService {
   private final CabJpaRepository cabJpaRepository;
   private final CityService cityService;
   private final RedisGeoService redisGeoService;
+  private final CabMapper cabMapper;
   private CabSelectionStrategy selectionStrategy;
 
   @Autowired
   public CabService(CabJpaRepository cabJpaRepository, CityService cityService, 
       RedisGeoService redisGeoService,
-      @Qualifier("distanceBasedSelectionStrategy") CabSelectionStrategy selectionStrategy) {
+      @Qualifier("distanceBasedSelectionStrategy") CabSelectionStrategy selectionStrategy,
+      CabMapper cabMapper) {
     this.cabJpaRepository = cabJpaRepository;
     this.cityService = cityService;
     this.redisGeoService = redisGeoService;
     this.selectionStrategy = selectionStrategy;
+    this.cabMapper = cabMapper;
   }
 
   public void addCab(Integer driverId, Integer cityId, String model) {
@@ -54,8 +57,8 @@ public class CabService {
 
   public Page<CabResponse> getAllCabs(Pageable pageable) {
     return cabJpaRepository.findAll(pageable)
-        .map(this::toModel)
-        .map(this::toResponse);
+        .map(cabMapper::toModel)
+        .map(cabMapper::toResponse);
   }
 
   public void updateCab(int cabId, Integer cityId, CabStatus state) {
@@ -63,28 +66,10 @@ public class CabService {
     update(cabId, cityId, state, null);
   }
 
-  private CabResponse toResponse(Cab cab) {
-    if (cab == null) {
-      return null;
-    }
-    return new CabResponse(
-        cab.getCabId(),
-        cab.getDriverId(),
-        cab.getCabNumber(),
-        cab.getStatus() != null ? cab.getStatus().name() : null,
-        cab.getType() != null ? cab.getType().name() : null,
-        cab.getLocation() != null
-            ? new LocationResponse(cab.getLocation().latitude(), cab.getLocation().longitude())
-            : null,
-        cab.getIdleFrom(),
-        cab.getCityId(),
-        cab.getModel());
-  }
-
   public List<Cab> getIdleCabsInCity(Integer fromCity) {
     return cabJpaRepository.findByCityIdAndStatus(fromCity, CabEntity.CabStatus.AVAILABLE)
         .stream()
-        .map(this::toModel)
+        .map(cabMapper::toModel)
         .toList();
   }
 
@@ -98,8 +83,8 @@ public class CabService {
       Integer fromCity, Integer toCity, Location pickupLocation) {
     List<CabEntity> idleCabs = cabJpaRepository.findAvailableCabsInCityWithLock(fromCity).stream()
         .sorted((c1, c2) -> {
-          Cab cab1 = toModel(c1);
-          Cab cab2 = toModel(c2);
+          Cab cab1 = cabMapper.toModel(c1);
+          Cab cab2 = cabMapper.toModel(c2);
           return selectionStrategy.getComparator(pickupLocation).compare(cab1, cab2);
         })
         .toList();
@@ -107,13 +92,13 @@ public class CabService {
       throw new CabNotAvailableException("No cabs available");
     }
     CabEntity entity = idleCabs.get(0);
-    Cab cab = toModel(entity);
+    Cab cab = cabMapper.toModel(entity);
     CabState state = CabStateFactory.getState(cab.getStatus());
     state.makeUnavailable(cab);
     if (toCity != null) {
       cab.setCityId(toCity);
     }
-    CabEntity updatedEntity = toEntity(cab);
+    CabEntity updatedEntity = cabMapper.toEntity(cab);
     updatedEntity.setId(entity.getId());
     cabJpaRepository.save(updatedEntity);
     return cab;
@@ -129,7 +114,7 @@ public class CabService {
       entity.setCityId(cityId);
     }
     if (state != null) {
-      Cab cab = toModel(entity);
+      Cab cab = cabMapper.toModel(entity);
       CabState cabState = CabStateFactory.getState(cab.getStatus());
       if (state == Cab.CabStatus.AVAILABLE) {
         cabState.makeAvailable(cab);
@@ -162,47 +147,11 @@ public class CabService {
   public Optional<Cab> getCabByDriver(String driverId) {
     return cabJpaRepository.findAll().stream()
         .filter(cab -> cab.getDriverId().equals(driverId))
-        .map(this::toModel)
+        .map(cabMapper::toModel)
         .findFirst();
   }
 
   public void updateCabStatus(int cabId, CabStatus cabStatus) {
     update(cabId, null, cabStatus, null);
-  }
-
-  private Cab toModel(CabEntity entity) {
-    if (entity == null) {
-      return null;
-    }
-    return Cab.builder()
-        .cabId(entity.getId())
-        .driverId(entity.getDriverId())
-        .cabNumber(entity.getCabNumber())
-        .status(Cab.CabStatus.valueOf(entity.getStatus().name()))
-        .type(entity.getType() != null ? Cab.CabType.valueOf(entity.getType().name()) : null)
-        .location(entity.getLocationX() != null && entity.getLocationY() != null
-            ? new Location(entity.getLocationX(), entity.getLocationY()) : null)
-        .idleFrom(entity.getIdleFrom())
-        .cityId(entity.getCityId())
-        .model(entity.getModel())
-        .build();
-  }
-
-  private CabEntity toEntity(Cab model) {
-    if (model == null) {
-      return null;
-    }
-    return CabEntity.builder()
-        .id(model.getCabId())
-        .driverId(model.getDriverId())
-        .cabNumber(model.getCabNumber())
-        .status(CabEntity.CabStatus.valueOf(model.getStatus().name()))
-        .type(model.getType() != null ? CabEntity.CabType.valueOf(model.getType().name()) : null)
-        .locationX(model.getLocation() != null ? model.getLocation().latitude() : null)
-        .locationY(model.getLocation() != null ? model.getLocation().longitude() : null)
-        .idleFrom(model.getIdleFrom())
-        .cityId(model.getCityId())
-        .model(model.getModel())
-        .build();
   }
 }

@@ -12,7 +12,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import in.rsh.cab.entity.CabEntity;
+import in.rsh.cab.mapper.CabMapper;
 import in.rsh.cab.model.Cab;
+import in.rsh.cab.model.Location;
+import in.rsh.cab.model.response.CabResponse;
 import in.rsh.cab.repository.CabJpaRepository;
 import java.util.List;
 import java.util.Optional;
@@ -38,12 +41,19 @@ class CabServiceTest {
   @Mock
   private RedisGeoService redisGeoService;
 
+  @Mock
+  private CabMapper cabMapper;
+
   @InjectMocks
   private CabService cabService;
 
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
+    Cab mockCab = Cab.builder().cabId(1).status(Cab.CabStatus.AVAILABLE).build();
+    when(cabMapper.toModel(any())).thenReturn(mockCab);
+    when(cabMapper.toEntity(any())).thenReturn(CabEntity.builder().id(1).status(CabEntity.CabStatus.AVAILABLE).build());
+    when(cabMapper.toResponse(any())).thenReturn(new CabResponse(1, null, null, null, null, null, null, null, null));
   }
 
   @Nested

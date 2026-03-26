@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import in.rsh.cab.entity.BookingEntity;
 import in.rsh.cab.entity.IdempotencyKeyEntity;
 import in.rsh.cab.exception.InvalidRequestException;
+import in.rsh.cab.mapper.BookingMapper;
 import in.rsh.cab.model.Booking;
 import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.response.BookingResponse;
@@ -45,12 +46,18 @@ class BookingServiceTest {
   @Mock
   private IdempotencyKeyJpaRepository idempotencyKeyJpaRepository;
 
+  @Mock
+  private BookingMapper bookingMapper;
+
   @InjectMocks
   private BookingService bookingService;
 
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
+    Booking mockBooking = Booking.builder().bookingId(1).build();
+    when(bookingMapper.toModel(any())).thenReturn(mockBooking);
+    when(bookingMapper.toResponse(any())).thenReturn(new BookingResponse(1, null, null, null, 0, null, null, null, null));
   }
 
   @Nested
