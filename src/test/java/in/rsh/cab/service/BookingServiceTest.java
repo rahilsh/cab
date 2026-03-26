@@ -19,6 +19,7 @@ import in.rsh.cab.model.Cab;
 import in.rsh.cab.model.response.BookingResponse;
 import in.rsh.cab.repository.BookingJpaRepository;
 import in.rsh.cab.repository.IdempotencyKeyJpaRepository;
+import in.rsh.cab.template.BookingTemplate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,9 @@ class BookingServiceTest {
   @Mock
   private BookingMapper bookingMapper;
 
+  @Mock
+  private BookingTemplate bookingTemplate;
+
   @InjectMocks
   private BookingService bookingService;
 
@@ -58,62 +62,38 @@ class BookingServiceTest {
     Booking mockBooking = Booking.builder().bookingId(1).build();
     when(bookingMapper.toModel(any())).thenReturn(mockBooking);
     when(bookingMapper.toResponse(any())).thenReturn(new BookingResponse(1, null, null, null, 0, null, null, null, null));
+    when(bookingTemplate.execute(any(), any(), any())).thenReturn(mockBooking);
   }
 
   @Nested
   class BookCabTests {
 
     @Test
-    void bookCab_withoutIdempotencyKey_shouldCreateBooking() {
-      doNothing().when(cityService).validateCityOrThrow(1);
-      doNothing().when(cityService).validateCityOrThrow(2);
-
-      Cab cab = Cab.builder()
-          .cabId(1)
-          .status(Cab.CabStatus.AVAILABLE)
-          .cityId(1)
-          .build();
-      when(cabService.reserveMostSuitableCab(1, 2)).thenReturn(cab);
-
-      when(bookingJpaRepository.save(any())).thenAnswer(i -> {
-        BookingEntity entity = i.getArgument(0);
-        entity.setBookingId(1);
-        return entity;
-      });
+    void bookCab_withoutIdempotencyKey_shouldCallTemplate() {
+      Booking mockBooking = Booking.builder().bookingId(1).build();
+      when(bookingTemplate.execute("emp1", 1, 2)).thenReturn(mockBooking);
 
       Booking result = bookingService.bookCab("emp1", 1, 2, null);
 
       assertNotNull(result);
-      verify(bookingJpaRepository).save(any());
+      verify(bookingTemplate).execute("emp1", 1, 2);
     }
 
     @Test
-    void bookCab_withBlankIdempotencyKey_shouldCreateNewBooking() {
-      doNothing().when(cityService).validateCityOrThrow(1);
-      doNothing().when(cityService).validateCityOrThrow(2);
-
-      Cab cab = Cab.builder()
-          .cabId(1)
-          .status(Cab.CabStatus.AVAILABLE)
-          .cityId(1)
-          .build();
-      when(cabService.reserveMostSuitableCab(1, 2)).thenReturn(cab);
-
-      when(bookingJpaRepository.save(any())).thenAnswer(i -> {
-        BookingEntity entity = i.getArgument(0);
-        entity.setBookingId(1);
-        return entity;
-      });
+    void bookCab_withBlankIdempotencyKey_shouldCallTemplate() {
+      Booking mockBooking = Booking.builder().bookingId(1).build();
+      when(bookingTemplate.execute("emp1", 1, 2)).thenReturn(mockBooking);
 
       Booking result = bookingService.bookCab("emp1", 1, 2, "   ");
 
       assertNotNull(result);
-      verify(bookingJpaRepository, times(1)).save(any());
+      verify(bookingTemplate).execute("emp1", 1, 2);
     }
 
     @Test
     void bookCab_withSameFromAndToCity_shouldThrowException() {
-      doNothing().when(cityService).validateCityOrThrow(1);
+      when(bookingTemplate.execute("emp1", 1, 1))
+          .thenThrow(new in.rsh.cab.exception.InvalidRequestException("From and To city are same"));
 
       assertThrows(InvalidRequestException.class,
           () -> bookingService.bookCab("emp1", 1, 1, null));
