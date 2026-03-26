@@ -6,7 +6,7 @@ import in.rsh.cab.service.CityService;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CityValidationHandler extends AbstractValidationHandler {
+public class CityValidationHandler extends AbstractValidationHandler<BookingRequest> {
 
   private final CityService cityService;
 

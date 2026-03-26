@@ -1,10 +1,8 @@
 package in.rsh.cab.chain;
 
-import in.rsh.cab.model.BookingRequest;
+public interface ValidationHandler<T> {
 
-public interface ValidationHandler {
+  ValidationHandler<T> setNext(ValidationHandler<T> handler);
 
-  ValidationHandler setNext(ValidationHandler handler);
-
-  void validate(BookingRequest request);
+  void validate(T request);
 }

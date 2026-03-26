@@ -5,7 +5,7 @@ import in.rsh.cab.model.BookingRequest;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EmployeeIdValidationHandler extends AbstractValidationHandler {
+public class EmployeeIdValidationHandler extends AbstractValidationHandler<BookingRequest> {
 
   @Override
   public void validate(BookingRequest request) {

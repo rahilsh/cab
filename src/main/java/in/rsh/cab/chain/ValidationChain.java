@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ValidationChain {
 
-  private final ValidationHandler firstHandler;
+  private final ValidationHandler<BookingRequest> firstHandler;
 
   public ValidationChain(
       EmployeeIdValidationHandler employeeIdValidationHandler,

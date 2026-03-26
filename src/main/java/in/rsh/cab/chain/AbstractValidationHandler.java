@@ -1,25 +1,23 @@
 package in.rsh.cab.chain;
 
-import in.rsh.cab.model.BookingRequest;
+public abstract class AbstractValidationHandler<T> implements ValidationHandler<T> {
 
-public abstract class AbstractValidationHandler implements ValidationHandler {
-
-  private ValidationHandler nextHandler;
+  private ValidationHandler<T> nextHandler;
 
   @Override
-  public ValidationHandler setNext(ValidationHandler handler) {
+  public ValidationHandler<T> setNext(ValidationHandler<T> handler) {
     this.nextHandler = handler;
     return handler;
   }
 
   @Override
-  public void validate(BookingRequest request) {
+  public void validate(T request) {
     if (nextHandler != null) {
       nextHandler.validate(request);
     }
   }
 
-  protected void proceedToNext(BookingRequest request) {
+  protected void proceedToNext(T request) {
     if (nextHandler != null) {
       nextHandler.validate(request);
     }
