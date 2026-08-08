@@ -36,3 +36,7 @@ migration credentials. Prefer an external migration job and set `FLYWAY_ENABLED=
 Deployment with `config.flywayEnabled=false` when your platform supports it; migration credential
 keys are then not mounted. Otherwise keep `replicaCount: 1` for a migration-bearing release and wait
 for readiness before scaling out. See `docs/runbooks/migrations.md`.
+
+Ride status SSE subscriptions are stored in-process. Keep ingress proxy buffering disabled for the
+SSE path and provide external pub/sub before scaling replicas when cross-instance delivery is
+required; the current registry only reaches clients connected to the publishing instance.

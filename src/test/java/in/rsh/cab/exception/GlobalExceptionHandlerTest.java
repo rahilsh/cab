@@ -13,6 +13,7 @@ import in.rsh.cab.operations.IdempotencyConflictException;
 import in.rsh.cab.ratelimit.RateLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -125,6 +126,11 @@ class GlobalExceptionHandlerTest {
 
     assertProblem(
         response, HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Unexpected error");
+  }
+
+  @Test
+  void ignoresDisconnectedStreamingClient() {
+    handler.handleDisconnectedClient();
   }
 
   private void assertProblem(

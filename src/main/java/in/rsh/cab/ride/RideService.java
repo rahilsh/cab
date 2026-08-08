@@ -43,11 +43,12 @@ public class RideService {
   private final PaymentService payments;
   private final ObjectMapper json;
   private final Clock clock;
+  private final RideEventStream eventStream;
 
   public RideService(
       RideRepository rides, PricingRepository pricing, DispatchRepository dispatch, FleetRepository fleet,
       IdempotencyService idempotency, OutboxService outbox, AuditService audit, PaymentService payments,
-      ObjectMapper json, Clock clock) {
+      ObjectMapper json, Clock clock, RideEventStream eventStream) {
     this.rides = rides;
     this.pricing = pricing;
     this.dispatch = dispatch;
@@ -58,6 +59,7 @@ public class RideService {
     this.payments = payments;
     this.json = json;
     this.clock = clock;
+    this.eventStream = eventStream;
   }
 
   @Transactional
@@ -181,6 +183,7 @@ public class RideService {
         json.valueToTree(new RideEvent(ride.id(), ride.status(), ride.driverId())), null);
     audit.record(context.tenantId(), context.accountId(), action, "ride", ride.id(), "SUCCESS",
         json.valueToTree(new RideAudit(ride.status())));
+    eventStream.afterCommit(context.tenantId(), ride);
   }
 
   private TenantContext require(TenantRole role) {

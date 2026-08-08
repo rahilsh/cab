@@ -12,6 +12,7 @@ import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.pricing.internal.persistence.PricingRepository;
 import in.rsh.cab.ride.Ride;
 import in.rsh.cab.ride.RideStatus;
+import in.rsh.cab.ride.RideEventStream;
 import in.rsh.cab.ride.internal.persistence.RideRepository;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.tenancy.TenantContext;
@@ -44,6 +45,7 @@ public class DispatchService {
   private final int candidateLimit;
   private final Duration locationMaxAge;
   private final Duration offerTtl;
+  private final RideEventStream eventStream;
 
   public DispatchService(
       DispatchRepository dispatch, RideRepository rides, FleetRepository fleet,
@@ -52,7 +54,8 @@ public class DispatchService {
       @Value("${dispatch.search-radius-meters:5000}") int radiusMeters,
       @Value("${dispatch.candidate-limit:10}") int candidateLimit,
       @Value("${dispatch.location-max-age:PT2M}") Duration locationMaxAge,
-      @Value("${dispatch.offer-ttl:PT30S}") Duration offerTtl) {
+      @Value("${dispatch.offer-ttl:PT30S}") Duration offerTtl,
+      RideEventStream eventStream) {
     this.dispatch = dispatch;
     this.rides = rides;
     this.fleet = fleet;
@@ -66,6 +69,7 @@ public class DispatchService {
     this.candidateLimit = candidateLimit;
     this.locationMaxAge = locationMaxAge;
     this.offerTtl = offerTtl;
+    this.eventStream = eventStream;
   }
 
   @Transactional
@@ -170,6 +174,7 @@ public class DispatchService {
         json.valueToTree(new DispatchEvent(ride.id(), ride.status(), ride.driverId())), null);
     audit.record(context.tenantId(), context.accountId(), action, "ride", ride.id(), "SUCCESS",
         json.valueToTree(new DispatchAudit(ride.status())));
+    eventStream.afterCommit(context.tenantId(), ride);
   }
 
   private TenantContext requireAny(TenantRole... roles) {

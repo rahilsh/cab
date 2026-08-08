@@ -20,17 +20,18 @@ The current implementation supports:
 - OIDC-protected tenant provisioning and operator memberships
 - Tenant-owned PostGIS service areas
 - OSRM-backed route distance and duration estimates
-- Tenant-scoped rider and driver profiles, driver approval, vehicles, and driver shifts
+- Tenant-scoped rider and driver profiles, document verification, driver approval, vehicles, and driver shifts
 - Tenant-scoped service products, versioned pricing rules, and immutable rider fare quotes
 - Tenant-scoped idempotency, transactional outbox/inbox, and append-only audit foundations
 - Tenant-scoped live driver locations, dispatch offers, and the complete ride lifecycle
+- Authorized server-sent ride status updates for participants and operations staff
 - Provider-neutral capture/refund processing, configurable commission, immutable double-entry ledger, earnings, and settlements
 - Provider-neutral local notifications, participant ratings, support/safety workflows, and signed outbound webhooks
 
 The production roadmap includes:
 
 - Broader role-based access and audited platform-support workflows
-- Driver document upload and verification workflows
+- External object-storage integration for document upload orchestration
 - Production notification and payment-provider adapters
 - Expanded moderation, support automation, and safety escalation workflows
 - Production payment/notification adapters and additional operational hardening
@@ -183,6 +184,9 @@ The HTTP API is versioned under `/api/v1`:
 | `POST` | `/api/v1/drivers/{id}/approve` | Approve a pending driver; requires `TENANT_ADMIN` |
 | `POST` | `/api/v1/drivers/{id}/suspend` | Suspend a driver; requires `TENANT_ADMIN` |
 | `GET`, `PUT` | `/api/v1/drivers/me` | Read or update the authenticated driver profile |
+| `POST`, `GET` | `/api/v1/drivers/me/documents` | Submit or list the authenticated driver's document metadata |
+| `GET` | `/api/v1/drivers/{id}/documents` | List driver documents; requires `TENANT_ADMIN` |
+| `POST` | `/api/v1/drivers/{id}/documents/{documentId}/verify`, `/reject` | Review a pending document; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/vehicles` | Create or list vehicles; requires `TENANT_ADMIN` |
 | `PUT` | `/api/v1/vehicles/{id}` | Versioned vehicle update; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/driver/shifts` | Create or list the authenticated driver's shifts |
@@ -198,6 +202,7 @@ The HTTP API is versioned under `/api/v1`:
 | `PUT` | `/api/v1/driver/location` | Atomically publish a fresh location for the authenticated driver's available shift |
 | `POST`, `GET` | `/api/v1/rides` | Create a ride from an owned quote or list the authenticated rider's rides |
 | `GET`, `POST` | `/api/v1/rides/{id}` | Read an owned ride or cancel it at `/cancel` |
+| `GET` | `/api/v1/rides/{id}/events` | Stream authorized ride status events with SSE |
 | `POST` | `/api/v1/dispatch/rides/{id}/start` | Search bounded fresh supply and create expiring offers; requires `TENANT_ADMIN` or `DISPATCHER` |
 | `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
 | `POST` | `/api/v1/driver/offers/{id}/accept`, `/reject` | Accept or reject a dispatch offer |
@@ -248,8 +253,11 @@ Driver onboarding accepts an account UUID only after proving that account has an
 in the selected tenant, and grants its persisted membership the `DRIVER` role. Driver and rider
 operations resolve the account from the authenticated tenant context. Vehicle and shift mutations
 use optimistic versions and return stable `409 resource-conflict` errors for stale or invalid
-transitions. Driver document storage is metadata-only; document bytes and raw secrets are never
-stored in the marketplace database.
+transitions. Drivers submit bounded document type/reference/object-key/expiry metadata; admins can
+verify or reject it once, with verifier attribution and append-only history. Object keys reject URLs
+and traversal. Document bytes, fetchable URLs, and raw secrets are never accepted. A license remains
+valid through its `expiresOn` date; a null expiry has no stated expiration. Approval requires at
+least one verified, non-expired `DRIVING_LICENSE`.
 
 Live locations require an owned `AVAILABLE` shift and monotonically increasing sequence and device
 timestamp. Redis keys are tenant namespaced; a Lua script atomically updates GEO membership and
@@ -263,6 +271,13 @@ writes initial history, outbox, audit, and idempotency completion in the same tr
 shift transitions are optimistic. Offer acceptance locks only the chosen offer and conditionally
 reserves its shift; database partial unique constraints enforce one accepted offer per ride and one
 active ride per shift. Completion and allowed cancellations release the shift to `AVAILABLE`.
+
+Ride participants and `TENANT_ADMIN`, `DISPATCHER`, or `SUPPORT` members can stream status changes
+from `/api/v1/rides/{id}/events`. Events contain only ride ID, status, optimistic version, and event
+time; generic events never expose live location. Publication is registered after transaction commit,
+and connections have per-actor/per-ride bounds and timeouts. The registry is in-process and therefore
+per application instance. Multi-replica deployments require external pub/sub (or a future outbox
+poller bridge) so every instance can deliver events to its local connections.
 
 Ride completion creates a `CAPTURE_PENDING` payment and transactional
 `payment.capture_requested` outbox event. It never calls a provider inside the ride transaction.

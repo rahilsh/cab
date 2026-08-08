@@ -25,6 +25,16 @@ Quote consumption, offer acceptance, ride assignment, shift reservation, history
 writes use database transactions and conditional updates. Fare and currency snapshots are never
 accepted from clients or recalculated during the lifecycle.
 
+Driver documents contain external object keys and bounded metadata only. Object bytes, fetchable
+URLs, and secrets are not accepted. Verification is tenant-admin-only, conditionally changes a
+pending document once, attributes the verifier, and writes append-only history. Driver approval
+requires a verified driving license that is valid on the approval date.
+
+Ride SSE streams require the rider, assigned driver, or an authorized operations role in the same
+tenant. Generic stream events contain status metadata only and are published after transaction
+commit, never from a transaction that later rolls back. Connections are bounded and removed on
+completion, error, or timeout.
+
 Payment APIs derive tenant, rider, driver, and finance authority from persisted memberships. The
 database stores opaque payment-method tokens and provider/configuration references only; PAN, CVV,
 bank credentials, API keys, and webhook secrets must never be persisted. Fake-provider callback

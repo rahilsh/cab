@@ -2,6 +2,7 @@ package in.rsh.cab.ride.internal.web;
 
 import in.rsh.cab.ride.Ride;
 import in.rsh.cab.ride.RideService;
+import in.rsh.cab.ride.RideEventStream;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,15 +20,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/v1/rides")
 public class RideController {
 
   private final RideService rides;
+  private final RideEventStream events;
 
-  public RideController(RideService rides) {
+  public RideController(RideService rides, RideEventStream events) {
     this.rides = rides;
+    this.events = events;
   }
 
   @PostMapping
@@ -46,6 +51,11 @@ public class RideController {
   @GetMapping("/{id}")
   public Ride get(@PathVariable UUID id) {
     return rides.getOwn(id);
+  }
+
+  @GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public SseEmitter events(@PathVariable UUID id) {
+    return events.subscribe(id);
   }
 
   @PostMapping("/{id}/cancel")

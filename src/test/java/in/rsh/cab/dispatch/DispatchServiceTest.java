@@ -22,6 +22,7 @@ import in.rsh.cab.pricing.ServiceProduct;
 import in.rsh.cab.pricing.internal.persistence.PricingRepository;
 import in.rsh.cab.ride.Ride;
 import in.rsh.cab.ride.RideStatus;
+import in.rsh.cab.ride.RideEventStream;
 import in.rsh.cab.ride.internal.persistence.RideRepository;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.tenancy.TenantContext;
@@ -51,13 +52,14 @@ class DispatchServiceTest {
   private final LiveLocationStore locations = mock(LiveLocationStore.class);
   private final OutboxService outbox = mock(OutboxService.class);
   private final AuditService audit = mock(AuditService.class);
+  private final RideEventStream eventStream = mock(RideEventStream.class);
   private DispatchService service;
 
   @BeforeEach
   void setUp() {
     service = new DispatchService(dispatch, rides, fleet, pricing, locations, outbox, audit,
         new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), 5000, 10,
-        Duration.ofMinutes(2), Duration.ofSeconds(30));
+        Duration.ofMinutes(2), Duration.ofSeconds(30), eventStream);
     context(TenantRole.DISPATCHER);
   }
 
@@ -85,6 +87,7 @@ class DispatchServiceTest {
     assertEquals(1, offers.size());
     assertEquals(driver, offers.get(0).driverId());
     verify(dispatch).insertOffer(TENANT, offers.get(0));
+    verify(eventStream).afterCommit(eq(TENANT), any());
   }
 
   @Test

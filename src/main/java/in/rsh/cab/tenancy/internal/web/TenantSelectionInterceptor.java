@@ -9,10 +9,10 @@ import java.util.UUID;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 @Component
-public class TenantSelectionInterceptor implements HandlerInterceptor {
+public class TenantSelectionInterceptor implements AsyncHandlerInterceptor {
 
   public static final String TENANT_HEADER = "X-Tenant-ID";
   private final TenantService tenantService;
@@ -40,6 +40,12 @@ public class TenantSelectionInterceptor implements HandlerInterceptor {
     TenantContext.set(
         tenantService.authorize(jwt.getIssuer().toString(), jwt.getSubject(), tenantId));
     return true;
+  }
+
+  @Override
+  public void afterConcurrentHandlingStarted(
+      HttpServletRequest request, HttpServletResponse response, Object handler) {
+    TenantContext.clear();
   }
 
   @Override

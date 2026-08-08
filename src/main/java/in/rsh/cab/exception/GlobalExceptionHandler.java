@@ -18,6 +18,7 @@ import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -137,6 +138,11 @@ public class GlobalExceptionHandler {
         "Internal server error",
         "Unexpected error",
         "internal-error");
+  }
+
+  @ExceptionHandler(AsyncRequestNotUsableException.class)
+  public void handleDisconnectedClient() {
+    // The response is already committed; a disconnected streaming client needs no error body.
   }
 
   private ResponseEntity<ProblemDetail> problem(
