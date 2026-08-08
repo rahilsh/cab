@@ -72,11 +72,20 @@ class MarketplaceHttpIT {
     assertEquals(201, created.statusCode());
     JsonObject tenant = JsonParser.parseString(created.body()).getAsJsonObject();
     assertEquals("city-cabs", tenant.get("slug").getAsString());
+    String tenantId = tenant.get("id").getAsString();
 
     HttpResponse<String> listed = getWithToken("/api/v1/tenants");
     assertEquals(200, listed.statusCode());
     JsonArray tenants = JsonParser.parseString(listed.body()).getAsJsonArray();
     assertEquals(1, tenants.size());
+
+    assertEquals(400, getWithToken("/api/v1/current-tenant").statusCode());
+    HttpResponse<String> current = getWithTenant("/api/v1/current-tenant", tenantId, "platform-admin");
+    assertEquals(200, current.statusCode());
+    assertTrue(current.body().contains(tenantId));
+    assertEquals(
+        403,
+        getWithTenant("/api/v1/current-tenant", tenantId, "unknown-user").statusCode());
   }
 
   private HttpResponse<String> post(String path, String body) throws Exception {
@@ -119,6 +128,18 @@ class MarketplaceHttpIT {
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
+  private HttpResponse<String> getWithTenant(String path, String tenantId, String token)
+      throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Authorization", "Bearer " + token)
+            .header("X-Tenant-ID", tenantId)
+            .GET()
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
   private URI uri(String path) {
     return URI.create("http://localhost:" + port + path);
   }
@@ -133,7 +154,7 @@ class MarketplaceHttpIT {
           Jwt.withTokenValue(token)
               .header("alg", "none")
               .issuer("https://issuer.example")
-              .subject("platform-admin")
+              .subject(token)
               .claim("scope", "platform.admin")
               .claim("email", "admin@example.com")
               .claim("name", "Platform Admin")

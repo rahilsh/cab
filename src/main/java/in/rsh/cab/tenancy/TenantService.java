@@ -94,6 +94,21 @@ public class TenantService {
         .orElseGet(List::of);
   }
 
+  @Transactional(readOnly = true)
+  public TenantContext authorize(String issuer, String subject, UUID tenantId) {
+    UserAccountEntity account =
+        accounts
+            .findByIssuerAndSubject(issuer, subject)
+            .filter(candidate -> "ACTIVE".equals(candidate.getStatus()))
+            .orElseThrow(() -> new TenantAccessDeniedException("Active account is required"));
+    TenantMembershipEntity membership =
+        memberships
+            .findByTenantIdAndUserAccountIdAndStatus(tenantId, account.getId(), "ACTIVE")
+            .orElseThrow(() -> new TenantAccessDeniedException("Active tenant membership is required"));
+    return new TenantContext(
+        tenantId, account.getId(), membership.getId(), membership.getRoles());
+  }
+
   private TenantSummary summary(TenantEntity tenant, Set<TenantRole> roles) {
     return new TenantSummary(
         tenant.getId(), tenant.getSlug(), tenant.getDisplayName(), tenant.getStatus(), Set.copyOf(roles));

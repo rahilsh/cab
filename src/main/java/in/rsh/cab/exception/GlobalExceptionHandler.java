@@ -3,6 +3,7 @@ package in.rsh.cab.exception;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,12 @@ public class GlobalExceptionHandler {
   @ExceptionHandler({IllegalArgumentException.class, InvalidRequestException.class})
   public ResponseEntity<ProblemDetail> handleBadRequest(RuntimeException exception) {
     return problem(HttpStatus.BAD_REQUEST, "Invalid request", exception.getMessage(), "invalid-request");
+  }
+
+  @ExceptionHandler(TenantAccessDeniedException.class)
+  public ResponseEntity<ProblemDetail> handleTenantAccessDenied(
+      TenantAccessDeniedException exception) {
+    return problem(HttpStatus.FORBIDDEN, "Tenant access denied", exception.getMessage(), "tenant-access-denied");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

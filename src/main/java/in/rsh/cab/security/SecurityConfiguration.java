@@ -25,6 +25,8 @@ public class SecurityConfiguration {
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tenants")
                     .hasAuthority("SCOPE_platform.admin")
+                    .requestMatchers("/api/v1/**")
+                    .authenticated()
                     .anyRequest()
                     .denyAll())
         .oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt -> {}))

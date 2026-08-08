@@ -128,10 +128,15 @@ versioned endpoint is:
 | --- | --- | --- |
 | `POST` | `/api/v1/tenants` | Provision a tenant; requires `platform.admin` scope |
 | `GET` | `/api/v1/tenants` | List the authenticated account's tenant memberships |
+| `GET` | `/api/v1/current-tenant` | Inspect the selected tenant context |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
 header to correlate a request across logs and downstream calls.
+
+Tenant-owned requests require `X-Tenant-ID`. The header is only a selector: the backend verifies
+that the authenticated OIDC identity has an active database membership before binding tenant roles
+to the request. Missing, malformed, unknown, and cross-tenant selections are rejected.
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather

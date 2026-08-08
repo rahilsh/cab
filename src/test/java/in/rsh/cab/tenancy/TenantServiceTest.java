@@ -89,4 +89,23 @@ class TenantServiceTest {
     when(accounts.findByIssuerAndSubject("issuer", "missing")).thenReturn(Optional.empty());
     assertEquals(List.of(), service.findForIdentity("issuer", "missing"));
   }
+
+  @Test
+  void authorizesOnlyActiveAccountMembership() {
+    UUID accountId = UUID.randomUUID();
+    UUID tenantId = UUID.randomUUID();
+    UserAccountEntity account =
+        new UserAccountEntity(accountId, "issuer", "subject", null, null, Instant.now());
+    TenantMembershipEntity membership =
+        new TenantMembershipEntity(
+            UUID.randomUUID(), tenantId, accountId, Set.of(TenantRole.FINANCE), Instant.now());
+    when(accounts.findByIssuerAndSubject("issuer", "subject")).thenReturn(Optional.of(account));
+    when(memberships.findByTenantIdAndUserAccountIdAndStatus(tenantId, accountId, "ACTIVE"))
+        .thenReturn(Optional.of(membership));
+
+    assertEquals(tenantId, service.authorize("issuer", "subject", tenantId).tenantId());
+    assertThrows(
+        TenantAccessDeniedException.class,
+        () -> service.authorize("issuer", "unknown", tenantId));
+  }
 }

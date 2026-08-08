@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -47,6 +48,11 @@ class GlobalExceptionHandlerTest {
         HttpStatus.BAD_REQUEST,
         "invalid-request",
         "Bad argument");
+    assertProblem(
+        handler.handleTenantAccessDenied(new TenantAccessDeniedException("No membership")),
+        HttpStatus.FORBIDDEN,
+        "tenant-access-denied",
+        "No membership");
   }
 
   @Test
