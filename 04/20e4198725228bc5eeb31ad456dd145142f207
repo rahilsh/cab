@@ -1,0 +1,48 @@
+.editorconfig
+  h_6ca422f7d88004 1-17
+.gitattributes
+  h_6ca422f7d88004 1-8
+.github/dependabot.yml
+  h_6ca422f7d88004 3-28,30-37
+.github/workflows/auto_merge.yml
+  h_6ca422f7d88004 2-6,9-14,18,20,24-27,30-31
+.github/workflows/codeql.yml
+  h_6ca422f7d88004 1-45
+.github/workflows/dependency-review.yml
+  h_6ca422f7d88004 1-26
+.github/workflows/maven.yml
+  h_6ca422f7d88004 5,7-14,19,22-24,26,31,34-56
+.github/workflows/pr-title.yml
+  h_6ca422f7d88004 1-27
+.github/workflows/release.yml
+  h_6ca422f7d88004 1-236
+.mvn/wrapper/maven-wrapper.properties
+  h_6ca422f7d88004 4
+CHANGELOG.md
+  h_6ca422f7d88004 1-16
+CONTRIBUTING.md
+  h_6ca422f7d88004 45
+Dockerfile
+  h_6ca422f7d88004 2,5-8,17
+README.md
+  h_6ca422f7d88004 3-5,105,347-351
+RELEASING.md
+  h_6ca422f7d88004 1-40
+docs/CI.md
+  h_6ca422f7d88004 1-35
+docs/COMPATIBILITY.md
+  h_6ca422f7d88004 1-26
+pom.xml
+  h_6ca422f7d88004 177-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "0420e4198725228bc5eeb31ad456dd145142f207",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
