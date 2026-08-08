@@ -14,6 +14,12 @@ selects a tenant with `X-Tenant-ID`; the value is accepted only after membership
 Repositories require tenant-qualified operations, foreign keys include tenant identity, Redis keys
 are namespaced, and PostgreSQL row-level security provides defense in depth.
 
+All tenant-owned business tables enable and force RLS against transaction-local `app.tenant_id`.
+Transactions started from authenticated HTTP requests derive it from the authorized `TenantContext`;
+workers establish it from the tenant carried by their event. Control-plane identity, tenant, and
+membership tables remain global because they authorize tenant selection before that context exists.
+The runtime database role is neither a table owner nor `BYPASSRLS`; migrations use a separate role.
+
 ## Consequences
 
 Every background job and outbox event must carry tenant identity. Integration tests must prove

@@ -4,6 +4,7 @@ import in.rsh.cab.notification.internal.persistence.NotificationRepository;
 import in.rsh.cab.notification.internal.persistence.NotificationRepository.Delivery;
 import in.rsh.cab.operations.InboxService;
 import in.rsh.cab.operations.OutboxEvent;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -12,7 +13,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class NotificationDeliveryWorker {
@@ -20,17 +20,17 @@ public class NotificationDeliveryWorker {
   private final NotificationRepository notifications;
   private final InboxService inbox;
   private final Map<String, NotificationProvider> providers;
-  private final TransactionTemplate transactions;
+  private final TenantExecution tenantExecution;
   private final Clock clock;
 
   public NotificationDeliveryWorker(
       NotificationRepository notifications, InboxService inbox, List<NotificationProvider> providers,
-      TransactionTemplate transactions, Clock clock) {
+      TenantExecution tenantExecution, Clock clock) {
     this.notifications = notifications;
     this.inbox = inbox;
     this.providers = providers.stream().collect(Collectors.toUnmodifiableMap(
         NotificationProvider::channel, Function.identity()));
-    this.transactions = transactions;
+    this.tenantExecution = tenantExecution;
     this.clock = clock;
   }
 
@@ -42,17 +42,20 @@ public class NotificationDeliveryWorker {
     boolean bypass = event.eventType().startsWith("safety.")
         || event.eventType().startsWith("payment.")
         || event.eventType().equals("ride.cancelled");
-    boolean enabled = bypass || notifications.preferenceEnabled(
-        event.tenantId(), recipientId, event.eventType(), channel);
-    Delivery delivery = notifications.getOrCreateDelivery(UUID.randomUUID(), event.tenantId(),
-        recipientId, event.id(),
-        event.eventType(), channel, templateKey, templateVersion,
-        enabled ? "PENDING" : "SKIPPED", now);
+    boolean enabled = bypass || tenantExecution.inTransaction(event.tenantId(),
+        () -> notifications.preferenceEnabled(
+            event.tenantId(), recipientId, event.eventType(), channel));
+    Delivery delivery = tenantExecution.inTransaction(event.tenantId(),
+        () -> notifications.getOrCreateDelivery(UUID.randomUUID(), event.tenantId(),
+            recipientId, event.id(), event.eventType(), channel, templateKey, templateVersion,
+            enabled ? "PENDING" : "SKIPPED", now));
     if (!enabled) {
-      inbox.receive(event.tenantId(), consumer, event.id());
+      tenantExecution.inTransaction(
+          event.tenantId(), () -> inbox.receive(event.tenantId(), consumer, event.id()));
       return false;
     }
-    if (!notifications.claimDelivery(event.tenantId(), delivery.id())) {
+    if (!tenantExecution.inTransaction(event.tenantId(),
+        () -> notifications.claimDelivery(event.tenantId(), delivery.id()))) {
       return false;
     }
     UUID deliveryId = delivery.id();
@@ -64,7 +67,7 @@ public class NotificationDeliveryWorker {
     try {
       String providerId = provider.send(new NotificationProvider.Message(deliveryId,
           event.tenantId(), recipientId, event.eventType(), templateKey, templateVersion, body));
-      transactions.executeWithoutResult(status -> {
+      tenantExecution.inTransaction(event.tenantId(), () -> {
         notifications.insertAttempt(event.tenantId(), deliveryId, attempt, "SUCCEEDED", providerId,
             null, clock.instant());
         notifications.markDelivery(event.tenantId(), deliveryId, "DELIVERED", clock.instant());
@@ -72,7 +75,7 @@ public class NotificationDeliveryWorker {
       });
       return true;
     } catch (RuntimeException exception) {
-      transactions.executeWithoutResult(status -> {
+      tenantExecution.inTransaction(event.tenantId(), () -> {
         notifications.insertAttempt(event.tenantId(), deliveryId, attempt, "FAILED", null,
             "PROVIDER_UNAVAILABLE", clock.instant());
         notifications.markDelivery(event.tenantId(), deliveryId, "FAILED", null);

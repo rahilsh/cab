@@ -14,8 +14,10 @@ services:
       - /tmp:rw,noexec,nosuid,size=128m,uid=10001,gid=10001
     environment:
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cab}
-      DATABASE_USERNAME: ${POSTGRES_USER:-cab}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      DATABASE_USERNAME: ${APP_DATABASE_USERNAME:-cab_app}
+      DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD:?set APP_DATABASE_PASSWORD in .env}
+      MIGRATION_DATABASE_USERNAME: ${POSTGRES_USER:-cab}
+      MIGRATION_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       REDIS_HOST: redis
       OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8081}/realms/cab
       OIDC_JWK_SET_URI: http://keycloak:8080/realms/cab/protocol/openid-connect/certs
@@ -25,8 +27,8 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-role:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       keycloak:
@@ -56,6 +58,24 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
+    networks: [backend]
+
+  postgres-role:
+    image: postgis/postgis:17-3.5@sha256:45f2a608397fa67d236b012c14a9e3ea31e9fe813edbeb5c1c0d1acbf0d48ea9
+    environment:
+      PGHOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-cab}
+      POSTGRES_USER: ${POSTGRES_USER:-cab}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      APP_DATABASE_USERNAME: ${APP_DATABASE_USERNAME:-cab_app}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD:?set APP_DATABASE_PASSWORD in .env}
+    entrypoint: ["/bin/bash", "/usr/local/bin/init-app-role.sh"]
+    volumes:
+      - ./deploy/postgres/init-app-role.sh:/usr/local/bin/init-app-role.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
     networks: [backend]
 
   redis:

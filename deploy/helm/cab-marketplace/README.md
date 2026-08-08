@@ -10,6 +10,8 @@ platform's secret manager. Do not commit the rendered Secret:
 cab-marketplace
   database-username
   database-password
+  migration-database-username
+  migration-database-password
   fake-payment-webhook-secret
 ```
 
@@ -29,6 +31,8 @@ The pod runs as UID/GID `10001`, drops all capabilities, uses a read-only root f
 mounts a bounded writable `/tmp`. Enable `networkPolicy` only after supplying environment-specific
 egress rules for PostgreSQL, Redis, OIDC, OSRM, payment providers, and configured webhooks.
 
-Flyway runs at application startup. Keep `replicaCount: 1` for a migration-bearing release and wait
-for readiness before enabling HPA or scaling out. See `docs/runbooks/migrations.md` for the required
-pre-deployment checks and rollback constraints.
+The application datasource must use a non-owner role without `BYPASSRLS`. Flyway uses the separate
+migration credentials. Prefer an external migration job and set `FLYWAY_ENABLED=false` on the
+Deployment with `config.flywayEnabled=false` when your platform supports it; migration credential
+keys are then not mounted. Otherwise keep `replicaCount: 1` for a migration-bearing release and wait
+for readiness before scaling out. See `docs/runbooks/migrations.md`.

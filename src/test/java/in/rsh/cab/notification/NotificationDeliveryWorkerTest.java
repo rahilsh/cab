@@ -14,6 +14,8 @@ import in.rsh.cab.notification.internal.persistence.NotificationRepository;
 import in.rsh.cab.notification.internal.persistence.NotificationRepository.Delivery;
 import in.rsh.cab.operations.InboxService;
 import in.rsh.cab.operations.OutboxEvent;
+import in.rsh.cab.tenancy.TenantDatabaseContext;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -41,7 +43,8 @@ class NotificationDeliveryWorkerTest {
   void setUp() {
     when(provider.channel()).thenReturn("LOCAL");
     worker = new NotificationDeliveryWorker(repository, inbox, List.of(provider),
-        new TransactionTemplate(new TestTransactionManager()), Clock.fixed(NOW, ZoneOffset.UTC));
+        new TenantExecution(new TransactionTemplate(new TestTransactionManager()),
+            mock(TenantDatabaseContext.class)), Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   @Test

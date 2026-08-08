@@ -5,7 +5,8 @@
 - Build and scan an immutable image from a reviewed commit; deploy by digest or immutable tag.
 - Run `./mvnw clean verify`, `docker build`, `docker-compose config`, and Helm lint/template.
 - Provision PostgreSQL 17 with PostGIS, Redis 7, OIDC, OSRM, and object storage independently.
-- Create the Kubernetes Secret named by `existingSecret.name`; never pass secrets in Helm values.
+- Create the Kubernetes Secret named by `existingSecret.name` with separate restricted application
+  and migration credentials; never pass secrets in Helm values.
 - Verify database backup recency, migration compatibility, dependency capacity, and alert coverage.
 
 ## Deploy

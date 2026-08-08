@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.operations.OutboxEvent;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
+import in.rsh.cab.tenancy.TenantDatabaseContext;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -36,7 +38,8 @@ class PaymentOperationWorkerTest {
   void setUp() {
     when(provider.name()).thenReturn("fake");
     worker = new PaymentOperationWorker(repository, List.of(provider),
-        new TransactionTemplate(new TestTransactionManager()),
+        new TenantExecution(new TransactionTemplate(new TestTransactionManager()),
+            mock(TenantDatabaseContext.class)),
         Clock.fixed(NOW, ZoneOffset.UTC));
   }
 

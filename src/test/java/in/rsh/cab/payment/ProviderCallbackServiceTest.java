@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,8 +36,12 @@ class ProviderCallbackServiceTest {
   @BeforeEach
   void setUp() {
     when(provider.name()).thenReturn("fake");
+    TenantExecution tenantExecution = mock(TenantExecution.class);
+    when(tenantExecution.inTransaction(any(), org.mockito.ArgumentMatchers.<java.util.function.Supplier<Object>>any()))
+        .thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(1)).get());
     service = new ProviderCallbackService(repository, List.of(provider), outbox, json,
-        Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(5), 1500);
+        Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(5), 1500, tenantExecution);
+    when(repository.findTenantForAccount(account.id())).thenReturn(Optional.of(account.tenantId()));
     when(repository.findAccount(account.id())).thenReturn(Optional.of(account));
     when(provider.verifies(any(), any(), any(), any())).thenReturn(true);
   }

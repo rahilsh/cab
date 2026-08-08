@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import in.rsh.cab.operations.OutboxEvent;
+import in.rsh.cab.tenancy.TenantExecution;
 import in.rsh.cab.webhook.internal.persistence.WebhookRepository;
 import in.rsh.cab.webhook.internal.persistence.WebhookRepository.Delivery;
 import java.net.InetAddress;
@@ -37,12 +38,20 @@ class WebhookDeliveryWorkerTest {
   private final SecretResolver secrets = reference -> "secret";
   private final WebhookSecurity security = new WebhookSecurity(host -> List.of(
       InetAddress.getByAddress(new byte[] {93, (byte) 184, (byte) 216, 34})));
+  private final TenantExecution tenantExecution = mock(TenantExecution.class);
   private WebhookDeliveryWorker worker;
 
   @BeforeEach
   void setUp() {
+    when(tenantExecution.inTransaction(any(), org.mockito.ArgumentMatchers.<java.util.function.Supplier<Object>>any()))
+        .thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(1)).get());
+    org.mockito.Mockito.doAnswer(invocation -> {
+      ((Runnable) invocation.getArgument(1)).run();
+      return null;
+    }).when(tenantExecution).inTransaction(any(), any(Runnable.class));
     worker = new WebhookDeliveryWorker(repository, security, transport, secrets,
-        new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6);
+        new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6,
+        tenantExecution);
   }
 
   @Test
@@ -84,7 +93,8 @@ class WebhookDeliveryWorkerTest {
   void dnsIsResolvedAgainImmediatelyBeforeEveryDelivery() throws Exception {
     WebhookSecurity rebinding = new WebhookSecurity(host -> List.of(InetAddress.getByName("127.0.0.1")));
     WebhookDeliveryWorker blocked = new WebhookDeliveryWorker(repository, rebinding, transport,
-        secrets, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6);
+        secrets, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6,
+        tenantExecution);
     Delivery delivery = new Delivery(UUID.randomUUID(), TENANT, subscription(), UUID.randomUUID(),
         "ride.completed", 1, "{}", NOW, 0);
     assertFalse(blocked.deliver(delivery));

@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import in.rsh.cab.operations.internal.persistence.OutboxRepository;
+import in.rsh.cab.tenancy.TenantDatabaseContext;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -25,7 +27,32 @@ class OutboxServiceTest {
   private final OutboxService service =
       new OutboxService(repository, Clock.fixed(NOW, ZoneOffset.UTC));
   private final OutboxPoller poller =
-      new OutboxPoller(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+      new OutboxPoller(repository, Clock.fixed(NOW, ZoneOffset.UTC), tenantExecution());
+
+  private TenantExecution tenantExecution() {
+    return new TenantExecution(
+        new org.springframework.transaction.support.TransactionTemplate(
+            new org.springframework.transaction.support.AbstractPlatformTransactionManager() {
+              @Override
+              protected Object doGetTransaction() {
+                return new Object();
+              }
+
+              @Override
+              protected void doBegin(
+                  Object transaction,
+                  org.springframework.transaction.TransactionDefinition definition) {}
+
+              @Override
+              protected void doCommit(
+                  org.springframework.transaction.support.DefaultTransactionStatus status) {}
+
+              @Override
+              protected void doRollback(
+                  org.springframework.transaction.support.DefaultTransactionStatus status) {}
+            }),
+        mock(TenantDatabaseContext.class));
+  }
 
   @Test
   void appendsAndLeasesEvents() {

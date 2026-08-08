@@ -56,6 +56,7 @@ config:
   oidcAudience: cab-api
   osrmBaseUrl: http://osrm:5000
   springProfilesActive: prod
+  flywayEnabled: "true"
   apiDocsEnabled: "false"
   swaggerUiEnabled: "false"
 
@@ -64,6 +65,8 @@ existingSecret:
   name: ""
   databaseUsernameKey: database-username
   databasePasswordKey: database-password
+  migrationDatabaseUsernameKey: migration-database-username
+  migrationDatabasePasswordKey: migration-database-password
   fakePaymentWebhookSecretKey: fake-payment-webhook-secret
 
 extraEnv: []

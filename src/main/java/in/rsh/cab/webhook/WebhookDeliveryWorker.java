@@ -1,6 +1,7 @@
 package in.rsh.cab.webhook;
 
 import in.rsh.cab.operations.OutboxEvent;
+import in.rsh.cab.tenancy.TenantExecution;
 import in.rsh.cab.webhook.internal.persistence.WebhookRepository;
 import in.rsh.cab.webhook.internal.persistence.WebhookRepository.Delivery;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.crypto.Mac;
@@ -31,12 +33,13 @@ public class WebhookDeliveryWorker {
   private final Clock clock;
   private final Duration requestTimeout;
   private final int maxAttempts;
+  private final TenantExecution tenantExecution;
 
   public WebhookDeliveryWorker(
       WebhookRepository webhooks, WebhookSecurity security, WebhookTransport transport,
       SecretResolver secrets, ObjectMapper json, Clock clock,
       @Value("${webhooks.request-timeout:PT10S}") Duration requestTimeout,
-      @Value("${webhooks.max-attempts:6}") int maxAttempts) {
+      @Value("${webhooks.max-attempts:6}") int maxAttempts, TenantExecution tenantExecution) {
     this.webhooks = webhooks;
     this.security = security;
     this.transport = transport;
@@ -45,6 +48,7 @@ public class WebhookDeliveryWorker {
     this.clock = clock;
     this.requestTimeout = requestTimeout;
     this.maxAttempts = maxAttempts;
+    this.tenantExecution = tenantExecution;
   }
 
   public int process(OutboxEvent event) {
@@ -52,11 +56,14 @@ public class WebhookDeliveryWorker {
       return 0;
     }
     int delivered = 0;
-    for (WebhookSubscription subscription : webhooks.matching(event.tenantId(), event.eventType())) {
+    List<WebhookSubscription> subscriptions = tenantExecution.inTransaction(event.tenantId(),
+        () -> webhooks.matching(event.tenantId(), event.eventType()));
+    for (WebhookSubscription subscription : subscriptions) {
       Instant now = clock.instant();
       String payload = envelope(event);
-      Delivery delivery = webhooks.createDelivery(subscription, event.tenantId(), event, payload,
-          now, now).orElse(null);
+      Delivery delivery = tenantExecution.inTransaction(event.tenantId(),
+          () -> webhooks.createDelivery(subscription, event.tenantId(), event, payload,
+              now, now).orElse(null));
       if (delivery != null && deliver(delivery)) {
         delivered++;
       }
@@ -81,7 +88,9 @@ public class WebhookDeliveryWorker {
       WebhookTransport.Response response = transport.post(uri, delivery.payload(), headers,
           requestTimeout);
       if (response.statusCode() >= 200 && response.statusCode() < 300) {
-        webhooks.complete(delivery.tenantId(), delivery.id(), attempt, response.statusCode(), now);
+        tenantExecution.inTransaction(delivery.tenantId(),
+            () -> webhooks.complete(
+                delivery.tenantId(), delivery.id(), attempt, response.statusCode(), now));
         return true;
       }
       retry(delivery, attempt, response.statusCode(), "HTTP_STATUS", now);
@@ -97,7 +106,9 @@ public class WebhookDeliveryWorker {
       throw new IllegalArgumentException("Webhook retry limit must be between 1 and 200");
     }
     int delivered = 0;
-    for (Delivery delivery : webhooks.findDue(tenantId, limit, clock.instant())) {
+    List<Delivery> due = tenantExecution.inTransaction(
+        tenantId, () -> webhooks.findDue(tenantId, limit, clock.instant()));
+    for (Delivery delivery : due) {
       if (deliver(delivery)) {
         delivered++;
       }
@@ -108,8 +119,9 @@ public class WebhookDeliveryWorker {
   private void retry(Delivery delivery, int attempt, Integer responseStatus, String error, Instant now) {
     boolean failed = attempt >= maxAttempts;
     long delaySeconds = Math.min(3600, 1L << Math.min(attempt, 12));
-    webhooks.retry(delivery.tenantId(), delivery.id(), attempt, responseStatus, error,
-        now.plusSeconds(delaySeconds), failed, now);
+    tenantExecution.inTransaction(delivery.tenantId(),
+        () -> webhooks.retry(delivery.tenantId(), delivery.id(), attempt, responseStatus, error,
+            now.plusSeconds(delaySeconds), failed, now));
   }
 
   private String envelope(OutboxEvent event) {

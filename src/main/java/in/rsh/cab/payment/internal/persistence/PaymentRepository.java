@@ -18,6 +18,8 @@ public interface PaymentRepository {
 
   Optional<PaymentAccount> findAccount(UUID accountId);
 
+  Optional<UUID> findTenantForAccount(UUID accountId);
+
   Optional<PaymentAccount> findAccountForPayment(UUID tenantId, UUID paymentId);
 
   void insertCaptureRequest(UUID tenantId, UUID accountId, Payment payment, UUID attemptId);

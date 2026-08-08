@@ -13,6 +13,7 @@ import in.rsh.cab.payment.FakePaymentProvider;
 import in.rsh.cab.payment.PaymentAccount;
 import in.rsh.cab.payment.PaymentOperationWorker;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -64,7 +65,8 @@ class MarketplaceHttpIT {
               DockerImageName.parse("postgis/postgis:17-3.5").asCompatibleSubstituteFor("postgres"))
           .withDatabaseName("cab")
           .withUsername("cab")
-          .withPassword("cab");
+          .withPassword("cab")
+          .withInitScript("postgres/init-app-role.sql");
 
   @Container
   static final GenericContainer<?> REDIS =
@@ -80,12 +82,16 @@ class MarketplaceHttpIT {
   @Autowired private PaymentOperationWorker paymentWorker;
   @Autowired private PaymentRepository paymentRepository;
   @Autowired private FakePaymentProvider fakePaymentProvider;
+  @Autowired private TenantExecution tenantExecution;
 
   @DynamicPropertySource
   static void databaseProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.datasource.username", () -> "cab_app");
+    registry.add("spring.datasource.password", () -> "cab-app-test");
+    registry.add("spring.flyway.url", POSTGRES::getJdbcUrl);
+    registry.add("spring.flyway.user", POSTGRES::getUsername);
+    registry.add("spring.flyway.password", POSTGRES::getPassword);
     registry.add("spring.data.redis.host", REDIS::getHost);
     registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     registry.add("springdoc.api-docs.enabled", () -> "true");
@@ -335,17 +341,24 @@ class MarketplaceHttpIT {
     assertTrue(outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30)).isEmpty());
 
     UUID incomingEvent = UUID.randomUUID();
-    assertTrue(inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent));
-    assertFalse(inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent));
+    assertTrue(
+        tenantExecution.inTransaction(
+            tenantUuid, () -> inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent)));
+    assertFalse(
+        tenantExecution.inTransaction(
+            tenantUuid, () -> inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent)));
     UUID auditId = UUID.fromString(audit.get("id").asText());
     assertThrows(
         DataAccessException.class,
         () ->
-            jdbc.sql(
-                    "UPDATE audit_events SET action = 'changed' WHERE tenant_id = :tenantId AND id = :id")
-                .param("tenantId", tenantUuid)
-                .param("id", auditId)
-                .update());
+            tenantExecution.inTransaction(
+                tenantUuid,
+                () ->
+                    jdbc.sql(
+                            "UPDATE audit_events SET action = 'changed' WHERE tenant_id = :tenantId AND id = :id")
+                        .param("tenantId", tenantUuid)
+                        .param("id", auditId)
+                        .update()));
 
     HttpResponse<String> route =
         postWithTenant(
@@ -499,9 +512,12 @@ class MarketplaceHttpIT {
     paymentEvents.forEach(event -> outboxPoller.published(tenantUuid, event.id()));
 
     PaymentAccount paymentAccount =
-        paymentRepository
-            .findAccountForPayment(tenantUuid, UUID.fromString(paymentId))
-            .orElseThrow();
+        tenantExecution.inTransaction(
+            tenantUuid,
+            () ->
+                paymentRepository
+                    .findAccountForPayment(tenantUuid, UUID.fromString(paymentId))
+                    .orElseThrow());
     Instant captureTimestamp = Instant.now();
     String captureBody =
         "{\"eventId\":\"capture-event-1\",\"type\":\"CAPTURE_SUCCEEDED\","
@@ -570,6 +586,95 @@ class MarketplaceHttpIT {
             .get(0)
             .get("availableMinor")
             .asLong());
+  }
+
+  @Test
+  void databaseRoleEnforcesTransactionLocalTenantIsolation() {
+    assertEquals(
+        41,
+        jdbc.sql(
+                """
+                SELECT count(*)
+                FROM pg_class table_definition
+                JOIN pg_namespace schema_definition
+                  ON schema_definition.oid = table_definition.relnamespace
+                WHERE schema_definition.nspname = 'public'
+                  AND table_definition.relkind = 'r'
+                  AND table_definition.relrowsecurity
+                  AND table_definition.relforcerowsecurity
+                  AND EXISTS (
+                    SELECT 1 FROM pg_policy policy
+                    WHERE policy.polrelid = table_definition.oid)
+                """)
+            .query(Integer.class)
+            .single());
+    assertEquals(
+        "cab_app:false:false",
+        jdbc.sql(
+                """
+                SELECT current_user || ':' || rolsuper || ':' || rolbypassrls
+                FROM pg_roles WHERE rolname = current_user
+                """)
+            .query(String.class)
+            .single());
+
+    UUID tenantA = UUID.randomUUID();
+    UUID tenantB = UUID.randomUUID();
+    insertTenant(tenantA, "rls-a-" + tenantA.toString().substring(0, 8));
+    insertTenant(tenantB, "rls-b-" + tenantB.toString().substring(0, 8));
+    insertProduct(tenantA, "a");
+    insertProduct(tenantB, "b");
+
+    assertEquals(
+        1,
+        tenantExecution.inTransaction(
+            tenantA,
+            () -> jdbc.sql("SELECT count(*) FROM service_products").query(Integer.class).single()));
+    assertEquals(
+        0, jdbc.sql("SELECT count(*) FROM service_products").query(Integer.class).single());
+    assertEquals(
+        0,
+        tenantExecution.inTransaction(
+            tenantA,
+            () ->
+                jdbc.sql("UPDATE service_products SET name = 'blocked' WHERE tenant_id = :tenant")
+                    .param("tenant", tenantB)
+                    .update()));
+    assertThrows(DataAccessException.class, () -> insertProductAs(tenantA, tenantB, "blocked"));
+  }
+
+  private void insertTenant(UUID tenantId, String slug) {
+    jdbc.sql(
+            """
+            INSERT INTO tenants
+              (id, slug, display_name, status, default_currency, timezone, created_at, updated_at)
+            VALUES (:id, :slug, :name, 'ACTIVE', 'USD', 'UTC', now(), now())
+            """)
+        .param("id", tenantId)
+        .param("slug", slug)
+        .param("name", slug)
+        .update();
+  }
+
+  private void insertProduct(UUID tenantId, String slug) {
+    tenantExecution.inTransaction(tenantId, () -> insertProductAs(tenantId, tenantId, slug));
+  }
+
+  private void insertProductAs(UUID contextTenant, UUID rowTenant, String slug) {
+    tenantExecution.inTransaction(
+        contextTenant,
+        () ->
+            jdbc.sql(
+                    """
+                    INSERT INTO service_products
+                      (id, tenant_id, slug, name, status, capacity, service_class, created_at, updated_at)
+                    VALUES (:id, :tenant, :slug, :name, 'ACTIVE', 4, 'STANDARD', now(), now())
+                    """)
+                .param("id", UUID.randomUUID())
+                .param("tenant", rowTenant)
+                .param("slug", slug)
+                .param("name", "Product " + slug)
+                .update());
   }
 
   @Test
