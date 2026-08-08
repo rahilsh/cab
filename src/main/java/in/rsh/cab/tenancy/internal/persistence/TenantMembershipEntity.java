@@ -48,4 +48,10 @@ public class TenantMembershipEntity {
     this.createdAt = now;
     this.updatedAt = now;
   }
+
+  public void addRole(TenantRole role, Instant now) {
+    if (roles.add(role)) {
+      updatedAt = now;
+    }
+  }
 }

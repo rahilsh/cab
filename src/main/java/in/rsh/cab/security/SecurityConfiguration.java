@@ -25,11 +25,14 @@ public class SecurityConfiguration {
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tenants")
                     .hasAuthority("SCOPE_platform.admin")
-                    .requestMatchers(HttpMethod.GET, "/api/v1/service-areas")
-                    .authenticated()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/service-areas")
-                    .authenticated()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/routes/estimate")
+                    .requestMatchers(
+                        "/api/v1/current-tenant",
+                        "/api/v1/service-areas/**",
+                        "/api/v1/routes/**",
+                        "/api/v1/rider/**",
+                        "/api/v1/drivers/**",
+                        "/api/v1/vehicles/**",
+                        "/api/v1/driver/shifts/**")
                     .authenticated()
                     .requestMatchers("/api/v1/**")
                     .authenticated()

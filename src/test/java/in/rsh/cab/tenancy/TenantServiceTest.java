@@ -108,4 +108,36 @@ class TenantServiceTest {
         TenantAccessDeniedException.class,
         () -> service.authorize("issuer", "unknown", tenantId));
   }
+
+  @Test
+  void tenantAdminGrantsOnlySelfServiceRolesToActiveMembership() {
+    UUID tenantId = UUID.randomUUID();
+    UUID accountId = UUID.randomUUID();
+    TenantMembershipEntity membership = new TenantMembershipEntity(
+        UUID.randomUUID(), tenantId, accountId, Set.of(TenantRole.TENANT_ADMIN), Instant.EPOCH);
+    TenantContext.set(new TenantContext(
+        tenantId, accountId, membership.getId(), Set.of(TenantRole.TENANT_ADMIN)));
+    when(memberships.findByTenantIdAndUserAccountIdAndStatus(tenantId, accountId, "ACTIVE"))
+        .thenReturn(Optional.of(membership));
+
+    service.grantSelfServiceRole(TenantRole.RIDER);
+    assertEquals(Set.of(TenantRole.TENANT_ADMIN, TenantRole.RIDER), membership.getRoles());
+    assertThrows(InvalidRequestException.class,
+        () -> service.grantSelfServiceRole(TenantRole.FINANCE));
+
+    when(memberships.findByTenantIdAndUserAccountIdAndStatus(tenantId, UUID.randomUUID(), "ACTIVE"))
+        .thenReturn(Optional.empty());
+    assertThrows(InvalidRequestException.class,
+        () -> service.grantRoleForActiveAccount(UUID.randomUUID(), TenantRole.DRIVER));
+    TenantContext.clear();
+  }
+
+  @Test
+  void nonAdminCannotGrantTenantRole() {
+    TenantContext.set(new TenantContext(
+        UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), Set.of(TenantRole.DRIVER)));
+    assertThrows(TenantAccessDeniedException.class,
+        () -> service.grantRoleForActiveAccount(UUID.randomUUID(), TenantRole.RIDER));
+    TenantContext.clear();
+  }
 }
