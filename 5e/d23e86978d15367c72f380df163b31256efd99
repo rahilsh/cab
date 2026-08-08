@@ -1,0 +1,37 @@
+src/main/java/in/rsh/cab/config/OpenApiConfiguration.java
+  s_978b441d6e547f::t_6f3646ba08e9b5 1-89
+src/main/java/in/rsh/cab/dispatch/internal/web/DispatchController.java
+  s_978b441d6e547f::t_8176bb3ed62ad1 8,10,55-56,58-66,78-80
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  s_978b441d6e547f::t_3339253779e559 3-7,17,34-35,46-49,55-56,62-66,71-74,94-105,122-131,147
+src/main/java/in/rsh/cab/ratelimit/RateLimitInterceptor.java
+  s_978b441d6e547f::t_35b42146711e14 1-61
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  s_978b441d6e547f::t_0476157aaf040c 10-11,18-19,21-40,46-49,68-73
+src/main/java/in/rsh/cab/security/SecurityProblemWriter.java
+  s_978b441d6e547f::t_a0115a88b32ff7 1-52
+src/main/java/in/rsh/cab/tenancy/internal/web/TenantWebConfiguration.java
+  s_978b441d6e547f::t_569398d41bf43d 3-4,13-14,16-19,21-22,31-38
+src/main/java/in/rsh/cab/web/CorrelationIdFilter.java
+  s_978b441d6e547f::t_46d44b86857ad0 10-11,16,27-30
+src/main/java/in/rsh/cab/web/RequestContextMdcInterceptor.java
+  s_978b441d6e547f::t_9f38b291d0eed4 1-57
+src/test/java/in/rsh/cab/architecture/ArchitectureTest.java
+  s_978b441d6e547f::t_764f358dc58932 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "5ed23e86978d15367c72f380df163b31256efd99",
+  "prompts": {},
+  "sessions": {
+    "s_978b441d6e547f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01dc4b944ffe2Ee0DuTMDfCLDM",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
