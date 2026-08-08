@@ -1,0 +1,106 @@
+README.md
+  h_6ca422f7d88004 36,42-43,173-180,252-268
+SECURITY.md
+  h_6ca422f7d88004 40-50
+src/main/java/in/rsh/cab/notification/LocalLogNotificationProvider.java
+  h_6ca422f7d88004 1-23
+src/main/java/in/rsh/cab/notification/NotificationDeliveryWorker.java
+  h_6ca422f7d88004 1-83
+src/main/java/in/rsh/cab/notification/NotificationPreference.java
+  h_6ca422f7d88004 1-7
+src/main/java/in/rsh/cab/notification/NotificationProvider.java
+  h_6ca422f7d88004 1-19
+src/main/java/in/rsh/cab/notification/NotificationService.java
+  h_6ca422f7d88004 1-47
+src/main/java/in/rsh/cab/notification/internal/persistence/JdbcNotificationRepository.java
+  h_6ca422f7d88004 1-129
+src/main/java/in/rsh/cab/notification/internal/persistence/NotificationRepository.java
+  h_6ca422f7d88004 1-28
+src/main/java/in/rsh/cab/notification/internal/web/NotificationController.java
+  h_6ca422f7d88004 1-40
+src/main/java/in/rsh/cab/rating/Rating.java
+  h_6ca422f7d88004 1-16
+src/main/java/in/rsh/cab/rating/RatingService.java
+  h_6ca422f7d88004 1-80
+src/main/java/in/rsh/cab/rating/internal/persistence/JdbcRatingRepository.java
+  h_6ca422f7d88004 1-51
+src/main/java/in/rsh/cab/rating/internal/persistence/RatingRepository.java
+  h_6ca422f7d88004 1-14
+src/main/java/in/rsh/cab/rating/internal/web/RatingController.java
+  h_6ca422f7d88004 1-36
+src/main/java/in/rsh/cab/safety/SafetyIncident.java
+  h_6ca422f7d88004 1-27
+src/main/java/in/rsh/cab/safety/SafetyService.java
+  h_6ca422f7d88004 1-139
+src/main/java/in/rsh/cab/safety/internal/persistence/JdbcSafetyRepository.java
+  h_6ca422f7d88004 1-117
+src/main/java/in/rsh/cab/safety/internal/persistence/SafetyRepository.java
+  h_6ca422f7d88004 1-25
+src/main/java/in/rsh/cab/safety/internal/web/SafetyController.java
+  h_6ca422f7d88004 1-74
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  h_6ca422f7d88004 42-47
+src/main/java/in/rsh/cab/support/SupportCase.java
+  h_6ca422f7d88004 1-20
+src/main/java/in/rsh/cab/support/SupportService.java
+  h_6ca422f7d88004 1-140
+src/main/java/in/rsh/cab/support/internal/persistence/JdbcSupportRepository.java
+  h_6ca422f7d88004 1-138
+src/main/java/in/rsh/cab/support/internal/persistence/SupportRepository.java
+  h_6ca422f7d88004 1-29
+src/main/java/in/rsh/cab/support/internal/web/SupportController.java
+  h_6ca422f7d88004 1-73
+src/main/java/in/rsh/cab/webhook/EnvironmentSecretResolver.java
+  h_6ca422f7d88004 1-26
+src/main/java/in/rsh/cab/webhook/JdkWebhookTransport.java
+  h_6ca422f7d88004 1-38
+src/main/java/in/rsh/cab/webhook/SecretResolver.java
+  h_6ca422f7d88004 1-5
+src/main/java/in/rsh/cab/webhook/WebhookConfiguration.java
+  h_6ca422f7d88004 1-15
+src/main/java/in/rsh/cab/webhook/WebhookDeliveryWorker.java
+  h_6ca422f7d88004 1-138
+src/main/java/in/rsh/cab/webhook/WebhookSecurity.java
+  h_6ca422f7d88004 1-62
+src/main/java/in/rsh/cab/webhook/WebhookService.java
+  h_6ca422f7d88004 1-115
+src/main/java/in/rsh/cab/webhook/WebhookSubscription.java
+  h_6ca422f7d88004 1-20
+src/main/java/in/rsh/cab/webhook/WebhookTransport.java
+  h_6ca422f7d88004 1-12
+src/main/java/in/rsh/cab/webhook/internal/persistence/JdbcWebhookRepository.java
+  h_6ca422f7d88004 1-199
+src/main/java/in/rsh/cab/webhook/internal/persistence/WebhookRepository.java
+  h_6ca422f7d88004 1-37
+src/main/java/in/rsh/cab/webhook/internal/web/WebhookController.java
+  h_6ca422f7d88004 1-67
+src/main/resources/application.properties
+  h_6ca422f7d88004 39-42
+src/main/resources/db/migration/V9__notifications_ratings_support_safety_webhooks.sql
+  h_6ca422f7d88004 1-329
+src/test/java/in/rsh/cab/controller/MarketplaceHttpIT.java
+  h_6ca422f7d88004 381-417
+src/test/java/in/rsh/cab/notification/NotificationDeliveryWorkerTest.java
+  h_6ca422f7d88004 1-107
+src/test/java/in/rsh/cab/rating/RatingServiceTest.java
+  h_6ca422f7d88004 1-85
+src/test/java/in/rsh/cab/safety/SafetyServiceTest.java
+  h_6ca422f7d88004 1-79
+src/test/java/in/rsh/cab/support/SupportServiceTest.java
+  h_6ca422f7d88004 1-79
+src/test/java/in/rsh/cab/webhook/WebhookDeliveryWorkerTest.java
+  h_6ca422f7d88004 1-115
+src/test/java/in/rsh/cab/webhook/WebhookSecurityTest.java
+  h_6ca422f7d88004 1-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "bbbb4c67bbbd62431b78aab98cfbe07ad710c24a",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
