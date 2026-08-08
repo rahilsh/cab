@@ -1,5 +1,8 @@
 # Cab Marketplace
 
+[![Java CI](https://github.com/rahilsh/cab/actions/workflows/maven.yml/badge.svg)](https://github.com/rahilsh/cab/actions/workflows/maven.yml)
+[![CodeQL](https://github.com/rahilsh/cab/actions/workflows/codeql.yml/badge.svg)](https://github.com/rahilsh/cab/actions/workflows/codeql.yml)
+
 Cab Marketplace is an open-source backend for operating multi-tenant ride-hailing services. The
 project is evolving from a single-fleet prototype into a production-oriented modular monolith for
 operators, riders, drivers, vehicles, pricing, dispatch, trips, payments, and settlements.
@@ -99,6 +102,7 @@ TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
 This command:
 
 - Compiles and packages an executable Spring Boot JAR
+- Generates a CycloneDX JSON SBOM at `target/classes/META-INF/sbom/application.cdx.json`
 - Runs unit tests
 - Enforces at least 85% aggregate unit-test line coverage
 - Starts the application on a random real port for HTTP integration tests
@@ -339,6 +343,11 @@ payloads, audit summaries, or retry error text.
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. All commits must follow
 [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Participation is
 governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+CI behavior and required branch protections are documented in [CI and repository rules](docs/CI.md).
+See the [changelog](CHANGELOG.md), [compatibility policy](docs/COMPATIBILITY.md), and
+[release process](RELEASING.md) for release standards. Release automation publishes artifacts and a
+GHCR image but deliberately performs no cloud deployment.
 
 ## Security
 

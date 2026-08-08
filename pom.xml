@@ -174,7 +174,12 @@
               <goal>check</goal>
             </goals>
           </execution>
-        </executions>
+          </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.cyclonedx</groupId>
+        <artifactId>cyclonedx-maven-plugin</artifactId>
+        <version>2.9.3</version>
       </plugin>
     </plugins>
   </build>
