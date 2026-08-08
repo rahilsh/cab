@@ -1,0 +1,76 @@
+package in.rsh.cab.payment;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import in.rsh.cab.operations.OutboxService;
+import in.rsh.cab.payment.internal.persistence.PaymentRepository;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+
+class ProviderCallbackServiceTest {
+
+  private static final Instant NOW = Instant.parse("2026-08-08T10:00:00Z");
+  private final PaymentRepository repository = mock(PaymentRepository.class);
+  private final PaymentProvider provider = mock(PaymentProvider.class);
+  private final OutboxService outbox = mock(OutboxService.class);
+  private final ObjectMapper json = new ObjectMapper();
+  private final PaymentAccount account = new PaymentAccount(
+      UUID.randomUUID(), UUID.randomUUID(), "fake", "env:A", "env:S", true);
+  private ProviderCallbackService service;
+
+  @BeforeEach
+  void setUp() {
+    when(provider.name()).thenReturn("fake");
+    service = new ProviderCallbackService(repository, List.of(provider), outbox, json,
+        Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(5), 1500);
+    when(repository.findAccount(account.id())).thenReturn(Optional.of(account));
+    when(provider.verifies(any(), any(), any(), any())).thenReturn(true);
+  }
+
+  @Test
+  void appliesCaptureOnceAndPostsLedger() throws Exception {
+    UUID paymentId = UUID.randomUUID();
+    String body = json.writeValueAsString(new ProviderEvent("evt-1",
+        ProviderEvent.Type.CAPTURE_SUCCEEDED, paymentId, null, "provider-pay", 1,
+        100L, "USD", null));
+    when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(true);
+    when(repository.applyCaptureEvent(any(), any(), any(), any(Boolean.class))).thenReturn(true);
+
+    ProviderCallbackService.Result result = service.process(
+        account.id(), "fake", NOW, "signature", body);
+
+    assertTrue(result.accepted());
+    assertTrue(result.applied());
+    verify(repository).postCaptureLedger(account.tenantId(), paymentId, 1500, NOW);
+  }
+
+  @Test
+  void rejectsReplayTimestampAndDeduplicatesProviderEvent() throws Exception {
+    assertThrows(PaymentSignatureException.class, () -> service.process(
+        account.id(), "fake", NOW.minusSeconds(301), "signature", "{}"));
+    UUID paymentId = UUID.randomUUID();
+    String body = json.writeValueAsString(new ProviderEvent("evt-1",
+        ProviderEvent.Type.CAPTURE_FAILED, paymentId, null, "provider-pay", 1,
+        100L, "USD", "DECLINED"));
+    when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(false);
+
+    ProviderCallbackService.Result duplicate = service.process(
+        account.id(), "fake", NOW, "signature", body);
+    assertFalse(duplicate.accepted());
+    assertFalse(duplicate.applied());
+  }
+}

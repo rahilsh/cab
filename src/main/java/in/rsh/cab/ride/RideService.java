@@ -9,6 +9,7 @@ import in.rsh.cab.fleet.internal.persistence.FleetRepository;
 import in.rsh.cab.operations.IdempotencyReservation;
 import in.rsh.cab.operations.IdempotencyService;
 import in.rsh.cab.operations.OutboxService;
+import in.rsh.cab.payment.PaymentService;
 import in.rsh.cab.pricing.FareQuote;
 import in.rsh.cab.pricing.internal.persistence.PricingRepository;
 import in.rsh.cab.ride.internal.persistence.RideRepository;
@@ -39,12 +40,13 @@ public class RideService {
   private final IdempotencyService idempotency;
   private final OutboxService outbox;
   private final AuditService audit;
+  private final PaymentService payments;
   private final ObjectMapper json;
   private final Clock clock;
 
   public RideService(
       RideRepository rides, PricingRepository pricing, DispatchRepository dispatch, FleetRepository fleet,
-      IdempotencyService idempotency, OutboxService outbox, AuditService audit,
+      IdempotencyService idempotency, OutboxService outbox, AuditService audit, PaymentService payments,
       ObjectMapper json, Clock clock) {
     this.rides = rides;
     this.pricing = pricing;
@@ -53,6 +55,7 @@ public class RideService {
     this.idempotency = idempotency;
     this.outbox = outbox;
     this.audit = audit;
+    this.payments = payments;
     this.json = json;
     this.clock = clock;
   }
@@ -167,6 +170,9 @@ public class RideService {
     rides.appendHistory(context.tenantId(), next.id(), current.status(), next.status(),
         context.accountId(), reason, next.updatedAt());
     emit(context, next, event, event.replace('.', '_'));
+    if (next.status() == RideStatus.COMPLETED) {
+      payments.requestCapture(context.tenantId(), next);
+    }
     return next;
   }
 

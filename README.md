@@ -32,12 +32,13 @@ The current implementation supports:
 - Tenant-scoped service products, versioned pricing rules, and immutable rider fare quotes
 - Tenant-scoped idempotency, transactional outbox/inbox, and append-only audit foundations
 - Tenant-scoped live driver locations, dispatch offers, and the complete ride lifecycle
+- Provider-neutral capture/refund processing, configurable commission, immutable double-entry ledger, earnings, and settlements
 
 The production roadmap includes:
 
 - Strict tenant isolation and broader role-based access
 - Driver document upload and verification workflows
-- Provider-neutral payments, notifications, refunds, and settlements
+- Notifications and production payment-provider adapters
 - Auditing, webhooks, ratings, support, and safety workflows
 - OpenAPI, observability, Docker Compose, and a Helm chart
 
@@ -122,7 +123,10 @@ In another terminal:
 ```
 
 The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`,
-`REDIS_PORT`, and `OSRM_BASE_URL`. OSRM defaults to `http://localhost:5000`. Defaults are intended
+`REDIS_PORT`, and `OSRM_BASE_URL`. Payment settings use `PAYMENT_PROVIDER`,
+`FAKE_PAYMENT_CONFIG_REFERENCE`, `FAKE_PAYMENT_WEBHOOK_SECRET_REFERENCE`,
+`FAKE_PAYMENT_WEBHOOK_SECRET`, and `PAYMENT_WEBHOOK_TOLERANCE`. OSRM defaults to
+`http://localhost:5000`. Defaults are intended
 for local development only. Flyway applies pending migrations; Hibernate validates the resulting
 schema and never creates or drops production tables.
 
@@ -160,6 +164,11 @@ versioned endpoint is:
 | `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
 | `POST` | `/api/v1/driver/offers/{id}/accept` | Atomically reserve supply and assign exactly one driver |
 | `POST` | `/api/v1/driver/rides/{id}/{action}` | Apply `arriving`, `arrive`, `start`, `complete`, or `cancel` lifecycle actions |
+| `GET` | `/api/v1/rides/{id}/payment` | Read the authenticated rider's payment status |
+| `POST` | `/api/v1/finance/payments/{id}/refunds` | Request a bounded refund; requires `FINANCE` or `TENANT_ADMIN` |
+| `GET` | `/api/v1/driver/earnings` | Read the authenticated driver's ledger balance |
+| `POST`, `GET` | `/api/v1/finance/settlements` | Settle positive driver balances or list batches; creation requires `FINANCE` |
+| `POST` | `/api/v1/payment-providers/{provider}/accounts/{id}/events` | Receive signed provider callbacks |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -191,6 +200,20 @@ writes initial history, outbox, audit, and idempotency completion in the same tr
 shift transitions are optimistic. Offer acceptance locks only the chosen offer and conditionally
 reserves its shift; database partial unique constraints enforce one accepted offer per ride and one
 active ride per shift. Completion and allowed cancellations release the shift to `AVAILABLE`.
+
+Ride completion creates a `CAPTURE_PENDING` payment and transactional
+`payment.capture_requested` outbox event. It never calls a provider inside the ride transaction.
+An outbox consumer invokes the callable `PaymentOperationWorker`; provider success is authoritative
+only after a signed callback. The included `FakePaymentProvider` is for local development and tests.
+Callbacks use HMAC-SHA256 over `<unix-seconds>.<raw-body>`, enforce a configurable replay window,
+deduplicate by payment account and provider event ID, and ignore stale provider versions. Callback
+rows retain normalized identifiers and monetary metadata, not raw provider bodies.
+
+Capture posts a balanced ledger transaction from provider receivable to driver payable and platform
+revenue according to `PAYMENTS_PLATFORM_COMMISSION_BASIS_POINTS` (15% by default). Successful
+refunds reverse both shares proportionally, and completed payouts move driver payable to payout clearing. Ledger
+transactions and entries are append-only, source-idempotent, single-currency, and checked for equal
+debits and credits at commit. Refund reservations and successful refunds cannot exceed capture.
 
 Pricing amounts use signed 64-bit integer minor units and ISO 4217 currency codes. Active pricing
 rules cannot overlap for the same tenant and product. Quote creation requires one active service

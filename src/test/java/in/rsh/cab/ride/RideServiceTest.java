@@ -18,6 +18,7 @@ import in.rsh.cab.geography.GeoPoint;
 import in.rsh.cab.operations.IdempotencyReservation;
 import in.rsh.cab.operations.IdempotencyService;
 import in.rsh.cab.operations.OutboxService;
+import in.rsh.cab.payment.PaymentService;
 import in.rsh.cab.pricing.FareQuote;
 import in.rsh.cab.pricing.QuoteStatus;
 import in.rsh.cab.pricing.internal.persistence.PricingRepository;
@@ -48,11 +49,12 @@ class RideServiceTest {
   private final IdempotencyService idempotency = mock(IdempotencyService.class);
   private final OutboxService outbox = mock(OutboxService.class);
   private final AuditService audit = mock(AuditService.class);
+  private final PaymentService payments = mock(PaymentService.class);
   private RideService service;
 
   @BeforeEach
   void setUp() {
-    service = new RideService(rides, pricing, dispatch, fleet, idempotency, outbox, audit,
+    service = new RideService(rides, pricing, dispatch, fleet, idempotency, outbox, audit, payments,
         new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
     context(TenantRole.RIDER);
     when(idempotency.reserve(any(), any(), any(), any(), any())).thenReturn(
@@ -108,6 +110,7 @@ class RideServiceTest {
     assertEquals(RideStatus.COMPLETED, completed.status());
     verify(fleet).transitionShift(TENANT, current.driverShiftId(), ShiftStatus.ON_TRIP,
         ShiftStatus.AVAILABLE, NOW);
+    verify(payments).requestCapture(TENANT, completed);
   }
 
   @Test

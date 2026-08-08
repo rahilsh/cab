@@ -25,6 +25,18 @@ Quote consumption, offer acceptance, ride assignment, shift reservation, history
 writes use database transactions and conditional updates. Fare and currency snapshots are never
 accepted from clients or recalculated during the lifecycle.
 
+Payment APIs derive tenant, rider, driver, and finance authority from persisted memberships. The
+database stores opaque payment-method tokens and provider/configuration references only; PAN, CVV,
+bank credentials, API keys, and webhook secrets must never be persisted. Fake-provider callback
+secrets are resolved from environment configuration. Provider callbacks are HMAC authenticated over
+the timestamp and exact raw body, rejected outside the replay window, account-scoped, idempotent,
+and provider-version ordered. Raw callback bodies are not retained.
+
+Provider calls run only from the outbox-driven payment worker, never in ride database transactions.
+Payment identity and monetary snapshots are immutable, captures cannot exceed authorization, and
+refund reservations/successes cannot exceed capture. Financial postings are source-idempotent,
+balanced, single-currency double entries; database triggers reject ledger updates and deletes.
+
 ## Reporting A Vulnerability
 
 Use GitHub private vulnerability reporting for this repository. Open the repository's **Security**
