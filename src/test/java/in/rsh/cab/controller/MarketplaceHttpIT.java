@@ -89,6 +89,9 @@ class MarketplaceHttpIT {
     registry.add("spring.datasource.password", POSTGRES::getPassword);
     registry.add("spring.data.redis.host", REDIS::getHost);
     registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+    registry.add("springdoc.api-docs.enabled", () -> "true");
+    registry.add("springdoc.swagger-ui.enabled", () -> "true");
+    registry.add("rate-limit.requests", () -> "70");
     registry.add(
         "routing.osrm.base-url",
         () -> "http://localhost:" + OSRM.getAddress().getPort());
@@ -104,8 +107,36 @@ class MarketplaceHttpIT {
     HttpResponse<String> health = get("/actuator/health/readiness");
     assertEquals(200, health.statusCode());
     assertTrue(health.body().contains("UP"));
+    assertTrue(health.headers().firstValue("X-Content-Type-Options").isPresent());
 
-    assertEquals(401, postWithoutToken("/api/v1/tenants", "{}").statusCode());
+    HttpResponse<String> openApiResponse = get("/v3/api-docs");
+    assertEquals(200, openApiResponse.statusCode(), openApiResponse.body());
+    JsonObject openApi = JsonParser.parseString(openApiResponse.body()).getAsJsonObject();
+    JsonObject paths = openApi.getAsJsonObject("paths");
+    assertTrue(paths.has("/api/v1/tenants"));
+    assertTrue(paths.has("/api/v1/rides"));
+    assertTrue(paths.has("/api/v1/payment-providers/{provider}/accounts/{accountId}/events"));
+    assertTrue(
+        openApi
+            .getAsJsonObject("components")
+            .getAsJsonObject("securitySchemes")
+            .has("bearerAuth"));
+    JsonObject createRide = paths.getAsJsonObject("/api/v1/rides").getAsJsonObject("post");
+    assertTrue(createRide.getAsJsonArray("security").size() > 0);
+    assertTrue(hasHeader(createRide, "X-Tenant-ID"));
+    assertTrue(hasHeader(createRide, "Idempotency-Key"));
+
+    HttpResponse<String> unauthorized = postWithoutToken("/api/v1/tenants", "{}");
+    assertEquals(401, unauthorized.statusCode());
+    assertTrue(
+        MediaType.parseMediaType(
+                unauthorized.headers().firstValue("Content-Type").orElseThrow())
+            .isCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+    JsonObject unauthorizedProblem = JsonParser.parseString(unauthorized.body()).getAsJsonObject();
+    assertEquals("unauthorized", unauthorizedProblem.get("code").getAsString());
+    assertEquals(401, unauthorizedProblem.get("status").getAsInt());
+    assertEquals(401, get("/actuator/prometheus").statusCode());
+    assertEquals(200, getWithBearer("/actuator/prometheus", "observability").statusCode());
     assertEquals(403, post("/cities", "{\"name\":\"BLR\"}").statusCode());
 
     HttpResponse<String> invalidTenant = post("/api/v1/tenants", "{\"slug\":\"BAD\"}");
@@ -475,6 +506,42 @@ class MarketplaceHttpIT {
         .getAsJsonArray().get(0).getAsJsonObject().get("availableMinor").getAsLong());
   }
 
+  @Test
+  void rateLimitsTenantActorInRedisWithoutLimitingHealth() throws Exception {
+    String slug = "limited-" + UUID.randomUUID().toString().substring(0, 8);
+    HttpResponse<String> created =
+        postWithBearer(
+            "/api/v1/tenants",
+            "limited-actor",
+            "{\"slug\":\""
+                + slug
+                + "\",\"displayName\":\"Limited Tenant\",\"defaultCurrency\":\"USD\",\"timezone\":\"UTC\"}");
+    assertEquals(201, created.statusCode(), created.body());
+    String tenantId =
+        JsonParser.parseString(created.body()).getAsJsonObject().get("id").getAsString();
+
+    HttpResponse<String> response = null;
+    for (int request = 0; request <= 70; request++) {
+      response = getWithTenant("/api/v1/current-tenant", tenantId, "limited-actor");
+    }
+
+    assertEquals(429, response.statusCode(), response.body());
+    assertTrue(response.headers().firstValue("Retry-After").map(Long::parseLong).orElse(0L) > 0);
+    assertEquals(
+        "rate-limit-exceeded",
+        JsonParser.parseString(response.body()).getAsJsonObject().get("code").getAsString());
+    assertEquals(200, get("/actuator/health/readiness").statusCode());
+  }
+
+  private boolean hasHeader(JsonObject operation, String name) {
+    for (var parameter : operation.getAsJsonArray("parameters")) {
+      if (name.equals(parameter.getAsJsonObject().get("name").getAsString())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private JsonObject driverRideAction(String tenantId, String rideId, String action, long version)
       throws Exception {
     HttpResponse<String> response = postWithTenant(
@@ -490,6 +557,18 @@ class MarketplaceHttpIT {
 
   private HttpResponse<String> postWithoutToken(String path, String body) throws Exception {
     return post(path, body, false);
+  }
+
+  private HttpResponse<String> postWithBearer(String path, String token, String body)
+      throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .header("Authorization", "Bearer " + token)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   private HttpResponse<String> postWithTenant(String path, String tenantId, String body)
@@ -580,6 +659,16 @@ class MarketplaceHttpIT {
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
+  private HttpResponse<String> getWithBearer(String path, String token) throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.ALL_VALUE)
+            .header("Authorization", "Bearer " + token)
+            .GET()
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
   private HttpResponse<String> getWithTenant(String path, String tenantId, String token)
       throws Exception {
     HttpRequest request =
@@ -628,7 +717,9 @@ class MarketplaceHttpIT {
               .header("alg", "none")
               .issuer("https://issuer.example")
               .subject(token)
-              .claim("scope", "platform.admin")
+              .claim(
+                  "scope",
+                  token.equals("observability") ? "observability.read" : "platform.admin")
               .claim("email", "admin@example.com")
               .claim("name", "Platform Admin")
               .build();

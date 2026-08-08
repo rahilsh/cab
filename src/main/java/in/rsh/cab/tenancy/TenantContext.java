@@ -20,6 +20,10 @@ public record TenantContext(
     return context;
   }
 
+  public static TenantContext currentOrNull() {
+    return CURRENT.get();
+  }
+
   public static void set(TenantContext context) {
     CURRENT.set(context);
   }

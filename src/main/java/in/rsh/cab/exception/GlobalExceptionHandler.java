@@ -1,18 +1,20 @@
 package in.rsh.cab.exception;
 
+import in.rsh.cab.operations.IdempotencyConflictException;
+import in.rsh.cab.payment.PaymentSignatureException;
+import in.rsh.cab.ratelimit.RateLimitExceededException;
+import in.rsh.cab.routing.RouteProviderException;
+import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import in.rsh.cab.tenancy.TenantAccessDeniedException;
-import in.rsh.cab.routing.RouteProviderException;
-import in.rsh.cab.operations.IdempotencyConflictException;
-import in.rsh.cab.payment.PaymentSignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,7 +31,8 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(CabNotAvailableException.class)
   public ResponseEntity<ProblemDetail> handleCabNotAvailable(CabNotAvailableException exception) {
-    return problem(HttpStatus.CONFLICT, "Cab unavailable", exception.getMessage(), "cab-unavailable");
+    return problem(
+        HttpStatus.CONFLICT, "Cab unavailable", exception.getMessage(), "cab-unavailable");
   }
 
   @ExceptionHandler(ConflictException.class)
@@ -40,25 +43,35 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(IdempotencyConflictException.class)
   public ResponseEntity<ProblemDetail> handleIdempotencyConflict(
       IdempotencyConflictException exception) {
-    String code = exception.reason() == IdempotencyConflictException.Reason.KEY_REUSED
-        ? "idempotency-key-reused" : "idempotency-in-progress";
+    String code =
+        exception.reason() == IdempotencyConflictException.Reason.KEY_REUSED
+            ? "idempotency-key-reused"
+            : "idempotency-in-progress";
     return problem(HttpStatus.CONFLICT, "Idempotency conflict", exception.getMessage(), code);
   }
 
   @ExceptionHandler({IllegalArgumentException.class, InvalidRequestException.class})
   public ResponseEntity<ProblemDetail> handleBadRequest(RuntimeException exception) {
-    return problem(HttpStatus.BAD_REQUEST, "Invalid request", exception.getMessage(), "invalid-request");
+    return problem(
+        HttpStatus.BAD_REQUEST, "Invalid request", exception.getMessage(), "invalid-request");
   }
 
   @ExceptionHandler(TenantAccessDeniedException.class)
   public ResponseEntity<ProblemDetail> handleTenantAccessDenied(
       TenantAccessDeniedException exception) {
-    return problem(HttpStatus.FORBIDDEN, "Tenant access denied", exception.getMessage(), "tenant-access-denied");
+    return problem(
+        HttpStatus.FORBIDDEN,
+        "Tenant access denied",
+        exception.getMessage(),
+        "tenant-access-denied");
   }
 
   @ExceptionHandler(PaymentSignatureException.class)
   public ResponseEntity<ProblemDetail> handlePaymentSignature(PaymentSignatureException exception) {
-    return problem(HttpStatus.UNAUTHORIZED, "Invalid provider signature", exception.getMessage(),
+    return problem(
+        HttpStatus.UNAUTHORIZED,
+        "Invalid provider signature",
+        exception.getMessage(),
         "invalid-provider-signature");
   }
 
@@ -78,6 +91,18 @@ public class GlobalExceptionHandler {
         "route-provider-bad-gateway");
   }
 
+  @ExceptionHandler(RateLimitExceededException.class)
+  public ResponseEntity<ProblemDetail> handleRateLimit(RateLimitExceededException exception) {
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+        .header("Retry-After", Long.toString(exception.retryAfterSeconds()))
+        .body(
+            createProblem(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Too many requests",
+                exception.getMessage(),
+                "rate-limit-exceeded"));
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ProblemDetail> handleValidation(MethodArgumentNotValidException exception) {
     Map<String, String> violations = new LinkedHashMap<>();
@@ -92,6 +117,16 @@ public class GlobalExceptionHandler {
             "validation-failed");
     detail.setProperty("violations", violations);
     return ResponseEntity.badRequest().body(detail);
+  }
+
+  @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+  public ResponseEntity<ProblemDetail> handleNotAcceptable(
+      HttpMediaTypeNotAcceptableException exception) {
+    return problem(
+        HttpStatus.NOT_ACCEPTABLE,
+        "Not acceptable",
+        "The requested response media type is not supported",
+        "not-acceptable");
   }
 
   @ExceptionHandler(Exception.class)
@@ -109,8 +144,7 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(status).body(createProblem(status, title, detail, code));
   }
 
-  private ProblemDetail createProblem(
-      HttpStatus status, String title, String detail, String code) {
+  private ProblemDetail createProblem(HttpStatus status, String title, String detail, String code) {
     ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
     problem.setTitle(title);
     problem.setType(URI.create("https://github.com/rahilsh/cab/problems/" + code));

@@ -11,6 +11,64 @@
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.6.2</version>
+        <executions>
+          <execution>
+            <id>enforce-build-environment</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireJavaVersion>
+                  <version>[21,22)</version>
+                </requireJavaVersion>
+                <requireMavenVersion>
+                  <version>[3.9,)</version>
+                </requireMavenVersion>
+                <banDuplicatePomDependencyVersions/>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <java>
+            <includes>
+              <include>src/main/java/in/rsh/cab/config/**/*.java</include>
+              <include>src/main/java/in/rsh/cab/dispatch/internal/web/DispatchController.java</include>
+              <include>src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java</include>
+              <include>src/main/java/in/rsh/cab/ratelimit/**/*.java</include>
+              <include>src/main/java/in/rsh/cab/security/**/*.java</include>
+              <include>src/main/java/in/rsh/cab/tenancy/TenantContext.java</include>
+              <include>src/main/java/in/rsh/cab/tenancy/internal/web/TenantWebConfiguration.java</include>
+              <include>src/main/java/in/rsh/cab/web/**/*.java</include>
+              <include>src/test/java/in/rsh/cab/architecture/**/*.java</include>
+              <include>src/test/java/in/rsh/cab/ratelimit/**/*.java</include>
+              <include>src/test/java/in/rsh/cab/web/**/*.java</include>
+            </includes>
+            <googleJavaFormat>
+              <version>1.33.0</version>
+            </googleJavaFormat>
+            <removeUnusedImports/>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>validate</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <release>${java.version}</release>
@@ -123,6 +181,15 @@
       <groupId>org.springframework.boot</groupId>
     </dependency>
     <dependency>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <groupId>io.micrometer</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <groupId>org.springdoc</groupId>
+      <version>3.1.0</version>
+    </dependency>
+    <dependency>
       <artifactId>spring-boot-starter-security</artifactId>
       <groupId>org.springframework.boot</groupId>
     </dependency>
@@ -209,6 +276,12 @@
       <groupId>org.testcontainers</groupId>
       <scope>test</scope>
       <version>${testcontainers.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>archunit-junit5</artifactId>
+      <groupId>com.tngtech.archunit</groupId>
+      <scope>test</scope>
+      <version>1.4.1</version>
     </dependency>
   </dependencies>
   <description>Cab Management portal</description>
