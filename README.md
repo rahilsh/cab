@@ -1,50 +1,130 @@
-# cab
+# Cab Marketplace
 
-> This project is an experimental backend prototype and is not ready for production use.
+Cab Marketplace is an open-source backend for operating multi-tenant ride-hailing services. The
+project is evolving from a single-fleet prototype into a production-oriented modular monolith for
+operators, riders, drivers, vehicles, pricing, dispatch, trips, payments, and settlements.
 
-### Prerequisite
+> [!WARNING]
+> The current code is an experimental prototype. It has no authentication or tenant isolation and
+> uses an ephemeral development database. Do not expose it publicly or use it for real bookings.
 
-* Basic understanding of Java, Spring framework, Maven & REST APIs
-* To run this app java 21 & maven is mandatory
+The customer and operator frontends will be maintained in separate repositories. This repository
+contains the HTTP API and backend services only.
 
-### Development verification
+## Project Status
 
-Use the repository's Maven Wrapper to compile the application, run unit tests, enforce at least
-85% unit-test line coverage, and run integration tests against an actual HTTP server:
+The current implementation supports:
+
+- City and cab registration
+- Basic cab availability states
+- Booking creation with preliminary idempotency support
+- Redis GEO helpers
+- Distance- and idle-time-based selection policies
+- Paginated cab and booking queries
+- Unit tests and random-port HTTP integration tests
+
+The production roadmap includes:
+
+- OIDC authentication, role-based access, and strict tenant isolation
+- PostgreSQL/PostGIS and versioned Flyway migrations
+- Rider, driver, vehicle, service-area, and compliance management
+- Fare quotes, OSRM routing, dispatch offers, and complete trip lifecycle
+- Provider-neutral payments, notifications, refunds, and settlements
+- Auditing, webhooks, ratings, support, and safety workflows
+- OpenAPI, observability, Docker Compose, and a Helm chart
+
+See [the production roadmap](docs/ROADMAP.md) for sequencing and acceptance criteria.
+
+## Architecture
+
+The target architecture is a package-modular Spring Boot monolith:
+
+```text
+HTTP API
+   |
+OIDC + tenant authorization
+   |
+application modules
+   |-- tenancy and access
+   |-- geography and pricing
+   |-- riders, drivers, and fleet
+   |-- rides and dispatch
+   |-- payments and settlements
+   `-- notifications, support, safety, and webhooks
+   |
+PostgreSQL/PostGIS ------ transactional outbox
+   |
+Redis location index     OSRM routing
+```
+
+PostgreSQL is authoritative. Redis stores ephemeral live-location and dispatch indexes. External
+side effects are delivered through a transactional outbox. See [ADR 0001](docs/adr/0001-modular-monolith.md)
+and [ADR 0002](docs/adr/0002-shared-schema-tenancy.md).
+
+## Requirements
+
+- Java 21
+- Git
+- Docker with Compose for the production-oriented local stack as it is introduced
+
+Maven does not need to be installed because the repository includes a pinned Maven Wrapper.
+
+## Build And Test
 
 ```bash
 ./mvnw clean verify
 ```
 
-### Reference Documentation
+This command:
 
-For further reference, please consider the following sections:
+- Compiles and packages an executable Spring Boot JAR
+- Runs unit tests
+- Enforces at least 85% aggregate unit-test line coverage
+- Starts the application on a random real port for HTTP integration tests
 
-* [Official Apache Maven documentation](https://maven.apache.org/guides/index.html)
-* [Spring Boot Maven Plugin Reference Guide](https://docs.spring.io/spring-boot/docs/2.2.4.RELEASE/maven-plugin/)
-* [Spring Web](https://docs.spring.io/spring-boot/docs/2.2.4.RELEASE/reference/htmlsingle/#boot-features-developing-web-applications)
+Coverage is written to `target/site/jacoco/index.html`. Integration tests use the `*IT` suffix and
+are run by Maven Failsafe. MockMvc tests do not qualify as API integration tests.
 
-### What's Needed for Production
+Run the current prototype locally:
 
-This codebase is currently a functional prototype. The following items are required to make it production-ready:
+```bash
+./mvnw spring-boot:run
+```
 
-#### Critical
-1. **Authentication & Authorization** - Implement JWT/OAuth2 with role-based access control for riders, drivers, and admins
-2. **Production Database** - Replace H2 with PostgreSQL/MySQL and add Flyway/Liquibase for migrations
-3. **API Documentation** - Add Swagger/OpenAPI documentation for all endpoints
+The prototype expects Redis at `localhost:6379`. Its H2 database is recreated on every start.
 
-#### Important Features
-4. **User Management** - Add registration, login, and profile management for riders and drivers
-5. **Booking Lifecycle** - Implement explicit cancel and complete endpoints for bookings
-6. **Payment Integration** - Integrate payment gateway (Stripe, Razorpay, etc.)
-7. **Real-time Updates** - Add WebSocket support for live driver location and booking status updates
-8. **Notifications** - Implement SMS (Twilio) and email notifications for booking events
-9. **Logging & Monitoring** - Add structured logging (ELK stack), metrics (Prometheus), and alerting
-10. **Rate Limiting** - Implement API rate limiting to prevent abuse
+## API
 
-#### Infrastructure
-11. **Containerization** - Add Dockerfile and docker-compose.yml
-12. **Environment Configuration** - Add profile-based config (dev/staging/prod) with externalized settings
-13. **CI/CD Pipelines** - Enhance GitHub Actions with deployment to cloud (AWS/GCP/Azure)
-14. **Input Sanitization** - Add comprehensive input validation and sanitization
-15. **Error Handling** - Implement global exception handling with proper HTTP status codes and error responses
+The current unversioned prototype endpoints are temporary:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/cities` | Register a city |
+| `GET` | `/cities` | List cities |
+| `POST` | `/cabs` | Register a cab |
+| `POST` | `/cabs/{cabId}` | Update a cab |
+| `GET` | `/cabs` | List cabs |
+| `POST` | `/bookings` | Create a booking |
+| `GET` | `/bookings` | List bookings |
+
+These routes will be replaced by the authenticated `/api/v1` marketplace contract. Consumers
+must not rely on the prototype API.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. All commits must follow
+[Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Participation is
+governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Do not open public issues for vulnerabilities. Follow [SECURITY.md](SECURITY.md) to report them
+privately through GitHub.
+
+## Support
+
+See [SUPPORT.md](SUPPORT.md) for community support channels and scope.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).

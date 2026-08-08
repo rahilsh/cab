@@ -166,6 +166,19 @@
   </dependencies>
   <description>Cab Management portal</description>
   <groupId>in.rsh.cab</groupId>
+  <url>https://github.com/rahilsh/cab</url>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <scm>
+    <connection>scm:git:https://github.com/rahilsh/cab.git</connection>
+    <developerConnection>scm:git:git@github.com:rahilsh/cab.git</developerConnection>
+    <url>https://github.com/rahilsh/cab</url>
+  </scm>
   <modelVersion>4.0.0</modelVersion>
   <name>cab</name>
 
