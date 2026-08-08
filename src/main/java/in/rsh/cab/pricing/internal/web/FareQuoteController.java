@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,10 +30,14 @@ public class FareQuoteController {
   }
 
   @PostMapping
-  public ResponseEntity<FareQuote> create(@Valid @RequestBody CreateFareQuoteRequest request) {
-    FareQuote quote = pricing.createQuote(
-        request.productId(), request.pickup().toGeoPoint(), request.dropoff().toGeoPoint());
-    return ResponseEntity.created(URI.create("/api/v1/quotes/" + quote.id())).body(quote);
+  public ResponseEntity<FareQuote> create(
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody CreateFareQuoteRequest request) {
+    PricingService.QuoteCreation result = pricing.createQuote(
+        idempotencyKey, request.productId(), request.pickup().toGeoPoint(), request.dropoff().toGeoPoint());
+    return ResponseEntity.status(result.httpStatus())
+        .location(URI.create("/api/v1/quotes/" + result.quote().id()))
+        .body(result.quote());
   }
 
   @GetMapping("/{id}")

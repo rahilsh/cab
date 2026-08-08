@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.routing.RouteProviderException;
+import in.rsh.cab.operations.IdempotencyConflictException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,18 @@ class GlobalExceptionHandlerTest {
         HttpStatus.CONFLICT,
         "resource-conflict",
         "Version is stale");
+    assertProblem(
+        handler.handleIdempotencyConflict(new IdempotencyConflictException(
+            IdempotencyConflictException.Reason.KEY_REUSED)),
+        HttpStatus.CONFLICT,
+        "idempotency-key-reused",
+        "Idempotency key was already used for a different request");
+    assertProblem(
+        handler.handleIdempotencyConflict(new IdempotencyConflictException(
+            IdempotencyConflictException.Reason.IN_PROGRESS)),
+        HttpStatus.CONFLICT,
+        "idempotency-in-progress",
+        "A request with this idempotency key is still in progress");
     assertProblem(
         handler.handleBadRequest(new InvalidRequestException("Invalid request")),
         HttpStatus.BAD_REQUEST,

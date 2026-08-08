@@ -5,6 +5,10 @@ import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.geography.GeoPoint;
 import in.rsh.cab.geography.internal.persistence.ServiceAreaRepository;
+import in.rsh.cab.audit.AuditService;
+import in.rsh.cab.operations.IdempotencyReservation;
+import in.rsh.cab.operations.IdempotencyService;
+import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.pricing.internal.persistence.PricingRepository;
 import in.rsh.cab.routing.RouteEstimate;
 import in.rsh.cab.routing.RouteEstimator;
@@ -25,6 +29,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class PricingService {
@@ -35,12 +41,20 @@ public class PricingService {
   private final RouteEstimator routeEstimator;
   private final Clock clock;
   private final Duration quoteTtl;
+  private final IdempotencyService idempotency;
+  private final OutboxService outbox;
+  private final AuditService audit;
+  private final ObjectMapper objectMapper;
 
   public PricingService(
       PricingRepository pricing,
       ServiceAreaRepository serviceAreas,
       RouteEstimator routeEstimator,
       Clock clock,
+      IdempotencyService idempotency,
+      OutboxService outbox,
+      AuditService audit,
+      ObjectMapper objectMapper,
       @Value("${pricing.quote-ttl:PT10M}") Duration quoteTtl) {
     if (quoteTtl.isZero() || quoteTtl.isNegative()) {
       throw new IllegalArgumentException("Quote TTL must be positive");
@@ -49,6 +63,10 @@ public class PricingService {
     this.serviceAreas = serviceAreas;
     this.routeEstimator = routeEstimator;
     this.clock = clock;
+    this.idempotency = idempotency;
+    this.outbox = outbox;
+    this.audit = audit;
+    this.objectMapper = objectMapper;
     this.quoteTtl = quoteTtl;
   }
 
@@ -132,8 +150,17 @@ public class PricingService {
   }
 
   @Transactional
-  public FareQuote createQuote(UUID productId, GeoPoint pickup, GeoPoint dropoff) {
+  public QuoteCreation createQuote(
+      String idempotencyKey, UUID productId, GeoPoint pickup, GeoPoint dropoff) {
     TenantContext context = require(TenantRole.RIDER);
+    String requestHash = fingerprint(productId, pickup, dropoff);
+    IdempotencyReservation reservation = idempotency.reserve(
+        context.tenantId(), context.accountId(), "fare-quote.create", idempotencyKey, requestHash);
+    if (reservation.status() == IdempotencyReservation.Status.REPLAY) {
+      return new QuoteCreation(
+          objectMapper.treeToValue(reservation.safeResponse(), FareQuote.class),
+          reservation.httpStatus(), true);
+    }
     ServiceProduct product =
         pricing.findProduct(context.tenantId(), productId)
             .filter(candidate -> candidate.status() == ProductStatus.ACTIVE)
@@ -153,11 +180,30 @@ public class PricingService {
     try {
       FareQuote quote = calculateQuote(product.id(), rule, pickup, dropoff, distanceMeters, durationSeconds, now);
       pricing.insertQuote(context.tenantId(), context.accountId(), quote);
-      return quote;
+      JsonNode safeQuote = objectMapper.valueToTree(quote);
+      outbox.append(
+          context.tenantId(), "fare_quote", quote.id(), quote.version(), "fare_quote.created", 1,
+          objectMapper.valueToTree(new FareQuoteCreated(quote.id(), quote.productId(),
+              quote.totalMinor(), quote.currency(), quote.expiresAt())), null);
+      audit.record(
+          context.tenantId(), context.accountId(), "fare_quote.create", "fare_quote", quote.id(),
+          "SUCCESS", objectMapper.valueToTree(new FareQuoteAuditSummary(
+              quote.productId(), quote.totalMinor(), quote.currency())));
+      idempotency.complete(
+          context.tenantId(), context.accountId(), reservation.recordId(), "fare_quote", quote.id(),
+          201, safeQuote);
+      return new QuoteCreation(quote, 201, false);
     } catch (ArithmeticException exception) {
       throw new InvalidRequestException("Fare exceeds the supported monetary range");
     }
   }
+
+  public record QuoteCreation(FareQuote quote, int httpStatus, boolean replayed) {}
+
+  private record FareQuoteCreated(
+      UUID quoteId, UUID productId, long totalMinor, String currency, Instant expiresAt) {}
+
+  private record FareQuoteAuditSummary(UUID productId, long totalMinor, String currency) {}
 
   @Transactional(readOnly = true)
   public FareQuote getOwnQuote(UUID quoteId) {

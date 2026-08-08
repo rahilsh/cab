@@ -30,6 +30,7 @@ The current implementation supports:
 - OSRM-backed route distance and duration estimates
 - Tenant-scoped rider and driver profiles, driver approval, vehicles, and driver shifts
 - Tenant-scoped service products, versioned pricing rules, and immutable rider fare quotes
+- Tenant-scoped idempotency, transactional outbox/inbox, and append-only audit foundations
 
 The production roadmap includes:
 
@@ -152,6 +153,7 @@ versioned endpoint is:
 | `POST`, `GET` | `/api/v1/pricing-rules` | Create or list versioned pricing rules; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/quotes` | Create or list the authenticated rider's immutable fare quotes |
 | `GET` | `/api/v1/quotes/{id}` | Read one fare quote owned by the authenticated rider |
+| `GET` | `/api/v1/admin/audit-events` | List tenant audit events; requires `TENANT_ADMIN` or `SUPPORT` |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -181,9 +183,28 @@ tenant context, never from request data. Quotes have no update API and persisted
 never recalculated when products or rules change. Configure validity with `QUOTE_TTL` (default
 `PT10M`).
 
+`POST /api/v1/quotes` requires an `Idempotency-Key` of 1 to 255 characters. Keys are scoped by
+tenant, authenticated account, and operation. Repeating the same canonical request returns the
+original `201` response without recalculating or writing another quote; reusing a live key with a
+different request returns `409 idempotency-key-reused`. Records expire after `IDEMPOTENCY_TTL`
+(default `PT24H`). Only a response representation explicitly selected by the calling service is
+stored, never arbitrary servlet responses, headers, bearer tokens, or unredacted request bodies.
+
+Quote creation writes the quote, completed idempotency record, `fare_quote.created` outbox event,
+and `fare_quote.create` audit event in one database transaction. Outbox payloads and audit summaries
+must be deliberately minimized by callers. Outbox consumers lease tenant-qualified batches using
+`FOR UPDATE SKIP LOCKED`; expired leases can be reclaimed, retries clear lease state, and permanent
+failures remain inspectable. Inbox receipts deduplicate by tenant, consumer, and event ID. Audit
+events are append-only: the database rejects updates and deletes. The audit list is tenant-scoped,
+newest-first, and limited to 200 rows per request.
+
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather
 than trusted solely from bearer-token claims.
+
+Correlation IDs are bounded to 128 characters and flow through request metadata into outbox and
+audit records. Sensitive values must not be placed in correlation IDs, idempotency keys, event
+payloads, audit summaries, or retry error text.
 
 ## Contributing
 
