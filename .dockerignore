@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.settings
+.vscode
+target
+build
+bin
+*.iml
+.classpath
+.project
+.DS_Store
+.env
+deploy
+docs
+README.md
+CONTRIBUTING.md

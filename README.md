@@ -41,7 +41,7 @@ The production roadmap includes:
 - Driver document upload and verification workflows
 - Production notification and payment-provider adapters
 - Expanded moderation, support automation, and safety escalation workflows
-- Docker Compose and a Helm chart
+- Production payment/notification adapters and additional operational hardening
 
 See [the production roadmap](docs/ROADMAP.md) for sequencing and acceptance criteria.
 
@@ -106,22 +106,38 @@ This command:
 Coverage is written to `target/site/jacoco/index.html`. Integration tests use the `*IT` suffix and
 are run by Maven Failsafe. MockMvc tests do not qualify as API integration tests.
 
-Create a local database before running the current prototype:
+## Quick Start
+
+The complete local stack includes the API, PostgreSQL/PostGIS, Redis, Keycloak, OSRM, and MinIO:
 
 ```bash
-docker run --name cab-postgis --rm \
-  -e POSTGRES_DB=cab \
-  -e POSTGRES_USER=cab \
-  -e POSTGRES_PASSWORD=cab \
-  -p 5432:5432 \
-  postgis/postgis:17-3.5
+cp .env.example .env
+# Replace every dev-only password in .env before starting.
+docker-compose up --build
 ```
 
-In another terminal:
+The default OSRM download is the small Monaco extract. Preparation runs once and is cached in a
+named volume; see [the OSRM runbook](docs/runbooks/osrm-data.md) before selecting a larger region.
+The Keycloak realm contains clearly named local users with `dev-only-*` passwords. These users,
+passwords, direct password grants, and `start-dev` mode must never be used outside local development.
+The API validates the public Keycloak issuer while retrieving signing keys on the private Compose
+network. Split-network deployments must configure both `OIDC_ISSUER_URI` and `OIDC_JWK_SET_URI`.
+
+Obtain a local platform administrator token:
 
 ```bash
-./mvnw spring-boot:run
+curl --request POST http://localhost:8081/realms/cab/protocol/openid-connect/token \
+  --data grant_type=password \
+  --data client_id=cab-local-cli \
+  --data username=platform-admin \
+  --data password=dev-only-platform-admin \
+  --data 'scope=openid platform.admin observability.read'
 ```
+
+Local users are `platform-admin`, `operator`, `driver`, and `rider`; their matching realm roles are
+for identity testing only. Marketplace tenant roles remain authoritative in PostgreSQL. MinIO is
+available at `http://localhost:9000` for future evidence-object integration, while the current API
+stores external evidence references only.
 
 The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`,
 `REDIS_PORT`, and `OSRM_BASE_URL`. API documentation is disabled by default; set
@@ -132,6 +148,28 @@ The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, 
 `http://localhost:5000`. Defaults are intended
 for local development only. Flyway applies pending migrations; Hibernate validates the resulting
 schema and never creates or drops production tables.
+
+## Deployment
+
+`Dockerfile` builds a layered Java 21 image, runs as UID/GID `10001`, includes OCI metadata and a
+healthcheck, and supports a read-only root filesystem with writable `/tmp`. Build it with:
+
+```bash
+docker build --tag cab-marketplace:local .
+```
+
+The Helm chart at `deploy/helm/cab-marketplace` deploys the stateless API with actuator probes,
+resource defaults, non-root/read-only security contexts, and optional ingress, HPA, PDB, and network
+policy. It references an externally managed Kubernetes Secret and contains no credential defaults.
+Production dependencies are intentionally not bundled into the chart.
+
+Read the operations runbooks before deployment:
+
+- [Deployment](docs/runbooks/deployment.md)
+- [Migrations](docs/runbooks/migrations.md)
+- [Backup and restore](docs/runbooks/backup-restore.md)
+- [Incident response and rollback](docs/runbooks/incident-rollback.md)
+- [OSRM data preparation](docs/runbooks/osrm-data.md)
 
 ## API
 

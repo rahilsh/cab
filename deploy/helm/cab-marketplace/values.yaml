@@ -1,0 +1,109 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/rahilsh/cab
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: cab.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+config:
+  databaseUrl: jdbc:postgresql://postgresql:5432/cab
+  redisHost: redis
+  redisPort: "6379"
+  oidcIssuerUri: https://identity.example.com/realms/cab
+  oidcJwkSetUri: https://identity.example.com/realms/cab/protocol/openid-connect/certs
+  oidcAudience: cab-api
+  osrmBaseUrl: http://osrm:5000
+  springProfilesActive: prod
+  apiDocsEnabled: "false"
+  swaggerUiEnabled: "false"
+
+# Create this Secret outside Helm. This chart never stores credential values.
+existingSecret:
+  name: ""
+  databaseUsernameKey: database-username
+  databasePasswordKey: database-password
+  fakePaymentWebhookSecretKey: fake-payment-webhook-secret
+
+extraEnv: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+probes:
+  startup:
+    failureThreshold: 30
+    periodSeconds: 5
+  liveness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+terminationGracePeriodSeconds: 30
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  ingressNamespaceSelector: {}
+  egress: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
