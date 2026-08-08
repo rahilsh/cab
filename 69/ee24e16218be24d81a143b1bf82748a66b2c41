@@ -1,0 +1,82 @@
+.env.example
+  h_6ca422f7d88004 7-8
+README.md
+  h_6ca422f7d88004 32,143-145
+compose.yaml
+  h_6ca422f7d88004 17-20,30-31,63-80
+deploy/helm/cab-marketplace/README.md
+  h_6ca422f7d88004 13-14,34-38
+deploy/helm/cab-marketplace/templates/configmap.yaml
+  h_6ca422f7d88004 16
+deploy/helm/cab-marketplace/templates/deployment.yaml
+  h_6ca422f7d88004 65-76
+deploy/helm/cab-marketplace/values.yaml
+  h_6ca422f7d88004 59,68-69
+deploy/postgres/init-app-role.sh
+  h_6ca422f7d88004 1-44
+docs/adr/0002-shared-schema-tenancy.md
+  h_6ca422f7d88004 17-22
+docs/runbooks/deployment.md
+  h_6ca422f7d88004 8-9
+docs/runbooks/migrations.md
+  h_6ca422f7d88004 3-34,44
+pom.xml
+  h_6ca422f7d88004 228-231
+src/main/java/in/rsh/cab/config/TransactionConfiguration.java
+  h_6ca422f7d88004 1-9
+src/main/java/in/rsh/cab/notification/NotificationDeliveryWorker.java
+  h_6ca422f7d88004 7,23,28,33,45-51,53-54,57-58,70,78
+src/main/java/in/rsh/cab/operations/OutboxPoller.java
+  h_6ca422f7d88004 10,17,19,22,30-31,35-36,40-41,45-46
+src/main/java/in/rsh/cab/payment/PaymentOperationWorker.java
+  h_6ca422f7d88004 5,18,23,27,42-45,48-49,53-54,57,64-67,70-73,77
+src/main/java/in/rsh/cab/payment/ProviderCallbackService.java
+  h_6ca422f7d88004 5,28,32-35,47,56-64
+src/main/java/in/rsh/cab/payment/internal/persistence/JdbcPaymentRepository.java
+  h_6ca422f7d88004 64-69
+src/main/java/in/rsh/cab/payment/internal/persistence/PaymentRepository.java
+  h_6ca422f7d88004 21-22
+src/main/java/in/rsh/cab/tenancy/TenantDatabaseContext.java
+  h_6ca422f7d88004 1-26
+src/main/java/in/rsh/cab/tenancy/TenantExecution.java
+  h_6ca422f7d88004 1-38
+src/main/java/in/rsh/cab/tenancy/TenantRlsAspect.java
+  h_6ca422f7d88004 1-29
+src/main/java/in/rsh/cab/webhook/WebhookDeliveryWorker.java
+  h_6ca422f7d88004 4,15,36,42,51,59-61,64-66,91-93,109-111,122-124
+src/main/resources/application.properties
+  h_6ca422f7d88004 9-12
+src/main/resources/db/migration/V10__tenant_row_level_security.sql
+  h_6ca422f7d88004 1-85
+src/test/java/in/rsh/cab/notification/NotificationDeliveryWorkerTest.java
+  h_6ca422f7d88004 17-18,46-47
+src/test/java/in/rsh/cab/operations/OutboxServiceTest.java
+  h_6ca422f7d88004 11-12,30-55
+src/test/java/in/rsh/cab/payment/PaymentOperationWorkerTest.java
+  h_6ca422f7d88004 13-14,41-42
+src/test/java/in/rsh/cab/payment/ProviderCallbackServiceTest.java
+  h_6ca422f7d88004 13,39-41,43-44
+src/test/java/in/rsh/cab/tenancy/TenantDatabaseContextTest.java
+  h_6ca422f7d88004 1-16
+src/test/java/in/rsh/cab/tenancy/TenantExecutionTest.java
+  h_6ca422f7d88004 1-55
+src/test/java/in/rsh/cab/tenancy/TenantRlsAspectTest.java
+  h_6ca422f7d88004 1-46
+src/test/java/in/rsh/cab/web/MarketplaceHttpIT.java
+  h_6ca422f7d88004 16,68-69,85,90-94,344-349,354-361,515-520,591-679
+src/test/java/in/rsh/cab/webhook/WebhookDeliveryWorkerTest.java
+  h_6ca422f7d88004 15,41,46-51,53-54,96-97
+src/test/resources/postgres/init-app-role.sql
+  h_6ca422f7d88004 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "69ee24e16218be24d81a143b1bf82748a66b2c41",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
