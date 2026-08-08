@@ -22,11 +22,11 @@ The current implementation supports:
 - Distance- and idle-time-based selection policies
 - Paginated cab and booking queries
 - Unit tests and random-port HTTP integration tests
+- PostgreSQL/PostGIS persistence managed by Flyway
 
 The production roadmap includes:
 
 - OIDC authentication, role-based access, and strict tenant isolation
-- PostgreSQL/PostGIS and versioned Flyway migrations
 - Rider, driver, vehicle, service-area, and compliance management
 - Fare quotes, OSRM routing, dispatch offers, and complete trip lifecycle
 - Provider-neutral payments, notifications, refunds, and settlements
@@ -66,12 +66,23 @@ and [ADR 0002](docs/adr/0002-shared-schema-tenancy.md).
 - Java 21
 - Git
 - Docker with Compose for the production-oriented local stack as it is introduced
+- PostgreSQL 17 with PostGIS 3.5
+- Redis 7
 
 Maven does not need to be installed because the repository includes a pinned Maven Wrapper.
 
 ## Build And Test
 
 ```bash
+./mvnw clean verify
+```
+
+When using Colima on macOS, expose its socket to Testcontainers:
+
+```bash
+colima start --cpu 8 --memory 16
+DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" \
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
 ./mvnw clean verify
 ```
 
@@ -85,13 +96,26 @@ This command:
 Coverage is written to `target/site/jacoco/index.html`. Integration tests use the `*IT` suffix and
 are run by Maven Failsafe. MockMvc tests do not qualify as API integration tests.
 
-Run the current prototype locally:
+Create a local database before running the current prototype:
+
+```bash
+docker run --name cab-postgis --rm \
+  -e POSTGRES_DB=cab \
+  -e POSTGRES_USER=cab \
+  -e POSTGRES_PASSWORD=cab \
+  -p 5432:5432 \
+  postgis/postgis:17-3.5
+```
+
+In another terminal:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-The prototype expects Redis at `localhost:6379`. Its H2 database is recreated on every start.
+The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`, and
+`REDIS_PORT`. Defaults are intended for local development only. Flyway applies pending migrations;
+Hibernate validates the resulting schema and never creates or drops production tables.
 
 ## API
 
