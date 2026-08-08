@@ -191,6 +191,57 @@ class MarketplaceHttpIT {
         "MultiPolygon",
         serviceAreaList.get(0).getAsJsonObject().getAsJsonObject("boundary").get("type").getAsString());
 
+    HttpResponse<String> productCreated =
+        postWithTenant(
+            "/api/v1/products",
+            tenantId,
+            "{\"slug\":\"standard\",\"name\":\"Standard\",\"status\":\"ACTIVE\","
+                + "\"capacity\":4,\"serviceClass\":\"STANDARD\"}");
+    assertEquals(201, productCreated.statusCode());
+    String productId =
+        JsonParser.parseString(productCreated.body()).getAsJsonObject().get("id").getAsString();
+    assertEquals(409,
+        postWithTenant(
+            "/api/v1/products",
+            tenantId,
+            "{\"slug\":\"standard\",\"name\":\"Standard\",\"status\":\"ACTIVE\","
+                + "\"capacity\":4,\"serviceClass\":\"STANDARD\"}").statusCode());
+    assertEquals(1, JsonParser.parseString(
+        getWithTenant("/api/v1/products", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpResponse<String> ruleCreated =
+        postWithTenant(
+            "/api/v1/pricing-rules",
+            tenantId,
+            "{\"productId\":\"" + productId + "\",\"effectiveFrom\":\"2020-01-01T00:00:00Z\","
+                + "\"baseFareMinor\":200,\"perKmMinor\":100,\"perMinuteMinor\":20,"
+                + "\"minimumFareMinor\":700,\"currency\":\"USD\","
+                + "\"surgeBasisPoints\":1000,\"taxBasisPoints\":500,\"active\":true}");
+    assertEquals(201, ruleCreated.statusCode());
+    assertEquals(1, JsonParser.parseString(
+        getWithTenant("/api/v1/pricing-rules", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpResponse<String> quoteCreated =
+        postWithTenant(
+            "/api/v1/quotes",
+            tenantId,
+            "{\"productId\":\"" + productId + "\","
+                + "\"pickup\":{\"latitude\":12.95,\"longitude\":77.6},"
+                + "\"dropoff\":{\"latitude\":13.0,\"longitude\":77.65}}");
+    assertEquals(201, quoteCreated.statusCode());
+    JsonObject quote = JsonParser.parseString(quoteCreated.body()).getAsJsonObject();
+    assertEquals(809, quote.get("totalMinor").getAsLong());
+    assertEquals("USD", quote.get("currency").getAsString());
+    assertEquals("ACTIVE", quote.get("status").getAsString());
+    String quoteId = quote.get("id").getAsString();
+    assertEquals(200,
+        getWithTenant("/api/v1/quotes/" + quoteId, tenantId, "platform-admin").statusCode());
+    assertEquals(1, JsonParser.parseString(
+        getWithTenant("/api/v1/quotes", tenantId, "platform-admin").body()).getAsJsonArray().size());
+    assertEquals(404,
+        getWithTenant("/api/v1/quotes/00000000-0000-0000-0000-000000000000",
+            tenantId, "platform-admin").statusCode());
+
     HttpResponse<String> route =
         postWithTenant(
             "/api/v1/routes/estimate",
