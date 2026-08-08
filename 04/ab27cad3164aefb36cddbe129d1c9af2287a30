@@ -1,0 +1,56 @@
+README.md
+  h_6ca422f7d88004 8-10,29-30,34-36,121-124,136-138,146-149
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  h_6ca422f7d88004 7,44-59
+src/main/java/in/rsh/cab/geography/GeoPoint.java
+  h_6ca422f7d88004 1-13
+src/main/java/in/rsh/cab/geography/ServiceArea.java
+  h_6ca422f7d88004 1-15
+src/main/java/in/rsh/cab/geography/ServiceAreaService.java
+  h_6ca422f7d88004 1-102
+src/main/java/in/rsh/cab/geography/internal/persistence/JdbcServiceAreaRepository.java
+  h_6ca422f7d88004 1-95
+src/main/java/in/rsh/cab/geography/internal/persistence/ServiceAreaRepository.java
+  h_6ca422f7d88004 1-14
+src/main/java/in/rsh/cab/geography/internal/web/ServiceAreaController.java
+  h_6ca422f7d88004 1-49
+src/main/java/in/rsh/cab/routing/RouteEstimate.java
+  h_6ca422f7d88004 1-13
+src/main/java/in/rsh/cab/routing/RouteEstimator.java
+  h_6ca422f7d88004 1-8
+src/main/java/in/rsh/cab/routing/RouteProviderException.java
+  h_6ca422f7d88004 1-20
+src/main/java/in/rsh/cab/routing/internal/OsrmRouteEstimator.java
+  h_6ca422f7d88004 1-105
+src/main/java/in/rsh/cab/routing/internal/web/RouteController.java
+  h_6ca422f7d88004 1-35
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  h_6ca422f7d88004 28-33
+src/main/resources/application.properties
+  h_6ca422f7d88004 23-24
+src/main/resources/db/migration/V3__service_areas.sql
+  h_6ca422f7d88004 1-21
+src/test/java/in/rsh/cab/controller/MarketplaceHttpIT.java
+  h_6ca422f7d88004 9-11,16-17,40-41,60-67,104-135,146-158,207-227
+src/test/java/in/rsh/cab/exception/GlobalExceptionHandlerTest.java
+  h_6ca422f7d88004 11,57-68
+src/test/java/in/rsh/cab/geography/GeoPointTest.java
+  h_6ca422f7d88004 1-34
+src/test/java/in/rsh/cab/geography/ServiceAreaServiceTest.java
+  h_6ca422f7d88004 1-146
+src/test/java/in/rsh/cab/routing/RouteEstimateTest.java
+  h_6ca422f7d88004 1-18
+src/test/java/in/rsh/cab/routing/internal/OsrmRouteEstimatorTest.java
+  h_6ca422f7d88004 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "04ab27cad3164aefb36cddbe129d1c9af2287a30",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
