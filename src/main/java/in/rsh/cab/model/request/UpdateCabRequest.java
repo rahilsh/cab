@@ -2,7 +2,11 @@ package in.rsh.cab.model.request;
 
 import static in.rsh.cab.model.Cab.CabStatus;
 
-public record UpdateCabRequest(String state, Integer cityId) {
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+
+public record UpdateCabRequest(
+    @Pattern(regexp = "AVAILABLE|UNAVAILABLE") String state, @Positive Integer cityId) {
 
   public void validate() {
     if ((state == null && cityId == null)) {

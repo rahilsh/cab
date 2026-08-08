@@ -47,6 +47,16 @@ class MarketplaceHttpIT {
 
   @Test
   void booksCabThroughActualHttpApi() throws Exception {
+    HttpResponse<String> health = get("/actuator/health/readiness");
+    assertEquals(200, health.statusCode());
+    assertTrue(health.body().contains("UP"));
+
+    HttpResponse<String> invalidCity = post("/cities", "{\"name\":\"\"}");
+    assertEquals(400, invalidCity.statusCode());
+    assertTrue(invalidCity.headers().firstValue("Content-Type").orElse("").contains("problem+json"));
+    assertTrue(invalidCity.body().contains("validation-failed"));
+    assertTrue(invalidCity.headers().firstValue("X-Correlation-ID").isPresent());
+
     assertEquals(200, post("/cities", "{\"name\":\"BLR\",\"state\":\"KA\"}").statusCode());
     assertEquals(200, post("/cities", "{\"name\":\"MUM\",\"state\":\"MH\"}").statusCode());
     assertEquals(

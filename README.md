@@ -23,6 +23,7 @@ The current implementation supports:
 - Paginated cab and booking queries
 - Unit tests and random-port HTTP integration tests
 - PostgreSQL/PostGIS persistence managed by Flyway
+- RFC 9457 validation errors, correlation IDs, and health probes
 
 The production roadmap includes:
 
@@ -130,6 +131,10 @@ The current unversioned prototype endpoints are temporary:
 | `GET` | `/cabs` | List cabs |
 | `POST` | `/bookings` | Create a booking |
 | `GET` | `/bookings` | List bookings |
+
+Operational probes are available at `/actuator/health/liveness` and
+`/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
+header to correlate a request across logs and downstream calls.
 
 These routes will be replaced by the authenticated `/api/v1` marketplace contract. Consumers
 must not rely on the prototype API.
