@@ -1,0 +1,19 @@
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  s_6e8f4cc2cf2410::t_341f81044ec447 21,143-147
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "5959979a256daf5b418dc8a70e2fb4a69722f01a",
+  "prompts": {},
+  "sessions": {
+    "s_6e8f4cc2cf2410": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01d6419abffe8r9CYIwhue4aoc",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
