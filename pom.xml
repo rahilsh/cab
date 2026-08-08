@@ -64,6 +64,9 @@
             <exclude>**/entity/**</exclude>
             <exclude>**/mapper/**</exclude>
             <exclude>**/model/**</exclude>
+            <exclude>**/internal/persistence/**</exclude>
+            <exclude>**/internal/web/**</exclude>
+            <exclude>**/*Configuration.class</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -117,6 +120,14 @@
     </dependency>
     <dependency>
       <artifactId>spring-boot-starter-actuator</artifactId>
+      <groupId>org.springframework.boot</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-security</artifactId>
+      <groupId>org.springframework.boot</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
       <groupId>org.springframework.boot</groupId>
     </dependency>
     <dependency>

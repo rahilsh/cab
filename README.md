@@ -24,6 +24,7 @@ The current implementation supports:
 - Unit tests and random-port HTTP integration tests
 - PostgreSQL/PostGIS persistence managed by Flyway
 - RFC 9457 validation errors, correlation IDs, and health probes
+- OIDC-protected tenant provisioning and operator memberships
 
 The production roadmap includes:
 
@@ -120,24 +121,21 @@ Hibernate validates the resulting schema and never creates or drops production t
 
 ## API
 
-The current unversioned prototype endpoints are temporary:
+The legacy prototype endpoints are blocked by the security policy and will be removed. The first
+versioned endpoint is:
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/cities` | Register a city |
-| `GET` | `/cities` | List cities |
-| `POST` | `/cabs` | Register a cab |
-| `POST` | `/cabs/{cabId}` | Update a cab |
-| `GET` | `/cabs` | List cabs |
-| `POST` | `/bookings` | Create a booking |
-| `GET` | `/bookings` | List bookings |
+| `POST` | `/api/v1/tenants` | Provision a tenant; requires `platform.admin` scope |
+| `GET` | `/api/v1/tenants` | List the authenticated account's tenant memberships |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
 header to correlate a request across logs and downstream calls.
 
-These routes will be replaced by the authenticated `/api/v1` marketplace contract. Consumers
-must not rely on the prototype API.
+The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
+`OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather
+than trusted solely from bearer-token claims.
 
 ## Contributing
 
