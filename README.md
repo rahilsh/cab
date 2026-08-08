@@ -5,8 +5,9 @@ project is evolving from a single-fleet prototype into a production-oriented mod
 operators, riders, drivers, vehicles, pricing, dispatch, trips, payments, and settlements.
 
 > [!WARNING]
-> The current code is an experimental prototype. It has no authentication or tenant isolation and
-> uses an ephemeral development database. Do not expose it publicly or use it for real bookings.
+> The current code is an experimental prototype. Authentication and initial tenant isolation are
+> present, but production hardening is incomplete. Do not expose it publicly or use it for real
+> bookings.
 
 The customer and operator frontends will be maintained in separate repositories. This repository
 contains the HTTP API and backend services only.
@@ -25,12 +26,14 @@ The current implementation supports:
 - PostgreSQL/PostGIS persistence managed by Flyway
 - RFC 9457 validation errors, correlation IDs, and health probes
 - OIDC-protected tenant provisioning and operator memberships
+- Tenant-owned PostGIS service areas
+- OSRM-backed route distance and duration estimates
 
 The production roadmap includes:
 
-- OIDC authentication, role-based access, and strict tenant isolation
-- Rider, driver, vehicle, service-area, and compliance management
-- Fare quotes, OSRM routing, dispatch offers, and complete trip lifecycle
+- Strict tenant isolation and broader role-based access
+- Rider, driver, vehicle, and compliance management
+- Fare quotes, dispatch offers, and complete trip lifecycle
 - Provider-neutral payments, notifications, refunds, and settlements
 - Auditing, webhooks, ratings, support, and safety workflows
 - OpenAPI, observability, Docker Compose, and a Helm chart
@@ -115,9 +118,10 @@ In another terminal:
 ./mvnw spring-boot:run
 ```
 
-The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`, and
-`REDIS_PORT`. Defaults are intended for local development only. Flyway applies pending migrations;
-Hibernate validates the resulting schema and never creates or drops production tables.
+The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`,
+`REDIS_PORT`, and `OSRM_BASE_URL`. OSRM defaults to `http://localhost:5000`. Defaults are intended
+for local development only. Flyway applies pending migrations; Hibernate validates the resulting
+schema and never creates or drops production tables.
 
 ## API
 
@@ -129,6 +133,9 @@ versioned endpoint is:
 | `POST` | `/api/v1/tenants` | Provision a tenant; requires `platform.admin` scope |
 | `GET` | `/api/v1/tenants` | List the authenticated account's tenant memberships |
 | `GET` | `/api/v1/current-tenant` | Inspect the selected tenant context |
+| `POST` | `/api/v1/service-areas` | Create a tenant service area; requires `TENANT_ADMIN` |
+| `GET` | `/api/v1/service-areas` | List the selected tenant's service areas |
+| `POST` | `/api/v1/routes/estimate` | Estimate driving distance and duration through OSRM |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -136,7 +143,10 @@ header to correlate a request across logs and downstream calls.
 
 Tenant-owned requests require `X-Tenant-ID`. The header is only a selector: the backend verifies
 that the authenticated OIDC identity has an active database membership before binding tenant roles
-to the request. Missing, malformed, unknown, and cross-tenant selections are rejected.
+to the request. Missing, malformed, unknown, and cross-tenant selections are rejected. Service-area
+boundaries accept GeoJSON `Polygon` or `MultiPolygon` values as either JSON objects or JSON strings;
+tenant IDs are never accepted in request bodies. Route coordinates use latitude/longitude decimal
+degrees and responses report meters and seconds.
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather

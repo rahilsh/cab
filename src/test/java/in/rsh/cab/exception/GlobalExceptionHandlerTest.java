@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
+import in.rsh.cab.routing.RouteProviderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,18 @@ class GlobalExceptionHandlerTest {
         HttpStatus.FORBIDDEN,
         "tenant-access-denied",
         "No membership");
+    assertProblem(
+        handler.handleRouteProvider(
+            new RouteProviderException(RouteProviderException.Reason.BAD_RESPONSE)),
+        HttpStatus.BAD_GATEWAY,
+        "route-provider-bad-gateway",
+        "Route estimate provider failed");
+    assertProblem(
+        handler.handleRouteProvider(
+            new RouteProviderException(RouteProviderException.Reason.UNAVAILABLE)),
+        HttpStatus.SERVICE_UNAVAILABLE,
+        "route-provider-unavailable",
+        "Route estimate provider is unavailable");
   }
 
   @Test

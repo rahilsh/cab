@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
+import in.rsh.cab.routing.RouteProviderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,22 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ProblemDetail> handleTenantAccessDenied(
       TenantAccessDeniedException exception) {
     return problem(HttpStatus.FORBIDDEN, "Tenant access denied", exception.getMessage(), "tenant-access-denied");
+  }
+
+  @ExceptionHandler(RouteProviderException.class)
+  public ResponseEntity<ProblemDetail> handleRouteProvider(RouteProviderException exception) {
+    if (exception.reason() == RouteProviderException.Reason.UNAVAILABLE) {
+      return problem(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "Route provider unavailable",
+          exception.getMessage(),
+          "route-provider-unavailable");
+    }
+    return problem(
+        HttpStatus.BAD_GATEWAY,
+        "Route provider failed",
+        exception.getMessage(),
+        "route-provider-bad-gateway");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
