@@ -179,6 +179,29 @@ public class JdbcPricingRepository implements PricingRepository {
         .query(this::mapQuote).list();
   }
 
+  @Override
+  public Optional<FareQuote> consumeQuote(
+      UUID tenantId, UUID riderAccountId, UUID quoteId, Instant now) {
+    return jdbc.sql("""
+            UPDATE fare_quotes
+            SET status = 'CONSUMED', updated_at = :now, version = version + 1
+            WHERE tenant_id = :tenantId AND rider_account_id = :riderAccountId AND id = :quoteId
+              AND status = 'ACTIVE' AND expires_at > :now
+            RETURNING id, product_id, pricing_rule_id, pricing_rule_version,
+              ST_Y(pickup) AS pickup_latitude, ST_X(pickup) AS pickup_longitude,
+              ST_Y(dropoff) AS dropoff_latitude, ST_X(dropoff) AS dropoff_longitude,
+              route_distance_meters, route_duration_seconds, base_rate_minor,
+              per_km_rate_minor, per_minute_rate_minor, minimum_fare_minor,
+              surge_basis_points, tax_basis_points, base_fare_minor, distance_fare_minor,
+              time_fare_minor, minimum_adjustment_minor, subtotal_minor, surge_minor,
+              tax_minor, total_minor, currency, status, expires_at, request_fingerprint,
+              created_at, updated_at, version
+            """)
+        .param("tenantId", tenantId).param("riderAccountId", riderAccountId)
+        .param("quoteId", quoteId).param("now", Timestamp.from(now))
+        .query(this::mapQuote).optional();
+  }
+
   private ServiceProduct mapProduct(ResultSet rs, int rowNumber) throws SQLException {
     return new ServiceProduct(rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("name"),
         ProductStatus.valueOf(rs.getString("status")), rs.getInt("capacity"), rs.getString("service_class"),

@@ -31,12 +31,12 @@ The current implementation supports:
 - Tenant-scoped rider and driver profiles, driver approval, vehicles, and driver shifts
 - Tenant-scoped service products, versioned pricing rules, and immutable rider fare quotes
 - Tenant-scoped idempotency, transactional outbox/inbox, and append-only audit foundations
+- Tenant-scoped live driver locations, dispatch offers, and the complete ride lifecycle
 
 The production roadmap includes:
 
 - Strict tenant isolation and broader role-based access
 - Driver document upload and verification workflows
-- Dispatch offers and complete trip lifecycle
 - Provider-neutral payments, notifications, refunds, and settlements
 - Auditing, webhooks, ratings, support, and safety workflows
 - OpenAPI, observability, Docker Compose, and a Helm chart
@@ -154,6 +154,12 @@ versioned endpoint is:
 | `POST`, `GET` | `/api/v1/quotes` | Create or list the authenticated rider's immutable fare quotes |
 | `GET` | `/api/v1/quotes/{id}` | Read one fare quote owned by the authenticated rider |
 | `GET` | `/api/v1/admin/audit-events` | List tenant audit events; requires `TENANT_ADMIN` or `SUPPORT` |
+| `PUT` | `/api/v1/driver/location` | Atomically publish a fresh location for the authenticated driver's available shift |
+| `POST`, `GET` | `/api/v1/rides` | Create a ride from an owned quote or list the authenticated rider's rides |
+| `POST` | `/api/v1/dispatch/rides/{id}/start` | Search bounded fresh supply and create expiring offers; requires `TENANT_ADMIN` or `DISPATCHER` |
+| `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
+| `POST` | `/api/v1/driver/offers/{id}/accept` | Atomically reserve supply and assign exactly one driver |
+| `POST` | `/api/v1/driver/rides/{id}/{action}` | Apply `arriving`, `arrive`, `start`, `complete`, or `cancel` lifecycle actions |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -172,6 +178,19 @@ operations resolve the account from the authenticated tenant context. Vehicle an
 use optimistic versions and return stable `409 resource-conflict` errors for stale or invalid
 transitions. Driver document storage is metadata-only; document bytes and raw secrets are never
 stored in the marketplace database.
+
+Live locations require an owned `AVAILABLE` shift and monotonically increasing sequence and device
+timestamp. Redis keys are tenant namespaced; a Lua script atomically updates GEO membership and
+sequence/timestamp metadata. Dispatch bounds candidates, filters stale locations, then rechecks
+authoritative shift, vehicle, driver, and product eligibility in PostgreSQL. Redis remains
+ephemeral; checkpoints provide a tenant-qualified operational trail.
+
+Ride creation consumes an owned, active, unexpired quote with one conditional database update and
+snapshots its product, coordinates, total fare, and currency. It requires `Idempotency-Key` and
+writes initial history, outbox, audit, and idempotency completion in the same transaction. Ride and
+shift transitions are optimistic. Offer acceptance locks only the chosen offer and conditionally
+reserves its shift; database partial unique constraints enforce one accepted offer per ride and one
+active ride per shift. Completion and allowed cancellations release the shift to `AVAILABLE`.
 
 Pricing amounts use signed 64-bit integer minor units and ISO 4217 currency codes. Active pricing
 rules cannot overlap for the same tenant and product. Quote creation requires one active service

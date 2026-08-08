@@ -22,7 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -60,6 +63,10 @@ class MarketplaceHttpIT {
           .withUsername("cab")
           .withPassword("cab");
 
+  @Container
+  static final GenericContainer<?> REDIS =
+      new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine")).withExposedPorts(6379);
+
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
   @LocalServerPort private int port;
@@ -73,6 +80,8 @@ class MarketplaceHttpIT {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.data.redis.host", REDIS::getHost);
+    registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     registry.add(
         "routing.osrm.base-url",
         () -> "http://localhost:" + OSRM.getAddress().getPort());
@@ -307,6 +316,69 @@ class MarketplaceHttpIT {
     JsonObject estimate = JsonParser.parseString(route.body()).getAsJsonObject();
     assertEquals(2450.5, estimate.get("distanceMeters").getAsDouble());
     assertEquals(480.0, estimate.get("durationSeconds").getAsDouble());
+
+    HttpResponse<String> onlineForDispatch = postWithTenant(
+        "/api/v1/driver/shifts/" + shiftId + "/go-online", tenantId, "{\"version\":2}");
+    assertEquals(200, onlineForDispatch.statusCode());
+    String recordedAt = Instant.now().toString();
+    String locationBody = "{\"shiftId\":\"" + shiftId
+        + "\",\"latitude\":12.95,\"longitude\":77.6,\"recordedAt\":\""
+        + recordedAt + "\",\"sequence\":1}";
+    assertEquals(200, putWithTenant("/api/v1/driver/location", tenantId, locationBody).statusCode());
+    assertEquals(409, putWithTenant("/api/v1/driver/location", tenantId, locationBody).statusCode());
+
+    HttpResponse<String> rideCreated = postWithTenantAndIdempotency(
+        "/api/v1/rides", tenantId, "ride-key-1", "{\"quoteId\":\"" + quoteId + "\"}");
+    assertEquals(201, rideCreated.statusCode(), rideCreated.body());
+    JsonObject ride = JsonParser.parseString(rideCreated.body()).getAsJsonObject();
+    String rideId = ride.get("id").getAsString();
+    assertEquals("REQUESTED", ride.get("status").getAsString());
+    assertEquals(rideCreated.body(), postWithTenantAndIdempotency(
+        "/api/v1/rides", tenantId, "ride-key-1", "{\"quoteId\":\"" + quoteId + "\"}").body());
+    assertEquals(1, JsonParser.parseString(
+        getWithTenant("/api/v1/rides", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpResponse<String> offersCreated = postWithTenant(
+        "/api/v1/dispatch/rides/" + rideId + "/start", tenantId, "{\"version\":0}");
+    assertEquals(200, offersCreated.statusCode(), offersCreated.body());
+    JsonArray offers = JsonParser.parseString(offersCreated.body()).getAsJsonArray();
+    assertEquals(1, offers.size());
+    String offerId = offers.get(0).getAsJsonObject().get("id").getAsString();
+    assertEquals(1, JsonParser.parseString(
+        getWithTenant("/api/v1/driver/offers", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpRequest acceptRequest = tenantPostRequest(
+        "/api/v1/driver/offers/" + offerId + "/accept", tenantId, "");
+    CompletableFuture<HttpResponse<String>> firstAccept = httpClient.sendAsync(
+        acceptRequest, HttpResponse.BodyHandlers.ofString());
+    CompletableFuture<HttpResponse<String>> secondAccept = httpClient.sendAsync(
+        acceptRequest, HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> firstResult = firstAccept.join();
+    HttpResponse<String> secondResult = secondAccept.join();
+    assertEquals(Set.of(200, 409), Set.of(firstResult.statusCode(), secondResult.statusCode()));
+    HttpResponse<String> accepted = firstResult.statusCode() == 200 ? firstResult : secondResult;
+    assertEquals("DRIVER_ASSIGNED",
+        JsonParser.parseString(accepted.body()).getAsJsonObject().get("status").getAsString());
+
+    JsonObject arriving = driverRideAction(tenantId, rideId, "arriving", 2);
+    assertEquals("DRIVER_ARRIVING", arriving.get("status").getAsString());
+    JsonObject arrived = driverRideAction(tenantId, rideId, "arrive", 3);
+    assertEquals("DRIVER_ARRIVED", arrived.get("status").getAsString());
+    JsonObject started = driverRideAction(tenantId, rideId, "start", 4);
+    assertEquals("IN_PROGRESS", started.get("status").getAsString());
+    JsonObject completed = driverRideAction(tenantId, rideId, "complete", 5);
+    assertEquals("COMPLETED", completed.get("status").getAsString());
+    assertEquals(409, postWithTenant(
+        "/api/v1/driver/rides/" + rideId + "/complete", tenantId, "{\"version\":5}").statusCode());
+  }
+
+  private JsonObject driverRideAction(String tenantId, String rideId, String action, long version)
+      throws Exception {
+    HttpResponse<String> response = postWithTenant(
+        "/api/v1/driver/rides/" + rideId + "/" + action, tenantId,
+        "{\"version\":" + version + "}");
+    assertEquals(200, response.statusCode(), response.body());
+    return JsonParser.parseString(response.body()).getAsJsonObject();
   }
 
   private HttpResponse<String> post(String path, String body) throws Exception {
@@ -319,15 +391,18 @@ class MarketplaceHttpIT {
 
   private HttpResponse<String> postWithTenant(String path, String tenantId, String body)
       throws Exception {
-    HttpRequest request =
-        HttpRequest.newBuilder(uri(path))
-            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
-            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-            .header("Authorization", "Bearer platform-admin")
-            .header("X-Tenant-ID", tenantId)
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build();
-    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    return httpClient.send(tenantPostRequest(path, tenantId, body),
+        HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpRequest tenantPostRequest(String path, String tenantId, String body) {
+    return HttpRequest.newBuilder(uri(path))
+        .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+        .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+        .header("Authorization", "Bearer platform-admin")
+        .header("X-Tenant-ID", tenantId)
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
   }
 
   private HttpResponse<String> postWithTenantAndIdempotency(
@@ -342,6 +417,18 @@ class MarketplaceHttpIT {
             .header("Idempotency-Key", idempotencyKey)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> putWithTenant(String path, String tenantId, String body)
+      throws Exception {
+    HttpRequest request = HttpRequest.newBuilder(uri(path))
+        .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+        .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+        .header("Authorization", "Bearer platform-admin")
+        .header("X-Tenant-ID", tenantId)
+        .PUT(HttpRequest.BodyPublishers.ofString(body))
+        .build();
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
