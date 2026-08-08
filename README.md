@@ -1,9 +1,20 @@
 # cab
 
+> This project is an experimental backend prototype and is not ready for production use.
+
 ### Prerequisite
 
 * Basic understanding of Java, Spring framework, Maven & REST APIs
 * To run this app java 21 & maven is mandatory
+
+### Development verification
+
+Use the repository's Maven Wrapper to compile the application, run unit tests, enforce at least
+85% unit-test line coverage, and run integration tests against an actual HTTP server:
+
+```bash
+./mvnw clean verify
+```
 
 ### Reference Documentation
 
