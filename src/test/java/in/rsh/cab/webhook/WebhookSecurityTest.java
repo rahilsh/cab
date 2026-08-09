@@ -15,7 +15,9 @@ class WebhookSecurityTest {
   void acceptsOnlyHttpsHostsResolvingEntirelyToPublicAddresses() throws Exception {
     WebhookSecurity security = new WebhookSecurity(host -> List.of(
         InetAddress.getByAddress(new byte[] {93, (byte) 184, (byte) 216, 34})));
-    assertEquals("example.com", security.validate("https://example.com/hooks?id=1").getHost());
+    ValidatedWebhookTarget target = security.validate("https://example.com/hooks?id=1");
+    assertEquals("example.com", target.uri().getHost());
+    assertEquals("93.184.216.34", target.addresses().getFirst().getHostAddress());
     assertThrows(InvalidRequestException.class, () -> security.validate("http://example.com/hook"));
     assertThrows(InvalidRequestException.class, () -> security.validate("https://user@example.com/hook"));
     assertThrows(InvalidRequestException.class, () -> security.validate("https://example.com/hook#fragment"));

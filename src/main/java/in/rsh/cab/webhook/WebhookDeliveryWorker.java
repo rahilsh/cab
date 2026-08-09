@@ -75,7 +75,7 @@ public class WebhookDeliveryWorker {
     int attempt = delivery.attemptCount() + 1;
     Instant now = clock.instant();
     try {
-      var uri = security.validate(delivery.subscription().url());
+      ValidatedWebhookTarget target = security.validate(delivery.subscription().url());
       String timestamp = Long.toString(delivery.signatureTimestamp().getEpochSecond());
       String signature = sign(secrets.resolve(delivery.subscription().secretReference()),
           timestamp + "." + delivery.payload());
@@ -85,7 +85,7 @@ public class WebhookDeliveryWorker {
           "X-Cab-Delivery-ID", delivery.id().toString(),
           "X-Cab-Signature-Timestamp", timestamp,
           "X-Cab-Signature", "v1=" + signature);
-      WebhookTransport.Response response = transport.post(uri, delivery.payload(), headers,
+      WebhookTransport.Response response = transport.post(target, delivery.payload(), headers,
           requestTimeout);
       if (response.statusCode() >= 200 && response.statusCode() < 300) {
         tenantExecution.inTransaction(delivery.tenantId(),
@@ -133,6 +133,9 @@ public class WebhookDeliveryWorker {
     envelope.put("eventId", event.id());
     envelope.put("eventType", event.eventType());
     envelope.put("eventVersion", event.eventVersion());
+    envelope.put("aggregateType", event.aggregateType());
+    envelope.put("aggregateId", event.aggregateId());
+    envelope.put("aggregateVersion", event.aggregateVersion());
     envelope.put("occurredAt", event.occurredAt());
     envelope.put("data", event.payload());
     try {

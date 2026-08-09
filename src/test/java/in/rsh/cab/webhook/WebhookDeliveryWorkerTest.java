@@ -69,11 +69,18 @@ class WebhookDeliveryWorkerTest {
         .thenAnswer(invocation -> List.of(delivery(subscription, event.id(), envelope[0], 0)));
     when(transport.post(any(), any(), any(), eq(Duration.ofSeconds(10))))
         .thenAnswer(invocation -> {
+          ValidatedWebhookTarget target = invocation.getArgument(0);
           Map<String, String> headers = invocation.getArgument(2);
+          assertEquals("example.com", target.uri().getHost());
+          assertEquals("93.184.216.34", target.addresses().getFirst().getHostAddress());
           assertEquals(event.id().toString(), headers.get("X-Cab-Event-ID"));
           assertEquals(Long.toString(NOW.getEpochSecond()), headers.get("X-Cab-Signature-Timestamp"));
           assertTrue(headers.get("X-Cab-Signature").matches("v1=[0-9a-f]{64}"));
-          assertTrue(((String) invocation.getArgument(1)).contains("\"eventType\":\"ride.completed\""));
+          String payload = invocation.getArgument(1);
+          assertTrue(payload.contains("\"eventType\":\"ride.completed\""));
+          assertTrue(payload.contains("\"aggregateType\":\"ride\""));
+          assertTrue(payload.contains("\"aggregateId\":\"" + event.aggregateId() + "\""));
+          assertTrue(payload.contains("\"aggregateVersion\":6"));
           return new WebhookTransport.Response(204);
         });
 
@@ -95,7 +102,7 @@ class WebhookDeliveryWorkerTest {
   }
 
   @Test
-  void dnsIsResolvedAgainImmediatelyBeforeEveryDelivery() throws Exception {
+  void rejectsUnsafeAddressImmediatelyBeforeEveryDelivery() throws Exception {
     WebhookSecurity rebinding = new WebhookSecurity(host -> List.of(InetAddress.getByName("127.0.0.1")));
     WebhookDeliveryWorker blocked = new WebhookDeliveryWorker(repository, rebinding, transport,
         secrets, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6,
