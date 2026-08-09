@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 class RideEventStreamTest {
 
@@ -34,8 +35,9 @@ class RideEventStreamTest {
   private static final Instant NOW = Instant.parse("2026-08-08T10:00:00Z");
   private final RideRepository rides = mock(RideRepository.class);
   private final SseEmitter emitter = mock(SseEmitter.class);
+  private final RideStreamRedisPublisher publisher = mock(RideStreamRedisPublisher.class);
   private final RideEventStream stream =
-      new RideEventStream(rides, Duration.ofMinutes(1), 1, 1, ignored -> emitter);
+      new RideEventStream(rides, Duration.ofMinutes(1), 1, 1, ignored -> emitter, publisher);
 
   @AfterEach
   void tearDown() {
@@ -55,7 +57,8 @@ class RideEventStreamTest {
     assertEquals(1, stream.subscriberCount(TENANT, ride.id()));
 
     stream.publish(TENANT,
-        new RideEventStream.RideStatusEvent(ride.id(), RideStatus.DRIVER_ASSIGNED, 2, NOW));
+        new RideEventStream.RideStatusEvent(
+            UUID.randomUUID(), ride.id(), RideStatus.DRIVER_ASSIGNED, 2, NOW));
     verify(emitter, times(2))
         .send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
     verify(rides, never()).findAssignedToDriver(TENANT, ACCOUNT, ride.id());
@@ -83,12 +86,14 @@ class RideEventStreamTest {
     TransactionSynchronizationManager.initSynchronization();
     TransactionSynchronizationManager.setActualTransactionActive(true);
 
-    stream.afterCommit(TENANT, ride);
+    UUID eventId = UUID.randomUUID();
+    stream.afterCommit(TENANT, eventId, ride);
     verify(emitter, never()).send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
     TransactionSynchronization synchronization =
         TransactionSynchronizationManager.getSynchronizations().get(0);
     synchronization.afterCommit();
-    verify(emitter).send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
+    verify(publisher).publish(org.mockito.ArgumentMatchers.eq(TENANT),
+        org.mockito.ArgumentMatchers.argThat(event -> event.eventId().equals(eventId)));
     TransactionSynchronizationManager.setActualTransactionActive(false);
   }
 
@@ -102,6 +107,24 @@ class RideEventStreamTest {
 
     verify(emitter).send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
     assertEquals(1, stream.subscriberCount(TENANT, ride.id()));
+  }
+
+  @Test
+  void redisMessageFansOutToLocalSubscribers() throws Exception {
+    Ride ride = ride();
+    context(TenantRole.TENANT_ADMIN);
+    when(rides.find(TENANT, ride.id())).thenReturn(Optional.of(ride));
+    stream.subscribe(ride.id());
+    org.mockito.Mockito.clearInvocations(emitter);
+    ObjectMapper json = new ObjectMapper();
+    UUID eventId = UUID.randomUUID();
+    String message = json.writeValueAsString(new RideStreamRedisPublisher.RideStreamMessage(
+        TENANT, new RideEventStream.RideStatusEvent(
+            eventId, ride.id(), RideStatus.IN_PROGRESS, 3, NOW)));
+
+    stream.receive(message, json);
+
+    verify(emitter).send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
   }
 
   private Ride ride() {

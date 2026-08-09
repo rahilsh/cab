@@ -54,6 +54,25 @@ public class RedisLiveLocationStore implements LiveLocationStore {
   }
 
   @Override
+  public boolean isCurrent(UUID tenantId, DriverLocation location) {
+    Object marker = redis.opsForHash().get(
+        metadataKey(tenantId), location.shiftId().toString());
+    if (!(marker instanceof String value)) {
+      return false;
+    }
+    try {
+      int separator = value.indexOf(':');
+      long sequence = Long.parseLong(value.substring(0, separator));
+      long recordedAt = Long.parseLong(value.substring(separator + 1));
+      long expectedRecordedAt = location.recordedAt().toEpochMilli();
+      return sequence > location.sequence() || recordedAt > expectedRecordedAt
+          || (sequence == location.sequence() && recordedAt == expectedRecordedAt);
+    } catch (IllegalArgumentException | IndexOutOfBoundsException exception) {
+      return false;
+    }
+  }
+
+  @Override
   public List<UUID> nearby(
       UUID tenantId, GeoPoint point, double radiusMeters, int limit, Instant now, Duration maxAge) {
     int boundedLimit = Math.max(1, Math.min(limit, 100));

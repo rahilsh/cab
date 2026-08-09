@@ -1,6 +1,8 @@
 package in.rsh.cab.location.internal.redis;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doReturn;
@@ -9,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import in.rsh.cab.geography.GeoPoint;
+import in.rsh.cab.location.DriverLocation;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,6 +34,22 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 class RedisLiveLocationStoreTest {
+
+  @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  void comparesExactSequenceAndTimestampMarker() {
+    UUID tenant = UUID.randomUUID();
+    DriverLocation location = new DriverLocation(UUID.randomUUID(), new GeoPoint(1, 2),
+        Instant.parse("2026-08-08T10:00:00Z"), 7);
+    StringRedisTemplate redis = mock(StringRedisTemplate.class);
+    HashOperations<String, Object, Object> hashes = mock(HashOperations.class);
+    doReturn(hashes).when(redis).opsForHash();
+    when(hashes.get(any(), any())).thenReturn("8:" + location.recordedAt().toEpochMilli(), "6:1");
+    RedisLiveLocationStore store = new RedisLiveLocationStore(redis);
+
+    assertTrue(store.isCurrent(tenant, location));
+    assertFalse(store.isCurrent(tenant, location));
+  }
 
   @Test
   @SuppressWarnings({"unchecked", "rawtypes"})

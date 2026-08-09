@@ -10,8 +10,8 @@ public interface LocationCheckpointRepository {
 
   boolean insertIfNewer(UUID tenantId, DriverLocation location, Instant createdAt);
 
-  List<DriverLocation> findLatestEligible(
-      UUID tenantId, Instant recordedSince, LocalDate currentDate, int limit);
+  List<DriverLocation> findLatestEligibleAfter(
+      UUID tenantId, Instant recordedSince, LocalDate currentDate, UUID afterShiftId, int limit);
 
   int deleteCreatedBefore(UUID tenantId, Instant cutoff, int limit);
 }

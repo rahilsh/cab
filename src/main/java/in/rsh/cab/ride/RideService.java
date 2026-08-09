@@ -179,11 +179,11 @@ public class RideService {
   }
 
   private void emit(TenantContext context, Ride ride, String event, String action) {
-    outbox.append(context.tenantId(), "ride", ride.id(), ride.version(), event, 1,
+    UUID eventId = outbox.append(context.tenantId(), "ride", ride.id(), ride.version(), event, 1,
         json.valueToTree(new RideEvent(ride.id(), ride.status(), ride.driverId())), null);
     audit.record(context.tenantId(), context.accountId(), action, "ride", ride.id(), "SUCCESS",
         json.valueToTree(new RideAudit(ride.status())));
-    eventStream.afterCommit(context.tenantId(), ride);
+    eventStream.afterCommit(context.tenantId(), eventId, ride);
   }
 
   private TenantContext require(TenantRole role) {
