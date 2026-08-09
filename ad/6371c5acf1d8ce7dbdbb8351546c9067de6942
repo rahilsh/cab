@@ -1,0 +1,56 @@
+README.md
+  h_6ca422f7d88004 67-72,216,221
+src/main/java/in/rsh/cab/dispatch/DispatchMaintenance.java
+  h_6ca422f7d88004 1-49
+src/main/java/in/rsh/cab/dispatch/DispatchService.java
+  h_6ca422f7d88004 22,77-85,93,104,147-148,174,179-213
+src/main/java/in/rsh/cab/dispatch/internal/persistence/DispatchRepository.java
+  h_6ca422f7d88004 27-30
+src/main/java/in/rsh/cab/dispatch/internal/persistence/JdbcDispatchRepository.java
+  h_6ca422f7d88004 120-161
+src/main/java/in/rsh/cab/dispatch/internal/web/DispatchController.java
+  h_6ca422f7d88004 37-42
+src/main/java/in/rsh/cab/fleet/internal/persistence/FleetRepository.java
+  h_6ca422f7d88004 9-10,38-41,44
+src/main/java/in/rsh/cab/fleet/internal/persistence/JdbcFleetRepository.java
+  h_6ca422f7d88004 12,158-183,186,197-203,206
+src/main/java/in/rsh/cab/location/DriverLocationReconciler.java
+  h_6ca422f7d88004 1-43
+src/main/java/in/rsh/cab/location/DriverLocationService.java
+  h_6ca422f7d88004 17-18,20,23-24,29,66-70,73,77-97
+src/main/java/in/rsh/cab/location/internal/persistence/JdbcLocationCheckpointRepository.java
+  h_6ca422f7d88004 6-7,22-26,29,31-37,40,44-76
+src/main/java/in/rsh/cab/location/internal/persistence/LocationCheckpointRepository.java
+  h_6ca422f7d88004 5-6,11-14
+src/main/java/in/rsh/cab/location/internal/redis/RedisLiveLocationStore.java
+  h_6ca422f7d88004 29,35-39,60,62,73,77-81,83-91,93-106
+src/main/java/in/rsh/cab/ride/Ride.java
+  h_6ca422f7d88004 37-40
+src/main/resources/application.properties
+  h_6ca422f7d88004 46-48
+src/main/resources/db/migration/V13__dispatch_retry_offers.sql
+  h_6ca422f7d88004 1-4
+src/test/java/in/rsh/cab/dispatch/DispatchMaintenanceTest.java
+  h_6ca422f7d88004 1-43
+src/test/java/in/rsh/cab/dispatch/DispatchServiceTest.java
+  h_6ca422f7d88004 6,9,35,87,116,127-191
+src/test/java/in/rsh/cab/location/DriverLocationReconcilerTest.java
+  h_6ca422f7d88004 1-41
+src/test/java/in/rsh/cab/location/DriverLocationServiceTest.java
+  h_6ca422f7d88004 6,8,33,61,64-102,119,122
+src/test/java/in/rsh/cab/location/internal/redis/RedisLiveLocationStoreTest.java
+  h_6ca422f7d88004 1-82
+src/test/java/in/rsh/cab/ride/RideTest.java
+  h_6ca422f7d88004 41-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ad6371c5acf1d8ce7dbdbb8351546c9067de6942",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
