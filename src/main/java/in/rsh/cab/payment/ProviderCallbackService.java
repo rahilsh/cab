@@ -83,6 +83,8 @@ public class ProviderCallbackService {
       case CAPTURE_FAILED -> applyCapture(account, event, now, false);
       case REFUND_SUCCEEDED -> applyRefund(account, event, now, true);
       case REFUND_FAILED -> applyRefund(account, event, now, false);
+      case PAYOUT_SUCCEEDED -> applyPayout(account, event, now, true);
+      case PAYOUT_FAILED -> applyPayout(account, event, now, false);
     };
     payments.markProviderEvent(account.id(), event.eventId(), applied, now);
     return new Result(true, applied);
@@ -94,10 +96,10 @@ public class ProviderCallbackService {
         || (succeeded && (event.amountMinor() == null || event.currency() == null))) {
       return false;
     }
-    boolean applied = payments.applyCaptureEvent(account, event, now, succeeded);
+    boolean applied = payments.applyCaptureEvent(
+        account, event, now, succeeded, commissionBasisPoints);
     if (applied && succeeded) {
-      payments.postCaptureLedger(
-          account.tenantId(), event.paymentId(), commissionBasisPoints, now);
+      payments.postCaptureLedger(account.tenantId(), event.paymentId(), now);
     }
     if (applied) {
       outbox.append(account.tenantId(), "payment", event.paymentId(), event.providerVersion(),
@@ -116,8 +118,7 @@ public class ProviderCallbackService {
     }
     boolean applied = payments.applyRefundEvent(account, event, now, succeeded);
     if (applied && succeeded) {
-      payments.postRefundLedger(
-          account.tenantId(), event.refundId(), commissionBasisPoints, now);
+      payments.postRefundLedger(account.tenantId(), event.refundId(), now);
     }
     if (applied) {
       outbox.append(account.tenantId(), "refund", event.refundId(), event.providerVersion(),
@@ -128,7 +129,28 @@ public class ProviderCallbackService {
     return applied;
   }
 
+  private boolean applyPayout(
+      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded) {
+    if (event.payoutId() == null || event.paymentId() != null || event.refundId() != null
+        || (succeeded && (event.amountMinor() == null || event.currency() == null))) {
+      return false;
+    }
+    boolean applied = payments.applyPayoutEvent(account, event, now, succeeded);
+    if (applied && !succeeded) {
+      payments.postPayoutReleaseLedger(account.tenantId(), event.payoutId(), now);
+    }
+    if (applied) {
+      outbox.append(account.tenantId(), "payout", event.payoutId(), event.providerVersion(),
+          succeeded ? "payout.paid" : "payout.failed", 1,
+          json.valueToTree(new PayoutResult(event.payoutId(), event.amountMinor(), event.currency())),
+          null);
+    }
+    return applied;
+  }
+
   public record Result(boolean accepted, boolean applied) {}
 
   private record PaymentResult(UUID paymentId, Long amountMinor, String currency) {}
+
+  private record PayoutResult(UUID payoutId, Long amountMinor, String currency) {}
 }

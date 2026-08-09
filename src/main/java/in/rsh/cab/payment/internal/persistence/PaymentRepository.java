@@ -51,20 +51,36 @@ public interface PaymentRepository {
       UUID id, PaymentAccount account, ProviderEvent event, Instant receivedAt);
 
   boolean applyCaptureEvent(
-      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded);
+      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded,
+      int commissionBasisPoints);
 
   boolean applyRefundEvent(
       PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded);
 
+  boolean applyPayoutEvent(
+      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded);
+
   void markProviderEvent(UUID accountId, String eventId, boolean applied, Instant now);
 
-  void postCaptureLedger(UUID tenantId, UUID paymentId, int commissionBasisPoints, Instant now);
+  void postCaptureLedger(UUID tenantId, UUID paymentId, Instant now);
 
-  void postRefundLedger(UUID tenantId, UUID refundId, int commissionBasisPoints, Instant now);
+  void postRefundLedger(UUID tenantId, UUID refundId, Instant now);
+
+  void postPayoutReleaseLedger(UUID tenantId, UUID payoutId, Instant now);
 
   List<DriverEarning> earnings(UUID tenantId, UUID driverId);
 
-  SettlementBatch createSettlement(UUID tenantId, UUID actorId, String currency, Instant now);
+  SettlementBatch createSettlement(
+      UUID tenantId, UUID actorId, UUID paymentAccountId, String currency, Instant now);
+
+  Optional<SettlementBatch.Payout> findPayout(UUID tenantId, UUID payoutId);
+
+  boolean markPayoutProcessing(UUID tenantId, UUID payoutId);
+
+  void markPayoutSubmitted(
+      UUID tenantId, UUID payoutId, String providerPayoutId, String providerRequestId, Instant now);
+
+  void markPayoutSubmissionRetryable(UUID tenantId, UUID payoutId, String failureCode);
 
   List<SettlementBatch> settlements(UUID tenantId);
 }

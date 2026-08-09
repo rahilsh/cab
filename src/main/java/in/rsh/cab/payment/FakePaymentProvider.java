@@ -43,6 +43,13 @@ public class FakePaymentProvider implements PaymentProvider {
   }
 
   @Override
+  public Submission payout(
+      PaymentAccount account, UUID payoutId, UUID driverId, long amountMinor, String currency,
+      String idempotencyKey) {
+    return new Submission("fake-payout-" + payoutId, "fake-request-" + idempotencyKey);
+  }
+
+  @Override
   public boolean verifies(
       PaymentAccount account, Instant timestamp, String rawBody, String signature) {
     if (!secretReference.equals(account.webhookSecretReference()) || signature == null) {

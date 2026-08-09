@@ -6,6 +6,7 @@ import in.rsh.cab.payment.PaymentAccount;
 import in.rsh.cab.payment.PaymentState;
 import in.rsh.cab.payment.ProviderEvent;
 import in.rsh.cab.payment.Refund;
+import in.rsh.cab.payment.RefundAllocation;
 import in.rsh.cab.payment.RefundState;
 import in.rsh.cab.payment.SettlementBatch;
 import java.sql.ResultSet;
@@ -23,6 +24,7 @@ public class JdbcPaymentRepository implements PaymentRepository {
 
   private static final String PAYMENT_SELECT = """
       SELECT id, ride_id, rider_account_id, amount_minor, authorized_minor, captured_minor,
+             driver_share_minor, platform_share_minor, commission_basis_points,
              currency, state, provider_payment_id, provider_version, version, failure_code,
              created_at, updated_at FROM payments
       """;
@@ -189,7 +191,8 @@ public class JdbcPaymentRepository implements PaymentRepository {
   @Override
   public Optional<Refund> findRefund(UUID tenantId, UUID refundId) {
     return jdbc.sql("""
-            SELECT id, payment_id, amount_minor, currency, reason, state, provider_refund_id,
+             SELECT id, payment_id, amount_minor, driver_share_minor, platform_share_minor,
+                    currency, reason, state, provider_refund_id,
                    provider_version, version, created_at, updated_at
             FROM refunds WHERE tenant_id = :tenantId AND id = :id
             """)
@@ -233,25 +236,38 @@ public class JdbcPaymentRepository implements PaymentRepository {
     return jdbc.sql("""
             INSERT INTO provider_events
               (id, tenant_id, payment_account_id, provider_event_id, event_type,
-               provider_object_id, provider_version, amount_minor, currency, status, received_at)
-            VALUES (:id, :tenantId, :accountId, :eventId, :eventType, :objectId,
-                    :providerVersion, :amount, :currency, 'RECEIVED', :receivedAt)
+               provider_object_id, provider_version, amount_minor, currency, status, received_at,
+               payment_id, refund_id, payout_id)
+             VALUES (:id, :tenantId, :accountId, :eventId, :eventType, :objectId,
+                     :providerVersion, :amount, :currency, 'RECEIVED', :receivedAt,
+                     :paymentId, :refundId, :payoutId)
             ON CONFLICT (payment_account_id, provider_event_id) DO NOTHING
             """)
         .param("id", id).param("tenantId", account.tenantId()).param("accountId", account.id())
         .param("eventId", event.eventId()).param("eventType", event.type().name())
-        .param("objectId", event.providerObjectId()).param("providerVersion", event.providerVersion())
-        .param("amount", event.amountMinor()).param("currency", event.currency())
+         .param("objectId", event.providerObjectId()).param("providerVersion", event.providerVersion())
+         .param("amount", event.amountMinor()).param("currency", event.currency())
+        .param("paymentId", event.paymentId()).param("refundId", event.refundId())
+        .param("payoutId", event.payoutId())
         .param("receivedAt", Timestamp.from(receivedAt)).update() == 1;
   }
 
   @Override
   public boolean applyCaptureEvent(
-      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded) {
+      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded,
+      int commissionBasisPoints) {
     int changed = jdbc.sql("""
-            UPDATE payments SET state = :state, captured_minor = CASE WHEN :succeeded
-                THEN :amount ELSE captured_minor END, provider_payment_id = :providerId,
-                provider_version = :providerVersion, failure_code = :failure,
+             UPDATE payments SET state = :state, captured_minor = CASE WHEN :succeeded
+                 THEN :amount ELSE captured_minor END, provider_payment_id = :providerId,
+                 platform_share_minor = CASE WHEN :succeeded THEN
+                   trunc((CAST(:amount AS numeric) * :commissionBasisPoints) / 10000)::bigint
+                   ELSE platform_share_minor END,
+                 driver_share_minor = CASE WHEN :succeeded THEN :amount -
+                   trunc((CAST(:amount AS numeric) * :commissionBasisPoints) / 10000)::bigint
+                   ELSE driver_share_minor END,
+                 commission_basis_points = CASE WHEN :succeeded THEN :commissionBasisPoints
+                   ELSE commission_basis_points END,
+                 provider_version = :providerVersion, failure_code = :failure,
                 version = version + 1, updated_at = :now
             WHERE tenant_id = :tenantId AND payment_account_id = :accountId AND id = :paymentId
               AND provider_version < :providerVersion
@@ -259,7 +275,8 @@ public class JdbcPaymentRepository implements PaymentRepository {
               AND (:amount IS NULL OR amount_minor = :amount)
               AND state IN ('CAPTURE_PENDING', 'FAILED')
             """)
-        .param("state", succeeded ? "CAPTURED" : "FAILED").param("succeeded", succeeded)
+         .param("state", succeeded ? "CAPTURED" : "FAILED").param("succeeded", succeeded)
+        .param("commissionBasisPoints", commissionBasisPoints)
         .param("amount", event.amountMinor()).param("providerId", event.providerObjectId())
         .param("providerVersion", event.providerVersion()).param("failure", event.failureCode())
         .param("now", Timestamp.from(now)).param("tenantId", account.tenantId())
@@ -280,9 +297,46 @@ public class JdbcPaymentRepository implements PaymentRepository {
   @Override
   public boolean applyRefundEvent(
       PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded) {
+    RefundSplit split = null;
+    if (succeeded) {
+      PaymentSplit capture = jdbc.sql("""
+              SELECT captured_minor, driver_share_minor, platform_share_minor
+              FROM payments
+              WHERE tenant_id = :tenantId AND id = :paymentId
+                AND payment_account_id = :accountId AND state = 'CAPTURED'
+              FOR UPDATE
+              """)
+          .param("tenantId", account.tenantId()).param("paymentId", event.paymentId())
+          .param("accountId", account.id())
+          .query((rs, row) -> new PaymentSplit(rs.getLong("captured_minor"),
+              rs.getObject("driver_share_minor", Long.class),
+              rs.getObject("platform_share_minor", Long.class))).optional().orElse(null);
+      if (capture == null || capture.driverShare() == null || capture.platformShare() == null) {
+        return false;
+      }
+      RefundTotals totals = jdbc.sql("""
+              SELECT COALESCE(sum(amount_minor), 0) amount,
+                     COALESCE(sum(driver_share_minor), 0) driver_share
+              FROM refunds
+              WHERE tenant_id = :tenantId AND payment_id = :paymentId AND state = 'SUCCEEDED'
+                AND id <> :refundId
+              """)
+          .param("tenantId", account.tenantId()).param("paymentId", event.paymentId())
+          .param("refundId", event.refundId())
+          .query((rs, row) -> new RefundTotals(
+              rs.getLong("amount"), rs.getLong("driver_share"))).single();
+      RefundAllocation allocation = RefundAllocation.cumulative(
+          capture.captured(), capture.driverShare(), totals.amount(), totals.driverShare(),
+          event.amountMinor());
+      split = new RefundSplit(allocation.driverShareMinor(), allocation.platformShareMinor());
+    }
     return jdbc.sql("""
-            UPDATE refunds r SET state = :state, provider_refund_id = :providerId,
-              provider_version = :providerVersion, failure_code = :failure,
+             UPDATE refunds r SET state = :state, provider_refund_id = :providerId,
+               driver_share_minor = CASE WHEN :succeeded THEN :driverShare
+                 ELSE r.driver_share_minor END,
+               platform_share_minor = CASE WHEN :succeeded THEN :platformShare
+                 ELSE r.platform_share_minor END,
+               provider_version = :providerVersion, failure_code = :failure,
               version = r.version + 1, updated_at = :now
             FROM payments p
             WHERE r.tenant_id = :tenantId AND r.id = :refundId
@@ -293,13 +347,67 @@ public class JdbcPaymentRepository implements PaymentRepository {
               AND (:amount IS NULL OR r.amount_minor = :amount)
               AND r.state IN ('REQUESTED', 'PENDING', 'FAILED')
             """)
-        .param("state", succeeded ? "SUCCEEDED" : "FAILED")
+         .param("state", succeeded ? "SUCCEEDED" : "FAILED")
+        .param("succeeded", succeeded)
+        .param("driverShare", split == null ? null : split.driverShare())
+        .param("platformShare", split == null ? null : split.platformShare())
         .param("providerId", event.providerObjectId()).param("providerVersion", event.providerVersion())
         .param("failure", event.failureCode()).param("now", Timestamp.from(now))
         .param("tenantId", account.tenantId()).param("refundId", event.refundId())
         .param("paymentId", event.paymentId()).param("accountId", account.id())
         .param("currency", event.currency())
         .param("amount", event.amountMinor()).update() == 1;
+  }
+
+  @Override
+  public boolean applyPayoutEvent(
+      PaymentAccount account, ProviderEvent event, Instant now, boolean succeeded) {
+    Optional<UUID> batchId = jdbc.sql("""
+            UPDATE payouts SET state = :state, provider_payout_id = :providerId,
+              provider_version = :providerVersion, failure_code = :failure,
+              version = version + 1, updated_at = :now
+            WHERE tenant_id = :tenantId AND payment_account_id = :accountId AND id = :payoutId
+              AND provider_version < :providerVersion
+              AND (:currency IS NULL OR currency = :currency)
+              AND (:amount IS NULL OR amount_minor = :amount)
+              AND (provider_payout_id IS NULL OR provider_payout_id = :providerId)
+              AND state = 'PENDING'
+            RETURNING settlement_batch_id
+            """)
+        .param("state", succeeded ? "PAID" : "FAILED")
+        .param("providerId", event.providerObjectId()).param("providerVersion", event.providerVersion())
+        .param("failure", event.failureCode()).param("now", Timestamp.from(now))
+        .param("tenantId", account.tenantId()).param("accountId", account.id())
+        .param("payoutId", event.payoutId()).param("currency", event.currency())
+        .param("amount", event.amountMinor()).query(UUID.class).optional();
+    if (batchId.isEmpty()) {
+      return false;
+    }
+    jdbc.sql("""
+            UPDATE payout_attempts SET state = :state, failure_code = :failure, completed_at = :now
+            WHERE tenant_id = :tenantId AND payout_id = :payoutId
+            """)
+        .param("state", succeeded ? "SUCCEEDED" : "FAILED")
+        .param("failure", event.failureCode()).param("now", Timestamp.from(now))
+        .param("tenantId", account.tenantId()).param("payoutId", event.payoutId()).update();
+    if (succeeded) {
+      jdbc.sql("""
+              UPDATE settlement_batches SET state = 'COMPLETED', completed_at = :now
+              WHERE tenant_id = :tenantId AND id = :batchId AND state = 'PROCESSING'
+                AND NOT EXISTS (SELECT 1 FROM payouts WHERE tenant_id = :tenantId
+                  AND settlement_batch_id = :batchId AND state <> 'PAID')
+              """)
+          .param("tenantId", account.tenantId()).param("batchId", batchId.orElseThrow())
+          .param("now", Timestamp.from(now)).update();
+    } else {
+      jdbc.sql("""
+              UPDATE settlement_batches SET state = 'FAILED', completed_at = :now
+              WHERE tenant_id = :tenantId AND id = :batchId AND state = 'PROCESSING'
+              """)
+          .param("tenantId", account.tenantId()).param("batchId", batchId.orElseThrow())
+          .param("now", Timestamp.from(now)).update();
+    }
+    return true;
   }
 
   @Override
@@ -313,26 +421,28 @@ public class JdbcPaymentRepository implements PaymentRepository {
   }
 
   @Override
-  public void postCaptureLedger(
-      UUID tenantId, UUID paymentId, int commissionBasisPoints, Instant now) {
+  public void postCaptureLedger(UUID tenantId, UUID paymentId, Instant now) {
     postMarketplaceLedger(
         tenantId, "PAYMENT_CAPTURE", paymentId, "Ride payment captured", now, """
-        SELECT p.captured_minor amount, p.currency, r.driver_id account_id
+        SELECT p.captured_minor amount, p.driver_share_minor, p.platform_share_minor,
+               p.currency, r.driver_id account_id
         FROM payments p JOIN rides r ON r.tenant_id = p.tenant_id AND r.id = p.ride_id
         WHERE p.tenant_id = :tenantId AND p.id = :sourceId AND p.state = 'CAPTURED'
-        """, commissionBasisPoints, false);
+          AND p.driver_share_minor IS NOT NULL AND p.platform_share_minor IS NOT NULL
+        """, false);
   }
 
   @Override
-  public void postRefundLedger(
-      UUID tenantId, UUID refundId, int commissionBasisPoints, Instant now) {
+  public void postRefundLedger(UUID tenantId, UUID refundId, Instant now) {
     postMarketplaceLedger(
         tenantId, "PAYMENT_REFUND", refundId, "Ride payment refunded", now, """
-        SELECT f.amount_minor amount, f.currency, r.driver_id account_id
+        SELECT f.amount_minor amount, f.driver_share_minor, f.platform_share_minor,
+               f.currency, r.driver_id account_id
         FROM refunds f JOIN payments p ON p.tenant_id = f.tenant_id AND p.id = f.payment_id
         JOIN rides r ON r.tenant_id = p.tenant_id AND r.id = p.ride_id
         WHERE f.tenant_id = :tenantId AND f.id = :sourceId AND f.state = 'SUCCEEDED'
-        """, commissionBasisPoints, true);
+          AND f.driver_share_minor IS NOT NULL AND f.platform_share_minor IS NOT NULL
+        """, true);
   }
 
   @Override
@@ -349,7 +459,7 @@ public class JdbcPaymentRepository implements PaymentRepository {
 
   @Override
   public SettlementBatch createSettlement(
-      UUID tenantId, UUID actorId, String currency, Instant now) {
+      UUID tenantId, UUID actorId, UUID paymentAccountId, String currency, Instant now) {
     jdbc.sql("SELECT id FROM tenants WHERE id = :tenantId FOR UPDATE")
         .param("tenantId", tenantId).query(UUID.class).single();
     List<Balance> balances = jdbc.sql("""
@@ -363,28 +473,93 @@ public class JdbcPaymentRepository implements PaymentRepository {
         .list();
     UUID batchId = UUID.randomUUID();
     long total = balances.stream().mapToLong(Balance::amount).sum();
+    String batchState = total == 0 ? "COMPLETED" : "PROCESSING";
     jdbc.sql("""
             INSERT INTO settlement_batches
               (id, tenant_id, currency, state, total_minor, created_by_account_id, created_at, completed_at)
-            VALUES (:id, :tenantId, :currency, 'COMPLETED', :total, :actorId, :now, :now)
+            VALUES (:id, :tenantId, :currency, :state, :total, :actorId, :now,
+                    CASE WHEN :total = 0 THEN CAST(:now AS timestamptz) ELSE NULL END)
             """)
         .param("id", batchId).param("tenantId", tenantId).param("currency", currency)
+        .param("state", batchState)
         .param("total", total).param("actorId", actorId).param("now", Timestamp.from(now)).update();
     List<SettlementBatch.Payout> payouts = balances.stream().map(balance -> {
       UUID payoutId = UUID.randomUUID();
       jdbc.sql("""
-              INSERT INTO payouts
-                (id, tenant_id, settlement_batch_id, driver_id, amount_minor, currency, state,
-                 version, created_at, updated_at)
-              VALUES (:id, :tenantId, :batchId, :driverId, :amount, :currency, 'PAID', 0, :now, :now)
-              """)
+               INSERT INTO payouts
+                 (id, tenant_id, settlement_batch_id, driver_id, amount_minor, currency, state,
+                  payment_account_id, provider_version, version, created_at, updated_at)
+               VALUES (:id, :tenantId, :batchId, :driverId, :amount, :currency, 'PENDING',
+                       :accountId, 0, 0, :now, :now)
+               """)
           .param("id", payoutId).param("tenantId", tenantId).param("batchId", batchId)
-          .param("driverId", balance.driverId()).param("amount", balance.amount())
-          .param("currency", currency).param("now", Timestamp.from(now)).update();
+           .param("driverId", balance.driverId()).param("amount", balance.amount())
+          .param("currency", currency).param("accountId", paymentAccountId)
+          .param("now", Timestamp.from(now)).update();
+      jdbc.sql("""
+              INSERT INTO payout_attempts
+                (id, tenant_id, payout_id, idempotency_key, state, created_at)
+              VALUES (:id, :tenantId, :payoutId, :key, 'PENDING', :now)
+              """)
+          .param("id", UUID.randomUUID()).param("tenantId", tenantId)
+          .param("payoutId", payoutId).param("key", "payout:" + payoutId)
+          .param("now", Timestamp.from(now)).update();
       postSettlementLedger(tenantId, payoutId, balance, currency, now);
-      return new SettlementBatch.Payout(payoutId, balance.driverId(), balance.amount(), currency, "PAID");
+      return new SettlementBatch.Payout(payoutId, balance.driverId(), balance.amount(), currency,
+          "PENDING", paymentAccountId, null, 0, null);
     }).toList();
-    return new SettlementBatch(batchId, currency, "COMPLETED", total, now, payouts);
+    return new SettlementBatch(batchId, currency, batchState, total, now, payouts);
+  }
+
+  @Override
+  public Optional<SettlementBatch.Payout> findPayout(UUID tenantId, UUID payoutId) {
+    return jdbc.sql("""
+            SELECT id, driver_id, amount_minor, currency, state, payment_account_id,
+                   provider_payout_id, provider_version, failure_code
+            FROM payouts WHERE tenant_id = :tenantId AND id = :payoutId
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId)
+        .query(this::mapPayout).optional();
+  }
+
+  @Override
+  public boolean markPayoutProcessing(UUID tenantId, UUID payoutId) {
+    return jdbc.sql("""
+            UPDATE payout_attempts SET state = 'PROCESSING'
+            WHERE tenant_id = :tenantId AND payout_id = :payoutId
+              AND state IN ('PENDING', 'PROCESSING') AND provider_request_id IS NULL
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId).update() == 1;
+  }
+
+  @Override
+  public void markPayoutSubmitted(
+      UUID tenantId, UUID payoutId, String providerPayoutId, String providerRequestId, Instant now) {
+    jdbc.sql("""
+            UPDATE payouts SET provider_payout_id = :providerId, updated_at = :now
+            WHERE tenant_id = :tenantId AND id = :payoutId AND state = 'PENDING'
+              AND provider_payout_id IS NULL
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId)
+        .param("providerId", providerPayoutId).param("now", Timestamp.from(now)).update();
+    jdbc.sql("""
+            UPDATE payout_attempts SET provider_request_id = :requestId
+            WHERE tenant_id = :tenantId AND payout_id = :payoutId AND state = 'PROCESSING'
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId)
+        .param("requestId", providerRequestId).update();
+  }
+
+  @Override
+  public void markPayoutSubmissionRetryable(
+      UUID tenantId, UUID payoutId, String failureCode) {
+    jdbc.sql("""
+            UPDATE payout_attempts SET state = 'PENDING', failure_code = :failure
+            WHERE tenant_id = :tenantId AND payout_id = :payoutId
+              AND state = 'PROCESSING' AND provider_request_id IS NULL
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId)
+        .param("failure", failureCode).update();
   }
 
   @Override
@@ -400,10 +575,14 @@ public class JdbcPaymentRepository implements PaymentRepository {
 
   private void postMarketplaceLedger(
       UUID tenantId, String sourceType, UUID sourceId, String description, Instant now,
-      String sourceSql, int commissionBasisPoints, boolean refund) {
+      String sourceSql, boolean refund) {
+    jdbc.sql("SELECT id FROM tenants WHERE id = :tenantId FOR UPDATE")
+        .param("tenantId", tenantId).query(UUID.class).single();
     Optional<LedgerSource> source = jdbc.sql(sourceSql).param("tenantId", tenantId)
         .param("sourceId", sourceId).query((rs, row) -> new LedgerSource(
-            rs.getLong("amount"), rs.getString("currency"), rs.getObject("account_id", UUID.class)))
+            rs.getLong("amount"), rs.getLong("driver_share_minor"),
+            rs.getLong("platform_share_minor"), rs.getString("currency"),
+            rs.getObject("account_id", UUID.class)))
         .optional();
     if (source.isEmpty()) {
       return;
@@ -422,30 +601,65 @@ public class JdbcPaymentRepository implements PaymentRepository {
       return;
     }
     LedgerSource value = source.orElseThrow();
-    long platformAmount = java.math.BigInteger.valueOf(value.amount())
-        .multiply(java.math.BigInteger.valueOf(commissionBasisPoints))
-        .divide(java.math.BigInteger.valueOf(10_000))
-        .longValueExact();
-    long driverAmount = Math.subtractExact(value.amount(), platformAmount);
     if (refund) {
-      insertEntry(tenantId, transactionId, "DRIVER_PAYABLE", value.accountId(),
-          driverAmount, 0, value.currency(), now);
-      if (platformAmount > 0) {
+      if (value.driverShare() > 0) {
+        insertEntry(tenantId, transactionId, "DRIVER_PAYABLE", value.accountId(),
+            value.driverShare(), 0, value.currency(), now);
+      }
+      if (value.platformShare() > 0) {
         insertEntry(tenantId, transactionId, "PLATFORM_REVENUE", null,
-            platformAmount, 0, value.currency(), now);
+            value.platformShare(), 0, value.currency(), now);
       }
       insertEntry(tenantId, transactionId, "PROVIDER_RECEIVABLE", null,
           0, value.amount(), value.currency(), now);
     } else {
       insertEntry(tenantId, transactionId, "PROVIDER_RECEIVABLE", null,
           value.amount(), 0, value.currency(), now);
-      insertEntry(tenantId, transactionId, "DRIVER_PAYABLE", value.accountId(),
-          0, driverAmount, value.currency(), now);
-      if (platformAmount > 0) {
+      if (value.driverShare() > 0) {
+        insertEntry(tenantId, transactionId, "DRIVER_PAYABLE", value.accountId(),
+            0, value.driverShare(), value.currency(), now);
+      }
+      if (value.platformShare() > 0) {
         insertEntry(tenantId, transactionId, "PLATFORM_REVENUE", null,
-            0, platformAmount, value.currency(), now);
+            0, value.platformShare(), value.currency(), now);
       }
     }
+  }
+
+  @Override
+  public void postPayoutReleaseLedger(UUID tenantId, UUID payoutId, Instant now) {
+    jdbc.sql("SELECT id FROM tenants WHERE id = :tenantId FOR UPDATE")
+        .param("tenantId", tenantId).query(UUID.class).single();
+    Optional<Balance> payout = jdbc.sql("""
+            SELECT driver_id account_id, amount_minor amount
+            FROM payouts WHERE tenant_id = :tenantId AND id = :payoutId AND state = 'FAILED'
+            """)
+        .param("tenantId", tenantId).param("payoutId", payoutId)
+        .query((rs, row) -> new Balance(
+            rs.getObject("account_id", UUID.class), rs.getLong("amount"))).optional();
+    if (payout.isEmpty()) {
+      return;
+    }
+    UUID transactionId = UUID.randomUUID();
+    int inserted = jdbc.sql("""
+            INSERT INTO ledger_transactions
+              (id, tenant_id, source_type, source_id, description, created_at)
+            VALUES (:id, :tenantId, 'PAYOUT_RELEASE', :payoutId,
+                    'Failed driver payout reservation released', :now)
+            ON CONFLICT (tenant_id, source_type, source_id) DO NOTHING
+            """)
+        .param("id", transactionId).param("tenantId", tenantId).param("payoutId", payoutId)
+        .param("now", Timestamp.from(now)).update();
+    if (inserted == 0) {
+      return;
+    }
+    Balance value = payout.orElseThrow();
+    String currency = jdbc.sql("SELECT currency FROM payouts WHERE tenant_id = :tenantId AND id = :id")
+        .param("tenantId", tenantId).param("id", payoutId).query(String.class).single();
+    insertEntry(tenantId, transactionId, "PAYOUT_CLEARING", null,
+        value.amount(), 0, currency, now);
+    insertEntry(tenantId, transactionId, "DRIVER_PAYABLE", value.driverId(),
+        0, value.amount(), currency, now);
   }
 
   private void postSettlementLedger(
@@ -489,7 +703,10 @@ public class JdbcPaymentRepository implements PaymentRepository {
   private Payment mapPayment(ResultSet rs, int row) throws SQLException {
     return new Payment(rs.getObject("id", UUID.class), rs.getObject("ride_id", UUID.class),
         rs.getObject("rider_account_id", UUID.class), rs.getLong("amount_minor"),
-        rs.getLong("authorized_minor"), rs.getLong("captured_minor"), rs.getString("currency"),
+        rs.getLong("authorized_minor"), rs.getLong("captured_minor"),
+        rs.getObject("driver_share_minor", Long.class),
+        rs.getObject("platform_share_minor", Long.class),
+        rs.getObject("commission_basis_points", Integer.class), rs.getString("currency"),
         PaymentState.valueOf(rs.getString("state")), rs.getString("provider_payment_id"),
         rs.getLong("provider_version"), rs.getLong("version"), rs.getString("failure_code"),
         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant());
@@ -497,13 +714,29 @@ public class JdbcPaymentRepository implements PaymentRepository {
 
   private Refund mapRefund(ResultSet rs, int row) throws SQLException {
     return new Refund(rs.getObject("id", UUID.class), rs.getObject("payment_id", UUID.class),
-        rs.getLong("amount_minor"), rs.getString("currency"), rs.getString("reason"),
+        rs.getLong("amount_minor"), rs.getObject("driver_share_minor", Long.class),
+        rs.getObject("platform_share_minor", Long.class), rs.getString("currency"), rs.getString("reason"),
         RefundState.valueOf(rs.getString("state")), rs.getString("provider_refund_id"),
         rs.getLong("provider_version"), rs.getLong("version"),
         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant());
   }
 
-  private record LedgerSource(long amount, String currency, UUID accountId) {}
+  private SettlementBatch.Payout mapPayout(ResultSet rs, int row) throws SQLException {
+    return new SettlementBatch.Payout(rs.getObject("id", UUID.class),
+        rs.getObject("driver_id", UUID.class), rs.getLong("amount_minor"),
+        rs.getString("currency"), rs.getString("state"),
+        rs.getObject("payment_account_id", UUID.class), rs.getString("provider_payout_id"),
+        rs.getLong("provider_version"), rs.getString("failure_code"));
+  }
+
+  private record LedgerSource(
+      long amount, long driverShare, long platformShare, String currency, UUID accountId) {}
 
   private record Balance(UUID driverId, long amount) {}
+
+  private record PaymentSplit(long captured, Long driverShare, Long platformShare) {}
+
+  private record RefundTotals(long amount, long driverShare) {}
+
+  private record RefundSplit(long driverShare, long platformShare) {}
 }

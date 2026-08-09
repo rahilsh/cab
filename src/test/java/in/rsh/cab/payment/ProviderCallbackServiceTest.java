@@ -50,17 +50,20 @@ class ProviderCallbackServiceTest {
   void appliesCaptureOnceAndPostsLedger() throws Exception {
     UUID paymentId = UUID.randomUUID();
     String body = json.writeValueAsString(new ProviderEvent("evt-1",
-        ProviderEvent.Type.CAPTURE_SUCCEEDED, paymentId, null, "provider-pay", 1,
+        ProviderEvent.Type.CAPTURE_SUCCEEDED, paymentId, null, null, "provider-pay", 1,
         100L, "USD", null));
     when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(true);
-    when(repository.applyCaptureEvent(any(), any(), any(), any(Boolean.class))).thenReturn(true);
+    when(repository.applyCaptureEvent(any(), any(), any(), any(Boolean.class), any(Integer.class)))
+        .thenReturn(true);
 
     ProviderCallbackService.Result result = service.process(
         account.id(), "fake", NOW, "signature", body);
 
     assertTrue(result.accepted());
     assertTrue(result.applied());
-    verify(repository).postCaptureLedger(account.tenantId(), paymentId, 1500, NOW);
+    verify(repository).applyCaptureEvent(account, json.readValue(body, ProviderEvent.class),
+        NOW, true, 1500);
+    verify(repository).postCaptureLedger(account.tenantId(), paymentId, NOW);
   }
 
   @Test
@@ -69,7 +72,7 @@ class ProviderCallbackServiceTest {
         account.id(), "fake", NOW.minusSeconds(301), "signature", "{}"));
     UUID paymentId = UUID.randomUUID();
     String body = json.writeValueAsString(new ProviderEvent("evt-1",
-        ProviderEvent.Type.CAPTURE_FAILED, paymentId, null, "provider-pay", 1,
+        ProviderEvent.Type.CAPTURE_FAILED, paymentId, null, null, "provider-pay", 1,
         100L, "USD", "DECLINED"));
     when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(false);
 
@@ -77,5 +80,21 @@ class ProviderCallbackServiceTest {
         account.id(), "fake", NOW, "signature", body);
     assertFalse(duplicate.accepted());
     assertFalse(duplicate.applied());
+  }
+
+  @Test
+  void failedPayoutReleasesReservation() throws Exception {
+    UUID payoutId = UUID.randomUUID();
+    ProviderEvent event = new ProviderEvent("evt-payout", ProviderEvent.Type.PAYOUT_FAILED,
+        null, null, payoutId, "provider-payout", 1, 100L, "USD", "ACCOUNT_CLOSED");
+    String body = json.writeValueAsString(event);
+    when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(true);
+    when(repository.applyPayoutEvent(account, event, NOW, false)).thenReturn(true);
+
+    ProviderCallbackService.Result result = service.process(
+        account.id(), "fake", NOW, "signature", body);
+
+    assertTrue(result.applied());
+    verify(repository).postPayoutReleaseLedger(account.tenantId(), payoutId, NOW);
   }
 }
