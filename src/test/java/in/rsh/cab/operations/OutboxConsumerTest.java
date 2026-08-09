@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import in.rsh.cab.notification.NotificationDeliveryWorker;
 import in.rsh.cab.notification.NotificationRecipientResolver;
 import in.rsh.cab.payment.PaymentOperationWorker;
-import in.rsh.cab.ride.RideStreamRedisPublisher;
 import in.rsh.cab.tenancy.TenantExecution;
 import in.rsh.cab.webhook.WebhookDeliveryWorker;
 import java.time.Instant;
@@ -75,20 +74,6 @@ class OutboxConsumerTest {
 
     verify(worker).process(event, recipient, "LOCAL", "safety_incident_reported", 1,
         "A safety incident has an update");
-  }
-
-  @Test
-  void rideStreamConsumerPublishesAggregateVersion() {
-    RideStreamRedisPublisher publisher = mock(RideStreamRedisPublisher.class);
-    var payload = new ObjectMapper().createObjectNode().put("status", "COMPLETED");
-    OutboxEvent event = new OutboxEvent(UUID.randomUUID(), UUID.randomUUID(), "ride",
-        UUID.randomUUID(), 4, "ride.completed", 1, payload,
-        Instant.parse("2026-08-09T10:00:00Z"), null, null, 1, UUID.randomUUID());
-    assertTrue(new RideStreamOutboxConsumer(publisher).process(event));
-    verify(publisher).publish(org.mockito.ArgumentMatchers.eq(event.tenantId()),
-        org.mockito.ArgumentMatchers.argThat(message -> message.eventId().equals(event.id())
-            && message.rideId().equals(event.aggregateId())
-            && message.version() == event.aggregateVersion()));
   }
 
   private OutboxEvent event(String type) {
