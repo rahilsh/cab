@@ -18,10 +18,11 @@
 5. Exercise an authenticated read and a low-risk write using a synthetic tenant.
 6. Scale out or enable HPA only after the migration Job succeeded and the first pod is ready.
 
-The chart renders digest deployments as `repository@sha256:...`. Production values must also define
-environment-specific NetworkPolicy egress before enabling it. Ingress is off by default and requires
-a non-empty TLS configuration when enabled unless `ingress.requireTls=false` is an explicit platform
-decision.
+The chart renders digest deployments as `repository@sha256:...` and rejects production renders
+without a digest. NetworkPolicy is enabled by default and denies application egress except DNS;
+production values must add narrow rules for PostgreSQL, Redis, OIDC, OSRM, payment providers, and
+configured webhooks. Ingress is off by default and requires a non-empty TLS configuration when
+enabled unless `ingress.requireTls=false` is an explicit platform decision.
 
 ## Outbox Operations
 
@@ -35,6 +36,16 @@ Delivery is at-least-once. Payment calls use stable operation idempotency keys, 
 webhook providers must deduplicate by their stable delivery IDs. Alert on increasing `FAILED` rows,
 old `PENDING`/`RETRY` rows, exhausted outbox attempts, and repeated provider-unavailable errors.
 `OUTBOX_DISPATCHER_ENABLED=false` pauses new dispatch without deleting durable work.
+
+Ride SSE fan-out is also at-least-once. A committed ride update is published immediately through a
+tenant-specific Redis channel for low latency, and the durable ride outbox republishes it during
+dispatch/retry. Every stream event includes the stable outbox `eventId` and aggregate `version`;
+clients must ignore duplicate event IDs and versions they have already applied. New and resumed
+connections still receive a full current snapshot before live Redis messages.
+
+Webhook envelopes include `aggregateType`, `aggregateId`, and `aggregateVersion` in addition to the
+event metadata and data. Consumers should retain the greatest aggregate version per aggregate and
+reject stale deliveries. Webhook delivery remains at-least-once.
 
 The chart deploys the API only. Treat PostgreSQL, Redis, Keycloak/OIDC, OSRM, MinIO/S3, ingress,
 certificates, and monitoring as separately managed production services.

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,18 +84,41 @@ class ProviderCallbackServiceTest {
   }
 
   @Test
-  void failedPayoutReleasesReservation() throws Exception {
+  void failedPayoutKeepsReservationForFinanceReconciliation() throws Exception {
     UUID payoutId = UUID.randomUUID();
     ProviderEvent event = new ProviderEvent("evt-payout", ProviderEvent.Type.PAYOUT_FAILED,
         null, null, payoutId, "provider-payout", 1, 100L, "USD", "ACCOUNT_CLOSED");
     String body = json.writeValueAsString(event);
     when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(true);
     when(repository.applyPayoutEvent(account, event, NOW, false)).thenReturn(true);
+    when(repository.findPayout(account.tenantId(), payoutId)).thenReturn(Optional.of(
+        new SettlementBatch.Payout(payoutId, UUID.randomUUID(), 100, "USD", PayoutState.FAILED,
+            account.id(), "provider-payout", 1, "ACCOUNT_CLOSED")));
 
     ProviderCallbackService.Result result = service.process(
         account.id(), "fake", NOW, "signature", body);
 
     assertTrue(result.applied());
-    verify(repository).postPayoutReleaseLedger(account.tenantId(), payoutId, NOW);
+    verify(repository, never()).releaseFailedPayout(any(), any(), any());
+  }
+
+  @Test
+  void refundCallbackFinalizesOrReleasesItsReservation() throws Exception {
+    UUID paymentId = UUID.randomUUID();
+    UUID refundId = UUID.randomUUID();
+    ProviderEvent event = new ProviderEvent("evt-refund", ProviderEvent.Type.REFUND_FAILED,
+        paymentId, refundId, null, "provider-refund", 1, 100L, "USD", "DECLINED");
+    when(repository.insertProviderEvent(any(), any(), any(), any())).thenReturn(true);
+    when(repository.applyRefundEvent(account, event, NOW, false)).thenReturn(true);
+    when(repository.findRefund(account.tenantId(), refundId)).thenReturn(Optional.of(
+        new Refund(refundId, paymentId, 100, 85L, 15L, "USD", "adjustment",
+            RefundState.FAILED, "provider-refund", 1, 1, NOW, NOW)));
+
+    ProviderCallbackService.Result result = service.process(account.id(), "fake", NOW,
+        "signature", json.writeValueAsString(event));
+
+    assertTrue(result.applied());
+    verify(repository).postRefundFailureLedger(account.tenantId(), refundId, NOW);
+    verify(repository, never()).postRefundSuccessLedger(any(), any(), any());
   }
 }

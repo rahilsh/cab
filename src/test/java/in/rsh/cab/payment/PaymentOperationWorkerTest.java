@@ -79,7 +79,8 @@ class PaymentOperationWorkerTest {
     UUID payoutId = UUID.randomUUID();
     PaymentAccount account = account();
     SettlementBatch.Payout payout = new SettlementBatch.Payout(
-        payoutId, UUID.randomUUID(), 100, "USD", "PENDING", account.id(), null, 0, null);
+        payoutId, UUID.randomUUID(), 100, "USD", PayoutState.PENDING,
+        account.id(), null, 0, null);
     when(repository.findPayout(TENANT, payoutId)).thenReturn(Optional.of(payout));
     when(repository.markPayoutProcessing(TENANT, payoutId)).thenReturn(true);
     when(repository.findAccount(account.id())).thenReturn(Optional.of(account));

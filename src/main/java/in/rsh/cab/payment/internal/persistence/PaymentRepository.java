@@ -37,7 +37,7 @@ public interface PaymentRepository {
 
   void markCaptureSubmissionRetryable(UUID tenantId, UUID paymentId, String failureCode);
 
-  void insertRefund(UUID tenantId, Refund refund, UUID requesterId);
+  Refund insertRefund(UUID tenantId, Refund refund, UUID requesterId);
 
   Optional<Refund> findRefund(UUID tenantId, UUID refundId);
 
@@ -64,9 +64,11 @@ public interface PaymentRepository {
 
   void postCaptureLedger(UUID tenantId, UUID paymentId, Instant now);
 
-  void postRefundLedger(UUID tenantId, UUID refundId, Instant now);
+  void postRefundSuccessLedger(UUID tenantId, UUID refundId, Instant now);
 
-  void postPayoutReleaseLedger(UUID tenantId, UUID payoutId, Instant now);
+  void postRefundFailureLedger(UUID tenantId, UUID refundId, Instant now);
+
+  boolean releaseFailedPayout(UUID tenantId, UUID payoutId, Instant now);
 
   List<DriverEarning> earnings(UUID tenantId, UUID driverId);
 

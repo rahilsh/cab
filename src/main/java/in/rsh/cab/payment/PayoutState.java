@@ -1,9 +1,9 @@
 package in.rsh.cab.payment;
 
-public enum RefundState {
-  REQUESTED,
+public enum PayoutState {
   PENDING,
-  SUCCEEDED,
+  PAID,
   FAILED,
+  RELEASED,
   RECONCILIATION_REQUIRED
 }

@@ -8,16 +8,18 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!prod")
 public class FakePaymentProvider implements PaymentProvider {
 
   private final String secretReference;
   private final byte[] webhookSecret;
 
   public FakePaymentProvider(
-      @Value("${payments.fake.webhook-secret-reference}") String secretReference,
+      @Value("${payments.webhook-secret-reference}") String secretReference,
       @Value("${payments.fake.webhook-secret}") String webhookSecret) {
     this.secretReference = secretReference;
     this.webhookSecret = webhookSecret.getBytes(StandardCharsets.UTF_8);

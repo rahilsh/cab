@@ -69,11 +69,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.existingSecret.name }}
                   key: {{ required "existingSecret.migrationDatabaseUsernameKey is required" .Values.existingSecret.migrationDatabaseUsernameKey }}
-            - name: FAKE_PAYMENT_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.existingSecret.name }}
-                  key: {{ required "existingSecret.fakePaymentWebhookSecretKey is required" .Values.existingSecret.fakePaymentWebhookSecretKey }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

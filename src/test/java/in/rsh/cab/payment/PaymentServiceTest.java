@@ -98,13 +98,15 @@ class PaymentServiceTest {
     Payment payment = payment(PaymentState.CAPTURED);
     when(repository.find(TENANT, payment.id())).thenReturn(Optional.of(payment));
     when(repository.committedRefundMinor(TENANT, payment.id())).thenReturn(40L);
+    when(repository.insertRefund(eq(TENANT), any(Refund.class), eq(ACCOUNT)))
+        .thenAnswer(invocation -> invocation.getArgument(1));
     when(idempotency.reserve(eq(TENANT), eq(ACCOUNT), eq("payment.refund"), any(), any()))
         .thenReturn(new IdempotencyReservation(
             IdempotencyReservation.Status.RESERVED, UUID.randomUUID(), null, 0, null));
 
     Refund refund = service.refund("refund-key", payment.id(), 60, "adjustment").refund();
     assertEquals(RefundState.PENDING, refund.state());
-    verify(repository).insertRefund(TENANT, refund, ACCOUNT);
+    verify(repository).insertRefund(eq(TENANT), any(Refund.class), eq(ACCOUNT));
     when(repository.findRefund(TENANT, refund.id())).thenReturn(Optional.of(refund));
     assertEquals(refund, service.getRefund(refund.id()));
     assertThrows(ConflictException.class,
@@ -145,6 +147,28 @@ class PaymentServiceTest {
     assertThrows(TenantAccessDeniedException.class, service::settlements);
   }
 
+  @Test
+  void financeIdempotentlyReleasesOnlyFailedPayouts() {
+    context(TenantRole.FINANCE);
+    UUID payoutId = UUID.randomUUID();
+    SettlementBatch.Payout failed = payout(payoutId, PayoutState.FAILED);
+    SettlementBatch.Payout released = payout(payoutId, PayoutState.RELEASED);
+    when(repository.findPayout(TENANT, payoutId))
+        .thenReturn(Optional.of(failed), Optional.of(released));
+    when(repository.releaseFailedPayout(TENANT, payoutId, NOW)).thenReturn(true);
+
+    assertEquals(released, service.releaseFailedPayout(payoutId));
+
+    when(repository.findPayout(TENANT, payoutId)).thenReturn(Optional.of(released));
+    when(repository.releaseFailedPayout(TENANT, payoutId, NOW)).thenReturn(false);
+    assertEquals(released, service.releaseFailedPayout(payoutId));
+
+    UUID paidId = UUID.randomUUID();
+    when(repository.findPayout(TENANT, paidId)).thenReturn(Optional.of(payout(paidId, PayoutState.PAID)));
+    assertThrows(ConflictException.class, () -> service.releaseFailedPayout(paidId));
+    assertThrows(NotFoundException.class, () -> service.releaseFailedPayout(UUID.randomUUID()));
+  }
+
   private Payment payment(PaymentState state) {
     long captured = state == PaymentState.CAPTURED ? 100 : 0;
     return new Payment(UUID.randomUUID(), UUID.randomUUID(), ACCOUNT, 100, 100, captured,
@@ -157,6 +181,11 @@ class PaymentServiceTest {
 
   private Ride ride() {
     return ride(100);
+  }
+
+  private SettlementBatch.Payout payout(UUID id, PayoutState state) {
+    return new SettlementBatch.Payout(id, UUID.randomUUID(), 100, "USD", state,
+        UUID.randomUUID(), "provider-payout", 1, null);
   }
 
   private Ride ride(long fareMinor) {

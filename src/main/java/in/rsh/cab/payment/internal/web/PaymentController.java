@@ -80,6 +80,11 @@ public class PaymentController {
     return payments.settlements();
   }
 
+  @PostMapping("/api/v1/finance/payouts/{payoutId}/release-failed")
+  public SettlementBatch.Payout releaseFailedPayout(@PathVariable UUID payoutId) {
+    return payments.releaseFailedPayout(payoutId);
+  }
+
   @PostMapping("/api/v1/payment-providers/{provider}/accounts/{accountId}/events")
   public ProviderCallbackService.Result callback(
       @PathVariable String provider,

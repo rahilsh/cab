@@ -56,7 +56,8 @@ participants may rate, support roles control triage, and safety reads/actions re
 actions, support messages/state history, and related audit entries are append-only.
 
 Outbound webhooks require HTTPS and reject loopback, private, link-local, metadata, carrier-grade
-NAT, benchmark, and multicast addresses. DNS is re-resolved at send time and redirects are disabled.
+NAT, benchmark, and multicast addresses. Each connection is pinned to addresses selected during URL
+validation while TLS verifies the original hostname, and redirects are disabled.
 Only explicitly allowed non-sensitive events can be subscribed to; payment, live-location, and safety
 events are excluded by default. Secrets remain `env:` references. Immutable delivery bodies and
 timestamps are HMAC signed over the exact timestamp and body.

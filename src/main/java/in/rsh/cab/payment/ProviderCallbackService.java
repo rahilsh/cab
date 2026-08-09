@@ -117,12 +117,18 @@ public class ProviderCallbackService {
       return false;
     }
     boolean applied = payments.applyRefundEvent(account, event, now, succeeded);
-    if (applied && succeeded) {
-      payments.postRefundLedger(account.tenantId(), event.refundId(), now);
-    }
     if (applied) {
+      RefundState state = payments.findRefund(account.tenantId(), event.refundId())
+          .orElseThrow().state();
+      if (state == RefundState.SUCCEEDED) {
+        payments.postRefundSuccessLedger(account.tenantId(), event.refundId(), now);
+      } else if (state == RefundState.FAILED) {
+        payments.postRefundFailureLedger(account.tenantId(), event.refundId(), now);
+      }
       outbox.append(account.tenantId(), "refund", event.refundId(), event.providerVersion(),
-          succeeded ? "payment.refunded" : "payment.refund_failed", 1,
+          state == RefundState.RECONCILIATION_REQUIRED
+              ? "payment.refund_reconciliation_required"
+              : succeeded ? "payment.refunded" : "payment.refund_failed", 1,
           json.valueToTree(new PaymentResult(event.paymentId(), event.amountMinor(), event.currency())),
           null);
     }
@@ -136,12 +142,13 @@ public class ProviderCallbackService {
       return false;
     }
     boolean applied = payments.applyPayoutEvent(account, event, now, succeeded);
-    if (applied && !succeeded) {
-      payments.postPayoutReleaseLedger(account.tenantId(), event.payoutId(), now);
-    }
     if (applied) {
+      PayoutState state = payments.findPayout(account.tenantId(), event.payoutId())
+          .orElseThrow().state();
       outbox.append(account.tenantId(), "payout", event.payoutId(), event.providerVersion(),
-          succeeded ? "payout.paid" : "payout.failed", 1,
+          state == PayoutState.RECONCILIATION_REQUIRED
+              ? "payout.reconciliation_required"
+              : succeeded ? "payout.paid" : "payout.failed", 1,
           json.valueToTree(new PayoutResult(event.payoutId(), event.amountMinor(), event.currency())),
           null);
     }
