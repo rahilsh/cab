@@ -1,0 +1,161 @@
+SECURITY.md
+  s_f3c3373c9035cc::t_675fa68f9e66fc 59-60
+deploy/helm/cab-marketplace/templates/_helpers.tpl
+  s_f865016e27080b::t_d3a36ea57da193 34-36
+deploy/helm/cab-marketplace/templates/configmap.yaml
+  s_f865016e27080b::t_0a615b13c11573 15-17
+deploy/helm/cab-marketplace/values.yaml
+  s_f865016e27080b::t_e8c4b7538181aa 60-62,129,131
+pom.xml
+  s_f865016e27080b::t_f31d9df9f71fc2 183-186
+src/main/java/in/rsh/cab/config/ProductionSecurityValidator.java
+  s_f865016e27080b::t_cbac42bf17bf5c 3,5,25-26,29-35,75-76,89-94
+src/main/java/in/rsh/cab/config/RideStreamRedisConfiguration.java
+  s_832e46c6c8eba8::t_71d7272f749720 1-26
+src/main/java/in/rsh/cab/dispatch/DispatchService.java
+  s_f865016e27080b::t_b015d29dac5867 215,219
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  s_832e46c6c8eba8::t_53e70f09ef2c87 5,108-116
+src/main/java/in/rsh/cab/location/DriverLocationReconciler.java
+  s_f865016e27080b::t_4cf9f627ee8f99 8-9,23,36-44,46-48,54-56
+src/main/java/in/rsh/cab/location/LiveLocationStore.java
+  s_f865016e27080b::t_ff7d8d19f7ab69 13-14
+src/main/java/in/rsh/cab/location/internal/persistence/JdbcLocationCheckpointRepository.java
+  s_f865016e27080b::t_afd8ed5c2f2959 49-50,60,73
+src/main/java/in/rsh/cab/location/internal/persistence/LocationCheckpointRepository.java
+  s_f865016e27080b::t_94212a30753b02 13-14
+src/main/java/in/rsh/cab/location/internal/redis/RedisLiveLocationStore.java
+  s_832e46c6c8eba8::t_213d371a0316bc 56-74
+src/main/java/in/rsh/cab/notification/NotificationRecipientResolver.java
+  s_f865016e27080b::t_f5a6aa10a0b997 50-66
+src/main/java/in/rsh/cab/operations/NotificationOutboxConsumer.java
+  s_f865016e27080b::t_faaebb0f9a3b9e 32-33,35
+src/main/java/in/rsh/cab/operations/RideStreamOutboxConsumer.java
+  s_f865016e27080b::t_efc57361b006f9 1-29
+src/main/java/in/rsh/cab/payment/FakePaymentProvider.java
+  s_f865016e27080b::t_19760af045a05f 11,15,22
+src/main/java/in/rsh/cab/payment/PaymentService.java
+  s_f865016e27080b::t_88adec211a1058 48-49,122,124,126,179-198
+src/main/java/in/rsh/cab/payment/PayoutState.java
+  s_f865016e27080b::t_1b72f675b8fc57 1-9
+src/main/java/in/rsh/cab/payment/ProviderCallbackService.java
+  s_f865016e27080b::t_b7e1d6028cb4ac 121-127,129-131,146-147,149-151
+src/main/java/in/rsh/cab/payment/RefundState.java
+  s_f865016e27080b::t_cb62990f655d13 7-8
+src/main/java/in/rsh/cab/payment/SettlementBatch.java
+  s_f865016e27080b::t_730f393e019cb8 12
+src/main/java/in/rsh/cab/payment/internal/persistence/PaymentRepository.java
+  s_f865016e27080b::t_27159a219b312f 40,67,69-71
+src/main/java/in/rsh/cab/payment/internal/web/PaymentController.java
+  s_f865016e27080b::t_0ed319bccca245 83-87
+src/main/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilter.java
+  s_f865016e27080b::t_87fe98e811a931 86-127
+src/main/java/in/rsh/cab/ratelimit/PayloadTooLargeException.java
+  s_f865016e27080b::t_5c7641a32d4009 1-8
+src/main/java/in/rsh/cab/ratelimit/SizeLimitedHttpServletRequest.java
+  s_f3c3373c9035cc::t_e0c318a0215a10 1-175
+src/main/java/in/rsh/cab/ride/RideEventStream.java
+  s_832e46c6c8eba8::t_492a3ee043154e 19-20,28,33,41,50-52,57,63,104,106,109,116,121-130,182,199-207,209
+src/main/java/in/rsh/cab/ride/RideService.java
+  s_f865016e27080b::t_f665aff76123b1 182,186
+src/main/java/in/rsh/cab/ride/RideStreamRedisPublisher.java
+  s_f865016e27080b::t_d05d28945dac80 1-34
+src/main/java/in/rsh/cab/safety/SafetyService.java
+  s_f3c3373c9035cc::t_1c6d20bd832e80 67-68,98-99,107-109,116-122,153-155,179-182
+src/main/java/in/rsh/cab/safety/internal/persistence/JdbcSafetyRepository.java
+  s_f865016e27080b::t_6c82daf6f3cd79 70-82,95
+src/main/java/in/rsh/cab/safety/internal/persistence/SafetyRepository.java
+  s_f865016e27080b::t_cb18940066a82e 19-21
+src/main/java/in/rsh/cab/safety/internal/web/SafetyController.java
+  s_f865016e27080b::t_c7e8659df4f95e 52,69
+src/main/java/in/rsh/cab/support/SupportService.java
+  s_f865016e27080b::t_8906337e9bff55 94,104-112
+src/main/java/in/rsh/cab/support/internal/persistence/JdbcSupportRepository.java
+  s_f865016e27080b::t_c0812790e4965c 93-109
+src/main/java/in/rsh/cab/support/internal/persistence/SupportRepository.java
+  s_f865016e27080b::t_840eaf27132b62 23-25
+src/main/java/in/rsh/cab/support/internal/web/SupportController.java
+  s_f865016e27080b::t_3c66ac5cf0dc0c 50,72
+src/main/java/in/rsh/cab/webhook/ApacheWebhookTransport.java
+  s_f865016e27080b::t_29b44966b770ce 4-5,8-19,24,26,28,30,34-63,66-89
+src/main/java/in/rsh/cab/webhook/ValidatedWebhookTarget.java
+  s_f865016e27080b::t_174bb3348305ab 1-15
+src/main/java/in/rsh/cab/webhook/WebhookDeliveryWorker.java
+  s_f865016e27080b::t_fee66c6ad2ffd2 78,88,136-138
+src/main/java/in/rsh/cab/webhook/WebhookSecurity.java
+  s_f865016e27080b::t_1a49b65ebe79f5 18,38
+src/main/java/in/rsh/cab/webhook/WebhookTransport.java
+  s_f865016e27080b::t_799202f86cbe1b 8-12
+src/main/resources/application-prod.properties
+  s_f865016e27080b::t_cba98a86b34e13 7-9
+src/main/resources/application.properties
+  s_f865016e27080b::t_76213d5bcfe3e7 62-63
+src/test/java/in/rsh/cab/config/ProductionSecurityValidatorTest.java
+  s_832e46c6c8eba8::t_3500971067b096 11,17-18,24,29-30,37-38,47-48,57-58,67-68,71-76
+src/test/java/in/rsh/cab/dispatch/DispatchServiceTest.java
+  s_f865016e27080b::t_5cd5c40ce666d1 93
+src/test/java/in/rsh/cab/location/DriverLocationReconcilerTest.java
+  s_f865016e27080b::t_f6f872c9995d74 6,8,32-36,42-69
+src/test/java/in/rsh/cab/notification/NotificationRecipientResolverTest.java
+  s_f3c3373c9035cc::t_d1324c222c40f2 8,28-47
+src/test/java/in/rsh/cab/operations/OutboxConsumerTest.java
+  s_f865016e27080b::t_1015a6328b998e 14,62-93
+src/test/java/in/rsh/cab/payment/PaymentOperationWorkerTest.java
+  s_f865016e27080b::t_2cce9d55a73f9b 82-83
+src/test/java/in/rsh/cab/payment/ProviderCallbackServiceTest.java
+  s_f865016e27080b::t_504704351dff95 8,87,94-96,102-122
+src/test/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilterTest.java
+  s_f3c3373c9035cc::t_5e6d36741d5e1c 7-9,83-123
+src/test/java/in/rsh/cab/ride/RideEventStreamTest.java
+  s_f3c3373c9035cc::t_4eec82696c34f7 29,38,40,60-61,89-90,95-96,112-129
+src/test/java/in/rsh/cab/ride/RideServiceTest.java
+  s_f865016e27080b::t_64749de8fe116f 86
+src/test/java/in/rsh/cab/ride/RideStreamRedisPublisherTest.java
+  s_f865016e27080b::t_c6db8a92d6f60a 1-35
+src/test/java/in/rsh/cab/safety/SafetyServiceTest.java
+  s_f865016e27080b::t_9c4609438e5f3e 73,75-78,80,98-99
+src/test/java/in/rsh/cab/support/SupportServiceTest.java
+  s_f865016e27080b::t_69bd64245b815c 73,81-102
+src/test/java/in/rsh/cab/web/MarketplaceHttpIT.java
+  s_f3c3373c9035cc::t_7175320943488e 17,236-247,636-649,655-662,669,686-687,705-713,721,801-806,884-885,892-925,928-929,933,935-942,1098-1117
+src/test/java/in/rsh/cab/webhook/ApacheWebhookTransportTest.java
+  s_f865016e27080b::t_2d2c355a2b5a85 1-29
+src/test/java/in/rsh/cab/webhook/WebhookDeliveryWorkerTest.java
+  s_f865016e27080b::t_997a56e647fd83 72,74-75,79-83,105
+src/test/java/in/rsh/cab/webhook/WebhookSecurityTest.java
+  s_f865016e27080b::t_250f596f01e6e5 18-20
+src/test/java/in/rsh/cab/webhook/WebhookServiceTest.java
+  s_f3c3373c9035cc::t_f9ef5cbdc97d75 20,47,50-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "a1efb5f5cebffa78e942a57ba02cc0f11377ff72",
+  "prompts": {},
+  "sessions": {
+    "s_832e46c6c8eba8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_019e5d43cffe5XBh6U9WZJyyr3",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_f3c3373c9035cc": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_019e5d451ffeTSHe0CK0ZzFNzJ",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_f865016e27080b": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "a08e9b96-9a53-434c-aa7b-4efff5426781",
+        "model": "unknown"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
