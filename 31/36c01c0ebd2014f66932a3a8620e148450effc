@@ -1,0 +1,84 @@
+README.md
+  h_6ca422f7d88004 170-177
+deploy/helm/cab-marketplace/templates/configmap.yaml
+  h_6ca422f7d88004 19
+deploy/helm/cab-marketplace/values.yaml
+  h_6ca422f7d88004 62
+docs/runbooks/deployment.md
+  h_6ca422f7d88004 21-33
+src/main/java/in/rsh/cab/CabApplication.java
+  h_6ca422f7d88004 5,8
+src/main/java/in/rsh/cab/notification/NotificationDeliveryWorker.java
+  h_6ca422f7d88004 23-24,27-32,38-39,54,58-62,65-85,88,95-99,102-108
+src/main/java/in/rsh/cab/notification/NotificationProvider.java
+  h_6ca422f7d88004 11-12
+src/main/java/in/rsh/cab/notification/NotificationRecipientResolver.java
+  h_6ca422f7d88004 1-52
+src/main/java/in/rsh/cab/notification/internal/persistence/JdbcNotificationRepository.java
+  h_6ca422f7d88004 7,68,72-74,81,83-85,91,96,100-102,106-111,125-149,151-202
+src/main/java/in/rsh/cab/notification/internal/persistence/NotificationRepository.java
+  h_6ca422f7d88004 6,19,21-22,24-25,27-29,31-38
+src/main/java/in/rsh/cab/operations/NotificationOutboxConsumer.java
+  h_6ca422f7d88004 1-37
+src/main/java/in/rsh/cab/operations/OutboxConsumer.java
+  h_6ca422f7d88004 1-6
+src/main/java/in/rsh/cab/operations/OutboxDispatcher.java
+  h_6ca422f7d88004 1-116
+src/main/java/in/rsh/cab/operations/OutboxEvent.java
+  h_6ca422f7d88004 19-20
+src/main/java/in/rsh/cab/operations/OutboxPoller.java
+  h_6ca422f7d88004 31-32,35,37-38,41,43-45,48,50-52
+src/main/java/in/rsh/cab/operations/PaymentOutboxConsumer.java
+  h_6ca422f7d88004 1-21
+src/main/java/in/rsh/cab/operations/WebhookOutboxConsumer.java
+  h_6ca422f7d88004 1-26
+src/main/java/in/rsh/cab/operations/internal/persistence/JdbcOutboxRepository.java
+  h_6ca422f7d88004 51-52,65-67,72-73,77,82,85-89,92,96-97,100-104,107-108,112,115-118,120-121,132-133
+src/main/java/in/rsh/cab/operations/internal/persistence/OutboxRepository.java
+  h_6ca422f7d88004 16-17,19,21,23
+src/main/java/in/rsh/cab/payment/PaymentOperationWorker.java
+  h_6ca422f7d88004 57-58,74-83
+src/main/java/in/rsh/cab/payment/internal/persistence/JdbcPaymentRepository.java
+  h_6ca422f7d88004 138,162-163,165-166,168,171
+src/main/java/in/rsh/cab/payment/internal/persistence/PaymentRepository.java
+  h_6ca422f7d88004 38
+src/main/java/in/rsh/cab/tenancy/internal/persistence/TenantRepository.java
+  h_6ca422f7d88004 4-5,10-12
+src/main/java/in/rsh/cab/webhook/WebhookDeliveryWorker.java
+  h_6ca422f7d88004 36,43-45,54,67,69,71,93-94,111-114,127-128
+src/main/java/in/rsh/cab/webhook/internal/persistence/JdbcWebhookRepository.java
+  h_6ca422f7d88004 118,122-123,125-144,146,149,151,153-155,160-161,166-175,177-179,183-184,186-192,195-196,231-236
+src/main/java/in/rsh/cab/webhook/internal/persistence/WebhookRepository.java
+  h_6ca422f7d88004 27-28,30-32,34-35,40-41
+src/main/resources/application.properties
+  h_6ca422f7d88004 60-71
+src/main/resources/db/migration/V12__fenced_delivery_leases.sql
+  h_6ca422f7d88004 1-67
+src/test/java/in/rsh/cab/notification/NotificationDeliveryWorkerTest.java
+  h_6ca422f7d88004 42,44-45,52-53,59-60,70-74,78-79,89-93,95-97,102-111
+src/test/java/in/rsh/cab/notification/NotificationRecipientResolverTest.java
+  h_6ca422f7d88004 1-27
+src/test/java/in/rsh/cab/operations/OutboxConsumerTest.java
+  h_6ca422f7d88004 1-66
+src/test/java/in/rsh/cab/operations/OutboxDispatcherTest.java
+  h_6ca422f7d88004 1-72
+src/test/java/in/rsh/cab/operations/OutboxServiceTest.java
+  h_6ca422f7d88004 6-7,70-72,78-80,82-84,86-89,99-104
+src/test/java/in/rsh/cab/payment/PaymentOperationWorkerTest.java
+  h_6ca422f7d88004 73-74,88
+src/test/java/in/rsh/cab/web/MarketplaceHttpIT.java
+  h_6ca422f7d88004 102,380,383,594,644
+src/test/java/in/rsh/cab/webhook/WebhookDeliveryWorkerTest.java
+  h_6ca422f7d88004 54,62,64-69,81,90,93,102,104,107,114-116,129-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "3136c01c0ebd2014f66932a3a8620e148450effc",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
