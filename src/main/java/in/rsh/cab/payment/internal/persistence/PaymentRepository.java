@@ -35,7 +35,7 @@ public interface PaymentRepository {
   void markCaptureSubmitted(UUID tenantId, UUID paymentId, String providerPaymentId,
       String providerRequestId);
 
-  void markCaptureSubmissionFailed(UUID tenantId, UUID paymentId, String failureCode, Instant now);
+  void markCaptureSubmissionRetryable(UUID tenantId, UUID paymentId, String failureCode);
 
   void insertRefund(UUID tenantId, Refund refund, UUID requesterId);
 

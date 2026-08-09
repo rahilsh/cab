@@ -24,14 +24,19 @@ public interface WebhookRepository {
   Optional<Delivery> createDelivery(WebhookSubscription subscription, UUID tenantId,
       OutboxEvent event, String payload, Instant signatureTimestamp, Instant now);
 
-  List<Delivery> findDue(UUID tenantId, int limit, Instant now);
+  List<Delivery> claimDue(
+      UUID tenantId, int limit, Instant now, Instant leaseExpiresAt, UUID leaseToken);
 
-  void complete(UUID tenantId, UUID deliveryId, int attemptNumber, int responseStatus, Instant now);
+  void complete(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber,
+      int responseStatus, Instant now);
 
-  void retry(UUID tenantId, UUID deliveryId, int attemptNumber, Integer responseStatus,
+  void retry(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber, Integer responseStatus,
       String errorCode, Instant nextAttemptAt, boolean failed, Instant now);
 
   record Delivery(
       UUID id, UUID tenantId, WebhookSubscription subscription, UUID eventId, String eventType,
-      int eventVersion, String payload, Instant signatureTimestamp, int attemptCount) {}
+      int eventVersion, String payload, Instant signatureTimestamp, int attemptCount,
+      UUID leaseToken) {}
 }

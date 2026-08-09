@@ -99,6 +99,7 @@ class MarketplaceHttpIT {
     registry.add("springdoc.api-docs.enabled", () -> "true");
     registry.add("springdoc.swagger-ui.enabled", () -> "true");
     registry.add("rate-limit.requests", () -> "70");
+    registry.add("outbox.dispatcher.enabled", () -> "false");
     registry.add("routing.osrm.base-url", () -> "http://localhost:" + OSRM.getAddress().getPort());
   }
 
@@ -376,10 +377,10 @@ class MarketplaceHttpIT {
     List<OutboxEvent> leased = outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30));
     assertEquals(1, leased.size());
     assertEquals("marketplace-http-it", leased.get(0).correlationId());
-    outboxPoller.retry(tenantUuid, leased.get(0).id(), Instant.now().minusSeconds(1), "temporary");
+    outboxPoller.retry(leased.get(0), Instant.now().minusSeconds(1), "temporary");
     List<OutboxEvent> retried = outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30));
     assertEquals(2, retried.get(0).attempts());
-    outboxPoller.published(tenantUuid, retried.get(0).id());
+    outboxPoller.published(retried.get(0));
     assertTrue(outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30)).isEmpty());
 
     UUID incomingEvent = UUID.randomUUID();
@@ -590,7 +591,7 @@ class MarketplaceHttpIT {
             .findFirst()
             .orElseThrow();
     assertTrue(paymentWorker.process(captureRequest));
-    paymentEvents.forEach(event -> outboxPoller.published(tenantUuid, event.id()));
+    paymentEvents.forEach(outboxPoller::published);
 
     PaymentAccount paymentAccount =
         tenantExecution.inTransaction(
@@ -640,7 +641,7 @@ class MarketplaceHttpIT {
             .findFirst()
             .orElseThrow();
     assertTrue(paymentWorker.process(refundRequest));
-    refundEvents.forEach(event -> outboxPoller.published(tenantUuid, event.id()));
+    refundEvents.forEach(outboxPoller::published);
 
     Instant refundTimestamp = Instant.now();
     String refundBody =

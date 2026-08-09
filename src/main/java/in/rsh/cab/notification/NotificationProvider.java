@@ -8,6 +8,8 @@ public interface NotificationProvider {
 
   String send(Message message);
 
+  // Providers must deduplicate retries by the stable deliveryId.
+
   record Message(
       UUID deliveryId,
       UUID tenantId,

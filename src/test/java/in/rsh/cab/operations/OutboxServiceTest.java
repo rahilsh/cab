@@ -3,6 +3,8 @@ package in.rsh.cab.operations;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,24 +67,26 @@ class OutboxServiceTest {
 
     OutboxEvent event = new OutboxEvent(
         eventId, TENANT, "quote", aggregateId, 0, "quote.created", 1,
-        payload, NOW, null, null, 1);
-    when(repository.lease(TENANT, 10, NOW, NOW.plusSeconds(30))).thenReturn(List.of(event));
+        payload, NOW, null, null, 1, UUID.randomUUID());
+    when(repository.lease(eq(TENANT), eq(10), eq(NOW), eq(NOW.plusSeconds(30)), any()))
+        .thenReturn(List.of(event));
     assertEquals(List.of(event), poller.lease(TENANT, 10, Duration.ofSeconds(30)));
   }
 
   @Test
   void completesRetryAndPermanentFailureWithBoundedErrors() {
-    UUID eventId = UUID.randomUUID();
-    poller.published(TENANT, eventId);
-    verify(repository).markPublished(TENANT, eventId, NOW);
+    OutboxEvent event = event();
+    poller.published(event);
+    verify(repository).markPublished(TENANT, event.id(), event.leaseToken(), NOW);
 
-    poller.retry(TENANT, eventId, NOW.plusSeconds(10), "temporary");
-    verify(repository).markRetry(TENANT, eventId, NOW.plusSeconds(10), "temporary");
+    poller.retry(event, NOW.plusSeconds(10), "temporary");
+    verify(repository).markRetry(
+        TENANT, event.id(), event.leaseToken(), NOW.plusSeconds(10), "temporary");
 
-    poller.failed(TENANT, eventId, "x".repeat(600));
-    verify(repository).markFailed(TENANT, eventId, "x".repeat(500));
-    poller.failed(TENANT, eventId, null);
-    verify(repository).markFailed(TENANT, eventId, null);
+    poller.failed(event, "x".repeat(600));
+    verify(repository).markFailed(TENANT, event.id(), event.leaseToken(), "x".repeat(500));
+    poller.failed(event, null);
+    verify(repository).markFailed(TENANT, event.id(), event.leaseToken(), null);
   }
 
   @Test
@@ -91,5 +95,11 @@ class OutboxServiceTest {
         () -> poller.lease(TENANT, 0, Duration.ofSeconds(1)));
     assertThrows(IllegalArgumentException.class,
         () -> poller.lease(TENANT, 1, Duration.ZERO));
+  }
+
+  private OutboxEvent event() {
+    return new OutboxEvent(UUID.randomUUID(), TENANT, "quote", UUID.randomUUID(), 0,
+        "quote.created", 1, new ObjectMapper().createObjectNode(), NOW, null, null, 1,
+        UUID.randomUUID());
   }
 }

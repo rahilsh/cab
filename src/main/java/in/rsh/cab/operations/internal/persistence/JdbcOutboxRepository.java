@@ -48,7 +48,8 @@ public class JdbcOutboxRepository implements OutboxRepository {
   }
 
   @Override
-  public List<OutboxEvent> lease(UUID tenantId, int limit, Instant now, Instant leaseExpiresAt) {
+  public List<OutboxEvent> lease(
+      UUID tenantId, int limit, Instant now, Instant leaseExpiresAt, UUID leaseToken) {
     return jdbc.sql("""
             WITH candidates AS (
               SELECT id
@@ -61,53 +62,63 @@ public class JdbcOutboxRepository implements OutboxRepository {
               LIMIT :limit
             )
             UPDATE outbox_events event
-            SET status = 'PROCESSING', attempts = event.attempts + 1,
-                lease_started_at = :now, lease_expires_at = :leaseExpiresAt,
-                published_at = NULL, last_error = NULL
+             SET status = 'PROCESSING', attempts = event.attempts + 1,
+                 lease_started_at = :now, lease_expires_at = :leaseExpiresAt,
+                 lease_token = :leaseToken, published_at = NULL, last_error = NULL
             FROM candidates
             WHERE event.tenant_id = :tenantId AND event.id = candidates.id
             RETURNING event.id, event.tenant_id, event.aggregate_type, event.aggregate_id,
                       event.aggregate_version, event.event_type, event.event_version, event.payload,
-                      event.occurred_at, event.correlation_id, event.causation_id, event.attempts
+                      event.occurred_at, event.correlation_id, event.causation_id, event.attempts,
+                      event.lease_token
             """)
         .param("tenantId", tenantId).param("now", Timestamp.from(now))
         .param("leaseExpiresAt", Timestamp.from(leaseExpiresAt))
+        .param("leaseToken", leaseToken)
         .param("limit", limit).query(this::map).list();
   }
 
   @Override
-  public void markPublished(UUID tenantId, UUID eventId, Instant publishedAt) {
+  public void markPublished(UUID tenantId, UUID eventId, UUID leaseToken, Instant publishedAt) {
     requireOne(jdbc.sql("""
             UPDATE outbox_events
-            SET status = 'PUBLISHED', published_at = :publishedAt,
-                lease_started_at = NULL, lease_expires_at = NULL, last_error = NULL
-            WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+             SET status = 'PUBLISHED', published_at = :publishedAt,
+                 lease_token = NULL, lease_started_at = NULL, lease_expires_at = NULL,
+                 last_error = NULL
+             WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+               AND lease_token = :leaseToken
             """)
         .param("publishedAt", Timestamp.from(publishedAt)).param("tenantId", tenantId)
-        .param("eventId", eventId).update());
+        .param("eventId", eventId).param("leaseToken", leaseToken).update());
   }
 
   @Override
-  public void markRetry(UUID tenantId, UUID eventId, Instant availableAt, String error) {
+  public void markRetry(
+      UUID tenantId, UUID eventId, UUID leaseToken, Instant availableAt, String error) {
     requireOne(jdbc.sql("""
             UPDATE outbox_events
-            SET status = 'PENDING', available_at = :availableAt,
-                lease_started_at = NULL, lease_expires_at = NULL, last_error = :error
-            WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+             SET status = 'PENDING', available_at = :availableAt,
+                 lease_token = NULL, lease_started_at = NULL, lease_expires_at = NULL,
+                 last_error = :error
+             WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+               AND lease_token = :leaseToken
             """)
         .param("availableAt", Timestamp.from(availableAt)).param("error", error)
-        .param("tenantId", tenantId).param("eventId", eventId).update());
+        .param("tenantId", tenantId).param("eventId", eventId).param("leaseToken", leaseToken)
+        .update());
   }
 
   @Override
-  public void markFailed(UUID tenantId, UUID eventId, String error) {
+  public void markFailed(UUID tenantId, UUID eventId, UUID leaseToken, String error) {
     requireOne(jdbc.sql("""
             UPDATE outbox_events
-            SET status = 'FAILED', lease_started_at = NULL, lease_expires_at = NULL,
-                last_error = :error
-            WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+             SET status = 'FAILED', lease_token = NULL, lease_started_at = NULL,
+                 lease_expires_at = NULL, last_error = :error
+             WHERE tenant_id = :tenantId AND id = :eventId AND status = 'PROCESSING'
+               AND lease_token = :leaseToken
             """)
-        .param("error", error).param("tenantId", tenantId).param("eventId", eventId).update());
+        .param("error", error).param("tenantId", tenantId).param("eventId", eventId)
+        .param("leaseToken", leaseToken).update());
   }
 
   private OutboxEvent map(ResultSet resultSet, int rowNumber) throws SQLException {
@@ -118,7 +129,8 @@ public class JdbcOutboxRepository implements OutboxRepository {
           resultSet.getLong("aggregate_version"), resultSet.getString("event_type"),
           resultSet.getInt("event_version"), objectMapper.readTree(resultSet.getString("payload")),
           resultSet.getTimestamp("occurred_at").toInstant(), resultSet.getString("correlation_id"),
-          resultSet.getObject("causation_id", UUID.class), resultSet.getInt("attempts"));
+          resultSet.getObject("causation_id", UUID.class), resultSet.getInt("attempts"),
+          resultSet.getObject("lease_token", UUID.class));
     } catch (JacksonException exception) {
       throw new SQLException("Stored outbox payload is invalid", exception);
     }

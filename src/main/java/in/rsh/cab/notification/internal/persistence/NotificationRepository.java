@@ -3,6 +3,7 @@ package in.rsh.cab.notification.internal.persistence;
 import in.rsh.cab.notification.NotificationPreference;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface NotificationRepository {
@@ -15,14 +16,24 @@ public interface NotificationRepository {
   boolean preferenceEnabled(UUID tenantId, UUID recipientId, String eventType, String channel);
 
   Delivery getOrCreateDelivery(UUID id, UUID tenantId, UUID recipientId, UUID eventId, String eventType,
-      String channel, String templateKey, int templateVersion, String status, Instant now);
+      String channel, String templateKey, int templateVersion, String body, String status, Instant now);
 
-  boolean claimDelivery(UUID tenantId, UUID deliveryId);
+  Optional<Delivery> claimDelivery(
+      UUID tenantId, UUID deliveryId, Instant now, Instant leaseExpiresAt, UUID leaseToken);
 
-  void insertAttempt(UUID tenantId, UUID deliveryId, int number, String status,
-      String providerMessageId, String errorCode, Instant now);
+  List<Delivery> claimDue(
+      UUID tenantId, int limit, Instant now, Instant leaseExpiresAt, UUID leaseToken);
 
-  void markDelivery(UUID tenantId, UUID deliveryId, String status, Instant deliveredAt);
+  void complete(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber,
+      String providerMessageId, Instant now);
 
-  record Delivery(UUID id, String status, int attempts) {}
+  void retry(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber,
+      String errorCode, Instant nextAttemptAt, boolean failed, Instant now);
+
+  record Delivery(
+      UUID id, UUID tenantId, UUID recipientId, UUID eventId, String eventType, String channel,
+      String templateKey, int templateVersion, String body, String status, int attempts,
+      UUID leaseToken) {}
 }

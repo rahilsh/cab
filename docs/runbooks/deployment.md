@@ -18,6 +18,19 @@
 5. Exercise an authenticated read and a low-risk write using a synthetic tenant.
 6. Scale out or enable HPA only after the first pod is ready and Flyway has completed.
 
+## Outbox Operations
+
+The API process also runs the outbox dispatcher. It polls active tenant IDs from the control plane,
+then enters tenant-qualified transactions for all RLS-protected data. Outbox, notification, and
+webhook rows use expiring UUID-fenced leases, so replicas can safely compete and recover work after
+a crash. Provider calls happen outside database transactions; completion is rejected if the lease
+has since been reassigned.
+
+Delivery is at-least-once. Payment calls use stable operation idempotency keys, and notification and
+webhook providers must deduplicate by their stable delivery IDs. Alert on increasing `FAILED` rows,
+old `PENDING`/`RETRY` rows, exhausted outbox attempts, and repeated provider-unavailable errors.
+`OUTBOX_DISPATCHER_ENABLED=false` pauses new dispatch without deleting durable work.
+
 The chart deploys the API only. Treat PostgreSQL, Redis, Keycloak/OIDC, OSRM, MinIO/S3, ingress,
 certificates, and monitoring as separately managed production services.
 

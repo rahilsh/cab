@@ -54,8 +54,8 @@ public class PaymentOperationWorker {
           event.tenantId(), payment.id(), submitted.providerObjectId(), submitted.providerRequestId()));
       return true;
     } catch (RuntimeException exception) {
-      tenantExecution.inTransaction(event.tenantId(), () -> payments.markCaptureSubmissionFailed(
-          event.tenantId(), payment.id(), "PROVIDER_UNAVAILABLE", clock.instant()));
+      tenantExecution.inTransaction(event.tenantId(), () -> payments.markCaptureSubmissionRetryable(
+          event.tenantId(), payment.id(), "PROVIDER_UNAVAILABLE"));
       throw exception;
     }
   }
@@ -71,12 +71,16 @@ public class PaymentOperationWorker {
         () -> payments.find(event.tenantId(), refund.paymentId()).orElseThrow());
     PaymentAccount account = tenantExecution.inTransaction(event.tenantId(),
         () -> payments.findAccountForPayment(event.tenantId(), payment.id()).orElseThrow());
-    PaymentProvider.Submission submitted = provider(account).refund(account, payment.id(),
-        refund.id(), payment.providerPaymentId(), refund.amountMinor(), refund.currency(),
-        "refund:" + refund.id());
-    tenantExecution.inTransaction(event.tenantId(), () -> payments.markRefundSubmitted(
-        event.tenantId(), refund.id(), submitted.providerObjectId(), clock.instant()));
-    return true;
+    try {
+      PaymentProvider.Submission submitted = provider(account).refund(account, payment.id(),
+          refund.id(), payment.providerPaymentId(), refund.amountMinor(), refund.currency(),
+          "refund:" + refund.id());
+      tenantExecution.inTransaction(event.tenantId(), () -> payments.markRefundSubmitted(
+          event.tenantId(), refund.id(), submitted.providerObjectId(), clock.instant()));
+      return true;
+    } catch (RuntimeException exception) {
+      throw exception;
+    }
   }
 
   private PaymentProvider provider(PaymentAccount account) {

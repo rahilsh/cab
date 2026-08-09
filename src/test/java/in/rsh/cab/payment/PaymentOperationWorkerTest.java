@@ -70,8 +70,8 @@ class PaymentOperationWorkerTest {
 
     assertThrows(IllegalStateException.class,
         () -> worker.process(event("payment.capture_requested", payment.id())));
-    verify(repository).markCaptureSubmissionFailed(
-        TENANT, payment.id(), "PROVIDER_UNAVAILABLE", NOW);
+    verify(repository).markCaptureSubmissionRetryable(
+        TENANT, payment.id(), "PROVIDER_UNAVAILABLE");
   }
 
   private Payment payment() {
@@ -85,7 +85,7 @@ class PaymentOperationWorkerTest {
 
   private OutboxEvent event(String type, UUID id) {
     return new OutboxEvent(UUID.randomUUID(), TENANT, "payment", id, 0, type, 1,
-        new ObjectMapper().createObjectNode(), NOW, null, null, 1);
+        new ObjectMapper().createObjectNode(), NOW, null, null, 1, UUID.randomUUID());
   }
 
   private static final class TestTransactionManager extends AbstractPlatformTransactionManager {

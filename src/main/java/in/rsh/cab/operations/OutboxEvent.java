@@ -16,4 +16,5 @@ public record OutboxEvent(
     Instant occurredAt,
     String correlationId,
     UUID causationId,
-    int attempts) {}
+    int attempts,
+    UUID leaseToken) {}

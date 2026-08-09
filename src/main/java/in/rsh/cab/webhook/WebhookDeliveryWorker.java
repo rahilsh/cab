@@ -33,13 +33,16 @@ public class WebhookDeliveryWorker {
   private final Clock clock;
   private final Duration requestTimeout;
   private final int maxAttempts;
+  private final Duration leaseDuration;
   private final TenantExecution tenantExecution;
 
   public WebhookDeliveryWorker(
       WebhookRepository webhooks, WebhookSecurity security, WebhookTransport transport,
       SecretResolver secrets, ObjectMapper json, Clock clock,
       @Value("${webhooks.request-timeout:PT10S}") Duration requestTimeout,
-      @Value("${webhooks.max-attempts:6}") int maxAttempts, TenantExecution tenantExecution) {
+      @Value("${webhooks.max-attempts:6}") int maxAttempts,
+      @Value("${webhooks.lease-duration:PT30S}") Duration leaseDuration,
+      TenantExecution tenantExecution) {
     this.webhooks = webhooks;
     this.security = security;
     this.transport = transport;
@@ -48,6 +51,7 @@ public class WebhookDeliveryWorker {
     this.clock = clock;
     this.requestTimeout = requestTimeout;
     this.maxAttempts = maxAttempts;
+    this.leaseDuration = leaseDuration;
     this.tenantExecution = tenantExecution;
   }
 
@@ -55,20 +59,16 @@ public class WebhookDeliveryWorker {
     if (!WebhookService.EVENT_ALLOWLIST.contains(event.eventType())) {
       return 0;
     }
-    int delivered = 0;
     List<WebhookSubscription> subscriptions = tenantExecution.inTransaction(event.tenantId(),
         () -> webhooks.matching(event.tenantId(), event.eventType()));
     for (WebhookSubscription subscription : subscriptions) {
       Instant now = clock.instant();
       String payload = envelope(event);
-      Delivery delivery = tenantExecution.inTransaction(event.tenantId(),
+      tenantExecution.inTransaction(event.tenantId(),
           () -> webhooks.createDelivery(subscription, event.tenantId(), event, payload,
-              now, now).orElse(null));
-      if (delivery != null && deliver(delivery)) {
-        delivered++;
-      }
+              now, now));
     }
-    return delivered;
+    return retryDue(event.tenantId(), 200);
   }
 
   public boolean deliver(Delivery delivery) {
@@ -90,7 +90,8 @@ public class WebhookDeliveryWorker {
       if (response.statusCode() >= 200 && response.statusCode() < 300) {
         tenantExecution.inTransaction(delivery.tenantId(),
             () -> webhooks.complete(
-                delivery.tenantId(), delivery.id(), attempt, response.statusCode(), now));
+                delivery.tenantId(), delivery.id(), delivery.leaseToken(), attempt,
+                response.statusCode(), now));
         return true;
       }
       retry(delivery, attempt, response.statusCode(), "HTTP_STATUS", now);
@@ -107,7 +108,10 @@ public class WebhookDeliveryWorker {
     }
     int delivered = 0;
     List<Delivery> due = tenantExecution.inTransaction(
-        tenantId, () -> webhooks.findDue(tenantId, limit, clock.instant()));
+        tenantId, () -> {
+          Instant now = clock.instant();
+          return webhooks.claimDue(tenantId, limit, now, now.plus(leaseDuration), UUID.randomUUID());
+        });
     for (Delivery delivery : due) {
       if (deliver(delivery)) {
         delivered++;
@@ -120,8 +124,8 @@ public class WebhookDeliveryWorker {
     boolean failed = attempt >= maxAttempts;
     long delaySeconds = Math.min(3600, 1L << Math.min(attempt, 12));
     tenantExecution.inTransaction(delivery.tenantId(),
-        () -> webhooks.retry(delivery.tenantId(), delivery.id(), attempt, responseStatus, error,
-            now.plusSeconds(delaySeconds), failed, now));
+        () -> webhooks.retry(delivery.tenantId(), delivery.id(), delivery.leaseToken(), attempt,
+            responseStatus, error, now.plusSeconds(delaySeconds), failed, now));
   }
 
   private String envelope(OutboxEvent event) {
