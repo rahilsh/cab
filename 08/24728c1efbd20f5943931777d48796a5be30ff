@@ -1,0 +1,87 @@
+.github/workflows/maven.yml
+  s_55fa0c1df7e889::t_f5824ad1739e9a 57-84
+README.md
+  s_c08ed99bc0acbb::t_3410f870fdaec2 134,210-213,222,238,240-241,244,259-265,284-298
+deploy/helm/cab-marketplace/README.md
+  s_55fa0c1df7e889::t_f2f6cf4e7c630c 18,23-24,31-33,35-50,54-56
+deploy/helm/cab-marketplace/templates/deployment.yaml
+  s_55fa0c1df7e889::t_6189e88febf0da 19,29,45,80-86
+deploy/keycloak/cab-realm.json
+  s_df793efd6c319b::t_26dd0ba27253a5 9-16,65-81,83
+src/main/java/in/rsh/cab/config/ProductionSecurityValidator.java
+  s_df793efd6c319b::t_e7cf32bfef3026 1-97
+src/main/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilter.java
+  s_55fa0c1df7e889::t_25d49672e5f914 1-120
+src/main/java/in/rsh/cab/ratelimit/SubjectRateLimitFilter.java
+  s_55fa0c1df7e889::t_d6e0780ce21fc6 1-68
+src/main/java/in/rsh/cab/safety/SafetyService.java
+  s_c08ed99bc0acbb::t_c955a18f1cee1e 4,15,26-31,60,80-94,119-120,122-123,128-134,136-139
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  s_55fa0c1df7e889::t_02e9bb18269a72 3-5,12,22-44,80-81,111-112
+src/main/java/in/rsh/cab/support/SupportService.java
+  s_c08ed99bc0acbb::t_01fa768bf833ea 4,15,25-30,57,74-90,106-107,111-112,114,119-124,126-129,131,140,142,144-153,175-181
+src/main/java/in/rsh/cab/tenancy/internal/web/TenantInvitationController.java
+  s_c08ed99bc0acbb::t_1b0e02adef1079 1-73
+src/main/java/in/rsh/cab/tenancy/internal/web/TenantWebConfiguration.java
+  s_c08ed99bc0acbb::t_662de3979321cf 30-31,39-40
+src/main/resources/application-migration.properties
+  s_c08ed99bc0acbb::t_9913ee4ddd22e1 1-14
+src/main/resources/application-prod.properties
+  s_55fa0c1df7e889::t_68da88f3e109c4 2-9
+src/main/resources/db/migration/V17__domain_api_consistency.sql
+  s_df793efd6c319b::t_643bafe4ba3c00 1-29
+src/main/resources/db/migration/V9__notifications_ratings_support_safety_webhooks.sql
+  s_f865016e27080b::t_4f78e55d1f6a12 204-205
+src/test/java/in/rsh/cab/config/MigrationRunnerTest.java
+  s_c08ed99bc0acbb::t_69c553d8bfddf0 1-46
+src/test/java/in/rsh/cab/config/ProductionSecurityValidatorTest.java
+  s_df793efd6c319b::t_dd81e0715f444e 1-66
+src/test/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilterTest.java
+  s_55fa0c1df7e889::t_1753d509ca7ebc 1-105
+src/test/java/in/rsh/cab/ratelimit/SubjectRateLimitFilterTest.java
+  s_c08ed99bc0acbb::t_16ba1b570b39c8 1-63
+src/test/java/in/rsh/cab/ride/RideEventStreamTest.java
+  s_df793efd6c319b::t_c74fda6d3c8d06 95-106
+src/test/java/in/rsh/cab/support/SupportServiceTest.java
+  s_c08ed99bc0acbb::t_efecd4ac6f879a 11,57-59,61,70,76-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "0824728c1efbd20f5943931777d48796a5be30ff",
+  "prompts": {},
+  "sessions": {
+    "s_55fa0c1df7e889": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01a0aa958ffee0oZNMrM0ttHJN",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_c08ed99bc0acbb": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01a0aa9e0ffeMKJnuS0nbwg91p",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_df793efd6c319b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01a0aa987ffey0lxnU090R3Fz2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_f865016e27080b": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "a08e9b96-9a53-434c-aa7b-4efff5426781",
+        "model": "unknown"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
