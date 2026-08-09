@@ -98,7 +98,11 @@ class MarketplaceHttpIT {
     registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     registry.add("springdoc.api-docs.enabled", () -> "true");
     registry.add("springdoc.swagger-ui.enabled", () -> "true");
-    registry.add("rate-limit.requests", () -> "70");
+    registry.add("rate-limit.requests", () -> "500");
+    registry.add("rate-limit.pre-tenant-requests", () -> "2000");
+    registry.add("rate-limit.callback-requests", () -> "100");
+    registry.add("request-limits.max-bytes", () -> "4096");
+    registry.add("request-limits.callback-max-bytes", () -> "2048");
     registry.add("outbox.dispatcher.enabled", () -> "false");
     registry.add("routing.osrm.base-url", () -> "http://localhost:" + OSRM.getAddress().getPort());
   }
@@ -168,6 +172,65 @@ class MarketplaceHttpIT {
     String accountId = JSON.readTree(current.body()).get("accountId").asText();
     assertEquals(
         403, getWithTenant("/api/v1/current-tenant", tenantId, "unknown-user").statusCode());
+
+    HttpResponse<String> invitation =
+        postWithTenant(
+            "/api/v1/current-tenant/invitations",
+            tenantId,
+            "{\"email\":\"invited-user@example.com\",\"roles\":[\"RIDER\"]}");
+    assertEquals(201, invitation.statusCode(), invitation.body());
+    JsonNode invitationBody = JSON.readTree(invitation.body());
+    String invitationToken = invitationBody.get("token").asText();
+    assertFalse(invitationToken.isBlank());
+    assertFalse(
+        jdbc.sql("SELECT token_hash FROM tenant_membership_invitations WHERE id = :id")
+            .param("id", UUID.fromString(invitationBody.get("id").asText()))
+            .query(String.class)
+            .single()
+            .contains(invitationToken));
+    HttpResponse<String> invitationAccepted =
+        postWithBearer(
+            "/api/v1/tenant-invitations/accept",
+            "invited-user",
+            "{\"token\":\"" + invitationToken + "\"}");
+    assertEquals(200, invitationAccepted.statusCode(), invitationAccepted.body());
+    JsonNode acceptedMembership = JSON.readTree(invitationAccepted.body());
+    assertEquals(tenantId, acceptedMembership.get("tenantId").asText());
+    assertEquals(
+        200, getWithTenant("/api/v1/current-tenant", tenantId, "invited-user").statusCode());
+    assertEquals(
+        400,
+        postWithTenantBearer("/api/v1/current-tenant/roles/DRIVER", tenantId, "invited-user", "")
+            .statusCode());
+    assertEquals(
+        403,
+        postWithBearer(
+                "/api/v1/tenant-invitations/accept",
+                "different-user",
+                "{\"token\":\"" + invitationToken + "\"}")
+            .statusCode());
+
+    HttpResponse<String> secondTenant =
+        post(
+            "/api/v1/tenants",
+            "{\"slug\":\"second-city\",\"displayName\":\"Second City\",\"defaultCurrency\":\"USD\",\"timezone\":\"UTC\"}");
+    assertEquals(201, secondTenant.statusCode(), secondTenant.body());
+    String secondTenantId = JSON.readTree(secondTenant.body()).get("id").asText();
+    HttpResponse<String> added =
+        postWithTenant(
+            "/api/v1/current-tenant/memberships",
+            secondTenantId,
+            "{\"accountId\":\""
+                + acceptedMembership.get("accountId").asText()
+                + "\",\"roles\":[\"SUPPORT\"]}");
+    assertEquals(201, added.statusCode(), added.body());
+    assertEquals(
+        200, getWithTenant("/api/v1/current-tenant", secondTenantId, "invited-user").statusCode());
+
+    HttpResponse<String> oversized =
+        postWithBearer("/api/v1/tenants", "oversized-user", "x".repeat(4097));
+    assertEquals(413, oversized.statusCode(), oversized.body());
+    assertEquals("payload-too-large", JSON.readTree(oversized.body()).get("code").asText());
 
     assertEquals(
         204, postWithTenant("/api/v1/current-tenant/roles/RIDER", tenantId, "").statusCode());
@@ -503,8 +566,9 @@ class MarketplaceHttpIT {
     HttpResponse<String> firstResult = firstAccept.join();
     HttpResponse<String> secondResult = secondAccept.join();
     assertEquals(Set.of(200, 409), Set.of(firstResult.statusCode(), secondResult.statusCode()));
-    HttpResponse<String> accepted = firstResult.statusCode() == 200 ? firstResult : secondResult;
-    assertEquals("DRIVER_ASSIGNED", JSON.readTree(accepted.body()).get("status").asText());
+    HttpResponse<String> acceptedRide =
+        firstResult.statusCode() == 200 ? firstResult : secondResult;
+    assertEquals("DRIVER_ASSIGNED", JSON.readTree(acceptedRide.body()).get("status").asText());
 
     JsonNode arriving = driverRideAction(tenantId, rideId, "arriving", 2);
     assertEquals("DRIVER_ARRIVING", arriving.get("status").asText());
@@ -525,7 +589,13 @@ class MarketplaceHttpIT {
             tenantId,
             "{\"score\":5,\"comment\":\"Safe and professional\"}");
     assertEquals(201, rating.statusCode(), rating.body());
-    assertEquals(5, JSON.readTree(rating.body()).get("score").asInt());
+    JsonNode ratingBody = JSON.readTree(rating.body());
+    assertEquals(5, ratingBody.get("score").asInt());
+    assertEquals(
+        200,
+        getWithTenant(
+                "/api/v1/ratings/" + ratingBody.get("id").asText(), tenantId, "platform-admin")
+            .statusCode());
     assertEquals(
         409,
         postWithTenant("/api/v1/rides/" + rideId + "/ratings", tenantId, "{\"score\":4}")
@@ -540,10 +610,30 @@ class MarketplaceHttpIT {
                 + "\",\"subject\":\"Receipt question\","
                 + "\"message\":\"Please explain the receipt\"}");
     assertEquals(201, supportCase.statusCode(), supportCase.body());
+    JsonNode supportCaseBody = JSON.readTree(supportCase.body());
+    String supportCaseId = supportCaseBody.get("id").asText();
+    JsonNode supportCases =
+        JSON.readTree(getWithTenant("/api/v1/support/cases", tenantId, "platform-admin").body());
+    assertEquals(1, supportCases.size());
+    assertEquals(1, supportCases.get(0).get("messages").size());
     assertEquals(
-        1,
-        JSON.readTree(getWithTenant("/api/v1/support/cases", tenantId, "platform-admin").body())
-            .size());
+        200,
+        getWithTenant("/api/v1/support/cases/" + supportCaseId, tenantId, "platform-admin")
+            .statusCode());
+    assertEquals(
+        200,
+        postWithTenant(
+                "/api/v1/support/cases/" + supportCaseId + "/state",
+                tenantId,
+                "{\"expectedState\":\"OPEN\",\"state\":\"CLOSED\",\"version\":0}")
+            .statusCode());
+    assertEquals(
+        409,
+        postWithTenant(
+                "/api/v1/support/cases/" + supportCaseId + "/state",
+                tenantId,
+                "{\"expectedState\":\"CLOSED\",\"state\":\"IN_PROGRESS\",\"version\":1}")
+            .statusCode());
 
     HttpResponse<String> incident =
         postWithTenant(
@@ -554,10 +644,39 @@ class MarketplaceHttpIT {
                 + "\",\"category\":\"UNSAFE_DRIVING\","
                 + "\"description\":\"Hard braking near the destination\"}");
     assertEquals(201, incident.statusCode(), incident.body());
+    String incidentId = JSON.readTree(incident.body()).get("id").asText();
+    HttpResponse<String> evidence =
+        postWithTenant(
+            "/api/v1/safety/incidents/" + incidentId + "/evidence",
+            tenantId,
+            "{\"objectKey\":\"incidents/photo.jpg\",\"mediaType\":\"image/jpeg\",\"sizeBytes\":10}");
+    assertEquals(201, evidence.statusCode(), evidence.body());
     assertEquals(
         1,
         JSON.readTree(getWithTenant("/api/v1/safety/incidents", tenantId, "platform-admin").body())
+            .get(0)
+            .get("evidence")
             .size());
+    assertEquals(
+        200,
+        getWithTenant("/api/v1/safety/incidents/" + incidentId, tenantId, "platform-admin")
+            .statusCode());
+    assertEquals(
+        200,
+        postWithTenant(
+                "/api/v1/safety/incidents/" + incidentId + "/actions",
+                tenantId,
+                "{\"action\":\"CLOSE\",\"expectedState\":\"REPORTED\","
+                    + "\"state\":\"CLOSED\",\"severity\":\"HIGH\",\"version\":0}")
+            .statusCode());
+    assertEquals(
+        409,
+        postWithTenant(
+                "/api/v1/safety/incidents/" + incidentId + "/actions",
+                tenantId,
+                "{\"action\":\"REOPEN\",\"expectedState\":\"CLOSED\","
+                    + "\"state\":\"INVESTIGATING\",\"severity\":\"HIGH\",\"version\":1}")
+            .statusCode());
 
     HttpResponse<String> preference =
         putWithTenant(
@@ -571,7 +690,7 @@ class MarketplaceHttpIT {
         postWithTenant(
             "/api/v1/admin/webhook-subscriptions",
             tenantId,
-            "{\"url\":\"https://localhost/hook\",\"secretReference\":\"env:WEBHOOK_SECRET\","
+            "{\"url\":\"https://localhost/hook\",\"secretReference\":\"env:CAB_WEBHOOK_SECRET\","
                 + "\"eventFilters\":[\"ride.completed\"],\"enabled\":true,\"version\":0}");
     assertEquals(400, unsafeWebhook.statusCode(), unsafeWebhook.body());
     assertTrue(unsafeWebhook.body().contains("non-public"));
@@ -728,6 +847,7 @@ class MarketplaceHttpIT {
         JSON.readTree(
             getWithTenant("/api/v1/finance/settlements", tenantId, "platform-admin").body());
     assertEquals("COMPLETED", settlements.get(0).get("state").asText());
+    assertEquals(payoutId, settlements.get(0).get("payouts").get(0).get("id").asText());
   }
 
   @Test
@@ -833,7 +953,7 @@ class MarketplaceHttpIT {
     String tenantId = JSON.readTree(created.body()).get("id").asText();
 
     HttpResponse<String> response = null;
-    for (int request = 0; request <= 70; request++) {
+    for (int request = 0; request <= 500; request++) {
       response = getWithTenant("/api/v1/current-tenant", tenantId, "limited-actor");
     }
 
@@ -887,6 +1007,19 @@ class MarketplaceHttpIT {
       throws Exception {
     return httpClient.send(
         tenantPostRequest(path, tenantId, body), HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postWithTenantBearer(
+      String path, String tenantId, String token, String body) throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .header("Authorization", "Bearer " + token)
+            .header("X-Tenant-ID", tenantId)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   private HttpRequest tenantPostRequest(String path, String tenantId, String body) {
@@ -1042,7 +1175,8 @@ class MarketplaceHttpIT {
               .subject(token)
               .claim(
                   "scope", token.equals("observability") ? "observability.read" : "platform.admin")
-              .claim("email", "admin@example.com")
+              .claim("email", token + "@example.com")
+              .claim("email_verified", true)
               .claim("name", "Platform Admin")
               .build();
     }
