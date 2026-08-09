@@ -79,19 +79,22 @@ public class RideEventStream {
           || byRide.getOrDefault(rideKey, Set.of()).size() >= maxPerRide) {
         throw new ConflictException("Too many active ride event streams");
       }
-      Ride current = visibleRide(context, rideId);
+      byActor.computeIfAbsent(actorKey, ignored -> new HashSet<>()).add(subscription);
+      byRide.computeIfAbsent(rideKey, ignored -> new HashSet<>()).add(subscription);
       try {
+        Ride current = visibleRide(context, rideId);
         // Always establish the stream with a full current snapshot. A newer version than the
         // resume hint therefore also supplies the minimal Last-Event-ID catch-up behavior.
         if (lastEventId != null && current.version() <= lastEventId) {
           emitter.send(SseEmitter.event().comment("current ride version already observed"));
         }
         emitter.send(statusEvent(current));
-        byActor.computeIfAbsent(actorKey, ignored -> new HashSet<>()).add(subscription);
-        byRide.computeIfAbsent(rideKey, ignored -> new HashSet<>()).add(subscription);
       } catch (IOException | IllegalStateException exception) {
         remove(subscription);
         throw new IllegalStateException("Could not open ride event stream", exception);
+      } catch (RuntimeException exception) {
+        remove(subscription);
+        throw exception;
       }
     }
     return emitter;

@@ -110,6 +110,35 @@ class RideEventStreamTest {
   }
 
   @Test
+  void registersSubscriberBeforeReadingAuthoritativeSnapshot() {
+    Ride ride = ride();
+    context(TenantRole.TENANT_ADMIN);
+    when(rides.find(TENANT, ride.id()))
+        .thenReturn(Optional.of(ride))
+        .thenAnswer(ignored -> {
+          assertEquals(1, stream.subscriberCount(TENANT, ride.id()));
+          return Optional.of(ride);
+        });
+
+    stream.subscribe(ride.id());
+
+    assertEquals(1, stream.subscriberCount(TENANT, ride.id()));
+  }
+
+  @Test
+  void removesRegisteredSubscriberWhenSnapshotReadFails() {
+    Ride ride = ride();
+    context(TenantRole.TENANT_ADMIN);
+    when(rides.find(TENANT, ride.id()))
+        .thenReturn(Optional.of(ride))
+        .thenThrow(new IllegalStateException("database unavailable"));
+
+    assertThrows(IllegalStateException.class, () -> stream.subscribe(ride.id()));
+
+    assertEquals(0, stream.subscriberCount(TENANT, ride.id()));
+  }
+
+  @Test
   void redisMessageFansOutToLocalSubscribers() throws Exception {
     Ride ride = ride();
     context(TenantRole.TENANT_ADMIN);
