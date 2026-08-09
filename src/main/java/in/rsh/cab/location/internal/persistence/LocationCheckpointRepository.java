@@ -12,4 +12,6 @@ public interface LocationCheckpointRepository {
 
   List<DriverLocation> findLatestEligible(
       UUID tenantId, Instant recordedSince, LocalDate currentDate, int limit);
+
+  int deleteCreatedBefore(UUID tenantId, Instant cutoff, int limit);
 }
