@@ -2,6 +2,7 @@ package in.rsh.cab.exception;
 
 import in.rsh.cab.operations.IdempotencyConflictException;
 import in.rsh.cab.payment.PaymentSignatureException;
+import in.rsh.cab.ratelimit.PayloadTooLargeException;
 import in.rsh.cab.ratelimit.RateLimitExceededException;
 import in.rsh.cab.routing.RouteProviderException;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
@@ -102,6 +103,15 @@ public class GlobalExceptionHandler {
                 "Too many requests",
                 exception.getMessage(),
                 "rate-limit-exceeded"));
+  }
+
+  @ExceptionHandler(PayloadTooLargeException.class)
+  public ResponseEntity<ProblemDetail> handlePayloadTooLarge(PayloadTooLargeException exception) {
+    return problem(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        "Payload too large",
+        exception.getMessage(),
+        "payload-too-large");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

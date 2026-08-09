@@ -83,7 +83,48 @@ public class ApiAbuseProtectionFilter extends OncePerRequestFilter {
         return;
       }
     }
-    chain.doFilter(request, response);
+    try {
+      chain.doFilter(new SizeLimitedHttpServletRequest(request, maximum), response);
+    } catch (ServletException exception) {
+      if (!isPayloadTooLarge(exception)) {
+        throw exception;
+      }
+      writePayloadTooLarge(response);
+    } catch (IOException exception) {
+      if (!isPayloadTooLarge(exception)) {
+        throw exception;
+      }
+      writePayloadTooLarge(response);
+    } catch (RuntimeException exception) {
+      if (!isPayloadTooLarge(exception)) {
+        throw exception;
+      }
+      writePayloadTooLarge(response);
+    }
+  }
+
+  private void writePayloadTooLarge(HttpServletResponse response) throws IOException {
+    if (response.isCommitted()) {
+      throw new PayloadTooLargeException();
+    }
+    response.resetBuffer();
+    writeProblem(
+        response,
+        413,
+        "Payload too large",
+        "Request body exceeds the configured limit",
+        "payload-too-large");
+  }
+
+  private boolean isPayloadTooLarge(Throwable exception) {
+    Throwable cause = exception;
+    while (cause != null) {
+      if (cause instanceof PayloadTooLargeException) {
+        return true;
+      }
+      cause = cause.getCause();
+    }
+    return false;
   }
 
   private boolean consume(HttpServletResponse response, String key, long limit) throws IOException {

@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import java.io.ByteArrayOutputStream;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -75,6 +78,47 @@ class ApiAbuseProtectionFilterTest {
       assertTrue(response.getContentAsString().contains("payload-too-large"));
       assertFalse(chain.getRequest() != null);
     }
+  }
+
+  @Test
+  void rejectsUnknownLengthBodyWhileReadingBeforeCallbackProcessing() throws Exception {
+    AtomicInteger processed = new AtomicInteger();
+    MockHttpServletRequest request =
+        request("/api/v1/payment-providers/fake/accounts/id/events", 513);
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    MockFilterChain chain =
+        new MockFilterChain(
+            new HttpServlet() {
+              @Override
+              protected void service(
+                  jakarta.servlet.http.HttpServletRequest servletRequest,
+                  jakarta.servlet.http.HttpServletResponse servletResponse)
+                  throws java.io.IOException {
+                ByteArrayOutputStream body = new ByteArrayOutputStream();
+                body.write(servletRequest.getInputStream().readNBytes(2));
+                processed.incrementAndGet();
+              }
+            });
+
+    filter((key, limit, window) -> new RateLimitDecision(true, 1, 1), 1024, 512)
+        .doFilter(
+            new HttpServletRequestWrapper(request) {
+              @Override
+              public long getContentLengthLong() {
+                return -1;
+              }
+
+              @Override
+              public int getContentLength() {
+                return -1;
+              }
+            },
+            response,
+            chain);
+
+    assertEquals(413, response.getStatus());
+    assertEquals(0, processed.get());
+    assertTrue(response.getContentAsString().contains("payload-too-large"));
   }
 
   @Test
