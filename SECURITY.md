@@ -2,13 +2,17 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Until the first stable release, only the latest commit on `main` receives security fixes. The
+prototype must not be exposed publicly or used for real passenger, driver, payment, or trip data.
 
-| Version        | Supported          |
-|----------------|--------------------|
-| 1.0.0-SNAPSHOT | :white_check_mark: |
+## Reporting A Vulnerability
 
-## Reporting a Vulnerability
+Use GitHub private vulnerability reporting for this repository. Open the repository's **Security**
+tab, select **Advisories**, and choose **Report a vulnerability**.
 
-Pleae write an email to us
+Do not disclose vulnerabilities in public issues, discussions, pull requests, or social media.
+Include affected versions, reproduction steps, impact, and suggested remediation when available.
+
+Maintainers will acknowledge a valid report as soon as practical, coordinate remediation and
+disclosure with the reporter, and credit reporters who request attribution. Response times are not
+guaranteed for this volunteer-maintained project.
