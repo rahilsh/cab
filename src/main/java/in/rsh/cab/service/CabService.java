@@ -62,7 +62,9 @@ public class CabService {
   }
 
   public void updateCab(int cabId, Integer cityId, CabStatus state) {
-    cityService.validateCityOrThrow(cityId);
+    if (cityId != null) {
+      cityService.validateCityOrThrow(cityId);
+    }
     update(cabId, cityId, state, null);
   }
 

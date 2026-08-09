@@ -3,6 +3,7 @@ package in.rsh.cab.controller;
 import in.rsh.cab.model.request.AddCityRequest;
 import in.rsh.cab.model.response.CityResponse;
 import in.rsh.cab.service.CityService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -28,7 +29,7 @@ public class CityController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public void addCity(@RequestBody AddCityRequest request) {
+  public void addCity(@Valid @RequestBody AddCityRequest request) {
     request.validate();
     cityService.addCity(request.name());
   }

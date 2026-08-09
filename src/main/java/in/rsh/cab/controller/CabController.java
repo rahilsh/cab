@@ -6,6 +6,7 @@ import in.rsh.cab.model.request.AddCabRequest;
 import in.rsh.cab.model.request.UpdateCabRequest;
 import in.rsh.cab.model.response.CabResponse;
 import in.rsh.cab.service.CabService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -39,7 +40,7 @@ public class CabController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
-  public void addCab(@RequestBody AddCabRequest request) {
+  public void addCab(@Valid @RequestBody AddCabRequest request) {
     request.validate();
     cabService.addCab(request.driverId(), request.cityId(), request.model());
   }
@@ -50,9 +51,10 @@ public class CabController {
       produces = MediaType.APPLICATION_JSON_VALUE)
   @ResponseBody
   public void updateCab(
-      @PathVariable("cabId") int cabId, @RequestBody UpdateCabRequest request) {
+      @PathVariable("cabId") int cabId, @Valid @RequestBody UpdateCabRequest request) {
     request.validate();
-    cabService.updateCab(cabId, request.cityId(), CabStatus.valueOf(request.state()));
+    CabStatus status = request.state() == null ? null : CabStatus.valueOf(request.state());
+    cabService.updateCab(cabId, request.cityId(), status);
   }
 
   @GetMapping(

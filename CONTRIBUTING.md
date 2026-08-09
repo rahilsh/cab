@@ -16,6 +16,14 @@ Use Java 21 and the included Maven Wrapper:
 ./mvnw clean verify
 ```
 
+On macOS with Colima:
+
+```bash
+DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock" \
+TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
+./mvnw clean verify
+```
+
 Every change must include tests. Unit-test line coverage must remain above 85%. API integration
 tests must use a random real HTTP port and an HTTP client rather than MockMvc.
 

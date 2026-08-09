@@ -1,12 +1,20 @@
 package in.rsh.cab.exception;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 class GlobalExceptionHandlerTest {
 
@@ -17,74 +25,64 @@ class GlobalExceptionHandlerTest {
     handler = new GlobalExceptionHandler();
   }
 
-  @Nested
-  class HandleNotFoundTests {
-
-    @Test
-    void handleNotFound_shouldReturnNotFoundStatus() {
-      NotFoundException exception = new NotFoundException("City not found");
-
-      ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-          handler.handleNotFound(exception);
-
-      assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-      assertEquals("City not found", response.getBody().message());
-    }
+  @Test
+  void mapsKnownApplicationErrors() {
+    assertProblem(
+        handler.handleNotFound(new NotFoundException("City not found")),
+        HttpStatus.NOT_FOUND,
+        "not-found",
+        "City not found");
+    assertProblem(
+        handler.handleCabNotAvailable(new CabNotAvailableException("No cabs available")),
+        HttpStatus.CONFLICT,
+        "cab-unavailable",
+        "No cabs available");
+    assertProblem(
+        handler.handleBadRequest(new InvalidRequestException("Invalid request")),
+        HttpStatus.BAD_REQUEST,
+        "invalid-request",
+        "Invalid request");
+    assertProblem(
+        handler.handleBadRequest(new IllegalArgumentException("Bad argument")),
+        HttpStatus.BAD_REQUEST,
+        "invalid-request",
+        "Bad argument");
   }
 
-  @Nested
-  class HandleCabNotAvailableTests {
+  @Test
+  void mapsBeanValidationErrorsByField() {
+    BeanPropertyBindingResult binding = new BeanPropertyBindingResult(new Object(), "request");
+    binding.addError(new FieldError("request", "name", "must not be blank"));
+    binding.addError(new FieldError("request", "name", "duplicate is ignored"));
+    MethodArgumentNotValidException exception = mock(MethodArgumentNotValidException.class);
+    when(exception.getBindingResult()).thenReturn(binding);
 
-    @Test
-    void handleCabNotAvailable_shouldReturnConflictStatus() {
-      CabNotAvailableException exception = new CabNotAvailableException("No cabs available");
+    ResponseEntity<ProblemDetail> response = handler.handleValidation(exception);
 
-      ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-          handler.handleCabNotAvailable(exception);
-
-      assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-      assertEquals("No cabs available", response.getBody().message());
-    }
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals("validation-failed", response.getBody().getProperties().get("code"));
+    assertEquals(
+        Map.of("name", "must not be blank"), response.getBody().getProperties().get("violations"));
   }
 
-  @Nested
-  class HandleBadRequestTests {
+  @Test
+  void hidesUnexpectedExceptionDetails() {
+    ResponseEntity<ProblemDetail> response =
+        handler.handleUnexpected(new RuntimeException("database password"));
 
-    @Test
-    void handleBadRequest_shouldReturnBadRequestStatus() {
-      InvalidRequestException exception = new InvalidRequestException("Invalid request");
-
-      ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-          handler.handleBadRequest(exception);
-
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("Invalid request", response.getBody().message());
-    }
-
-    @Test
-    void handleBadRequest_withIllegalArgument_shouldReturnBadRequestStatus() {
-      IllegalArgumentException exception = new IllegalArgumentException("Bad argument");
-
-      ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-          handler.handleBadRequest(exception);
-
-      assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-      assertEquals("Bad argument", response.getBody().message());
-    }
+    assertProblem(
+        response, HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Unexpected error");
   }
 
-  @Nested
-  class HandleUnexpectedTests {
-
-    @Test
-    void handleUnexpected_shouldReturnInternalServerErrorStatus() {
-      Exception exception = new RuntimeException("Unexpected error");
-
-      ResponseEntity<GlobalExceptionHandler.ErrorResponse> response =
-          handler.handleUnexpected(exception);
-
-      assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-      assertEquals("Unexpected error", response.getBody().message());
-    }
+  private void assertProblem(
+      ResponseEntity<ProblemDetail> response,
+      HttpStatus status,
+      String code,
+      String expectedDetail) {
+    assertEquals(status, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(expectedDetail, response.getBody().getDetail());
+    assertEquals(code, response.getBody().getProperties().get("code"));
   }
 }

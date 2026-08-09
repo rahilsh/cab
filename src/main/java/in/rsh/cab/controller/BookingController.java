@@ -3,6 +3,7 @@ package in.rsh.cab.controller;
 import in.rsh.cab.model.request.BookCabRequest;
 import in.rsh.cab.model.response.BookingResponse;
 import in.rsh.cab.service.BookingService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,7 +36,7 @@ public class BookingController {
       headers = "Accept=application/json",
       produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<BookingResponse> bookingCab(
-      @RequestBody BookCabRequest request,
+      @Valid @RequestBody BookCabRequest request,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
     request.validate();
     BookingResponse response = bookingService.bookCabResponse(

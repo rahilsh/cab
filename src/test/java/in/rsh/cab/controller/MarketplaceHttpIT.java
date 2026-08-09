@@ -14,22 +14,49 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
+@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestPropertySource(
-    properties = {
-      "spring.jpa.hibernate.ddl-auto=create-drop",
-      "spring.datasource.url=jdbc:h2:mem:http-it-db"
-    })
 class MarketplaceHttpIT {
+
+  @Container
+  static final PostgreSQLContainer<?> POSTGRES =
+      new PostgreSQLContainer<>(
+              DockerImageName.parse("postgis/postgis:17-3.5")
+                  .asCompatibleSubstituteFor("postgres"))
+          .withDatabaseName("cab")
+          .withUsername("cab")
+          .withPassword("cab");
 
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
   @LocalServerPort private int port;
 
+  @DynamicPropertySource
+  static void databaseProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+    registry.add("spring.datasource.username", POSTGRES::getUsername);
+    registry.add("spring.datasource.password", POSTGRES::getPassword);
+  }
+
   @Test
   void booksCabThroughActualHttpApi() throws Exception {
+    HttpResponse<String> health = get("/actuator/health/readiness");
+    assertEquals(200, health.statusCode());
+    assertTrue(health.body().contains("UP"));
+
+    HttpResponse<String> invalidCity = post("/cities", "{\"name\":\"\"}");
+    assertEquals(400, invalidCity.statusCode());
+    assertTrue(invalidCity.headers().firstValue("Content-Type").orElse("").contains("problem+json"));
+    assertTrue(invalidCity.body().contains("validation-failed"));
+    assertTrue(invalidCity.headers().firstValue("X-Correlation-ID").isPresent());
+
     assertEquals(200, post("/cities", "{\"name\":\"BLR\",\"state\":\"KA\"}").statusCode());
     assertEquals(200, post("/cities", "{\"name\":\"MUM\",\"state\":\"MH\"}").statusCode());
     assertEquals(

@@ -1,9 +1,13 @@
 package in.rsh.cab.model.request;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 public record AddCabRequest(
-    @NotNull Integer cityId, @NotNull Integer driverId, @NotNull String model) {
+    @NotNull @Positive Integer cityId,
+    @NotNull @Positive Integer driverId,
+    @NotNull @Size(min = 1, max = 100) String model) {
 
   public void validate() {
     if (cityId == null || driverId == null || model == null) {
