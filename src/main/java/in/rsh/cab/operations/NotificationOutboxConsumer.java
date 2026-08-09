@@ -29,8 +29,10 @@ public class NotificationOutboxConsumer implements OutboxConsumer {
     List<UUID> routed = tenantExecution.inTransaction(
         event.tenantId(), () -> recipients.resolve(event));
     String template = event.eventType().replace('.', '_');
+    String body = event.eventType().startsWith("safety.")
+        ? "A safety incident has an update" : event.eventType();
     for (UUID recipient : routed) {
-      worker.process(event, recipient, "LOCAL", template, event.eventVersion(), event.eventType());
+      worker.process(event, recipient, "LOCAL", template, event.eventVersion(), body);
     }
     return !routed.isEmpty();
   }

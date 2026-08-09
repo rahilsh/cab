@@ -47,6 +47,23 @@ public class NotificationRecipientResolver {
       return jdbc.sql(sql).param("tenantId", event.tenantId())
           .param("aggregateId", event.aggregateId()).query(UUID.class).list();
     }
+    if (event.eventType().startsWith("safety.")) {
+      return jdbc.sql("""
+              SELECT recipient_id FROM (
+                SELECT membership.user_account_id recipient_id
+                FROM tenant_memberships membership
+                JOIN tenant_membership_roles role ON role.membership_id = membership.id
+                WHERE membership.tenant_id = :tenantId AND membership.status = 'ACTIVE'
+                  AND role.role IN ('SAFETY', 'TENANT_ADMIN')
+                UNION
+                SELECT incident.reported_by_account_id recipient_id
+                FROM safety_incidents incident
+                WHERE incident.tenant_id = :tenantId AND incident.id = :incidentId
+              ) recipients ORDER BY recipient_id
+              """)
+          .param("tenantId", event.tenantId()).param("incidentId", event.aggregateId())
+          .query(UUID.class).list();
+    }
     return List.of();
   }
 }

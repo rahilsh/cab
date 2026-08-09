@@ -70,11 +70,14 @@ class SafetyServiceTest {
     SafetyIncident incident = new SafetyIncident(UUID.randomUUID(), RIDE, ACCOUNT, "OTHER", "x",
         "REPORTED", "UNASSESSED", NOW, NOW, 0, List.of());
     when(repository.find(TENANT, incident.id())).thenReturn(Optional.of(incident));
-    assertThrows(InvalidRequestException.class, () -> service.addEvidence(incident.id(),
+    assertThrows(InvalidRequestException.class, () -> service.addEvidence(incident.id(), 0,
         "https://objects.example/evidence", "image/jpeg", 10L, null));
-    SafetyIncident.Evidence evidence = service.addEvidence(incident.id(),
+    when(repository.appendEvidence(org.mockito.ArgumentMatchers.eq(TENANT),
+        org.mockito.ArgumentMatchers.eq(incident.id()), org.mockito.ArgumentMatchers.eq(0L),
+        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(NOW))).thenReturn(true);
+    SafetyIncident.Evidence evidence = service.addEvidence(incident.id(), 0,
         "tenant/incidents/photo.jpg", "image/jpeg", 10L, null);
-    verify(repository).insertEvidence(TENANT, incident.id(), evidence);
+    verify(repository).appendEvidence(TENANT, incident.id(), 0, evidence, NOW);
   }
 
   @Test
@@ -92,6 +95,8 @@ class SafetyServiceTest {
     context(TenantRole.RIDER);
     when(repository.isRideParticipant(TENANT, RIDE, ACCOUNT)).thenReturn(true);
     assertEquals(List.of(evidence), service.get(closed.id()).evidence());
+    assertThrows(ConflictException.class, () -> service.addEvidence(closed.id(), 4,
+        "incident/late.jpg", "image/jpeg", 10L, null));
   }
 
   private void context(TenantRole role) {

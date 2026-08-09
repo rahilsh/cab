@@ -20,6 +20,9 @@ public interface SupportRepository {
 
   void insertMessage(UUID tenantId, UUID caseId, SupportCase.Message message);
 
+  boolean appendMessage(
+      UUID tenantId, UUID caseId, long expectedVersion, SupportCase.Message message, Instant now);
+
   boolean updateState(
       UUID tenantId, UUID caseId, String expectedState, String state, long expectedVersion,
       Instant now);

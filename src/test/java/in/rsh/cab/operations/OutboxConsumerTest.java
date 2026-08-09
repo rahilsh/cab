@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import in.rsh.cab.notification.NotificationDeliveryWorker;
 import in.rsh.cab.notification.NotificationRecipientResolver;
 import in.rsh.cab.payment.PaymentOperationWorker;
+import in.rsh.cab.ride.RideStreamRedisPublisher;
 import in.rsh.cab.tenancy.TenantExecution;
 import in.rsh.cab.webhook.WebhookDeliveryWorker;
 import java.time.Instant;
@@ -56,6 +57,38 @@ class OutboxConsumerTest {
     assertTrue(consumer.process(event));
     verify(worker).process(event, first, "LOCAL", "ride_completed", 1, "ride.completed");
     verify(worker).process(event, second, "LOCAL", "ride_completed", 1, "ride.completed");
+  }
+
+  @Test
+  void safetyNotificationUsesGenericBody() {
+    NotificationRecipientResolver resolver = mock(NotificationRecipientResolver.class);
+    NotificationDeliveryWorker worker = mock(NotificationDeliveryWorker.class);
+    TenantExecution execution = mock(TenantExecution.class);
+    when(execution.inTransaction(any(), org.mockito.ArgumentMatchers
+        .<java.util.function.Supplier<List<UUID>>>any())).thenAnswer(invocation ->
+            ((java.util.function.Supplier<?>) invocation.getArgument(1)).get());
+    OutboxEvent event = event("safety.incident_reported");
+    UUID recipient = UUID.randomUUID();
+    when(resolver.resolve(event)).thenReturn(List.of(recipient));
+
+    assertTrue(new NotificationOutboxConsumer(resolver, worker, execution).process(event));
+
+    verify(worker).process(event, recipient, "LOCAL", "safety_incident_reported", 1,
+        "A safety incident has an update");
+  }
+
+  @Test
+  void rideStreamConsumerPublishesAggregateVersion() {
+    RideStreamRedisPublisher publisher = mock(RideStreamRedisPublisher.class);
+    var payload = new ObjectMapper().createObjectNode().put("status", "COMPLETED");
+    OutboxEvent event = new OutboxEvent(UUID.randomUUID(), UUID.randomUUID(), "ride",
+        UUID.randomUUID(), 4, "ride.completed", 1, payload,
+        Instant.parse("2026-08-09T10:00:00Z"), null, null, 1, UUID.randomUUID());
+    assertTrue(new RideStreamOutboxConsumer(publisher).process(event));
+    verify(publisher).publish(org.mockito.ArgumentMatchers.eq(event.tenantId()),
+        org.mockito.ArgumentMatchers.argThat(message -> message.eventId().equals(event.id())
+            && message.rideId().equals(event.aggregateId())
+            && message.version() == event.aggregateVersion()));
   }
 
   private OutboxEvent event(String type) {

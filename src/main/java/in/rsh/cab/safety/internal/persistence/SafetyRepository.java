@@ -16,7 +16,9 @@ public interface SafetyRepository {
 
   List<SafetyIncident> findAll(UUID tenantId);
 
-  void insertEvidence(UUID tenantId, UUID incidentId, SafetyIncident.Evidence evidence);
+  boolean appendEvidence(
+      UUID tenantId, UUID incidentId, long expectedVersion, SafetyIncident.Evidence evidence,
+      Instant now);
 
   boolean update(
       UUID tenantId, UUID incidentId, String expectedState, String state, String severity,

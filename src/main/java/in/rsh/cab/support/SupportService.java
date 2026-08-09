@@ -91,7 +91,7 @@ public class SupportService {
   }
 
   @Transactional
-  public SupportCase addMessage(UUID caseId, String body, boolean internal) {
+  public SupportCase addMessage(UUID caseId, long expectedVersion, String body, boolean internal) {
     TenantContext context = TenantContext.require();
     SupportCase supportCase = cases.find(context.tenantId(), caseId)
         .orElseThrow(() -> new NotFoundException("Support case not found"));
@@ -101,8 +101,15 @@ public class SupportService {
     if (!isStaff(context) && !supportCase.openedByAccountId().equals(context.accountId())) {
       throw new NotFoundException("Support case not found");
     }
-    cases.insertMessage(context.tenantId(), caseId,
-        new SupportCase.Message(UUID.randomUUID(), context.accountId(), body, internal, clock.instant()));
+    if (supportCase.version() != expectedVersion
+        || !(supportCase.state().equals("OPEN") || supportCase.state().equals("IN_PROGRESS"))) {
+      throw new ConflictException("Support case changed or does not accept messages");
+    }
+    Instant now = clock.instant();
+    if (!cases.appendMessage(context.tenantId(), caseId, expectedVersion,
+        new SupportCase.Message(UUID.randomUUID(), context.accountId(), body, internal, now), now)) {
+      throw new ConflictException("Support case changed or does not accept messages");
+    }
     SupportCase updated = cases.find(context.tenantId(), caseId).orElseThrow();
     return isStaff(context) ? updated : withoutInternalMessages(updated);
   }
