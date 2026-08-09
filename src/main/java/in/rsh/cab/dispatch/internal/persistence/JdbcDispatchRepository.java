@@ -118,6 +118,48 @@ public class JdbcDispatchRepository implements DispatchRepository {
   }
 
   @Override
+  public List<UUID> expireDueOffers(UUID tenantId, Instant now, int limit) {
+    return jdbc.sql("""
+            WITH due AS (
+              SELECT id FROM driver_offers
+              WHERE tenant_id = :tenantId AND status = 'PENDING' AND expires_at <= :now
+              ORDER BY expires_at, id
+              FOR UPDATE SKIP LOCKED
+              LIMIT :limit
+            ), expired AS (
+              UPDATE driver_offers offer
+              SET status = 'EXPIRED', responded_at = :now, updated_at = :now,
+                  version = version + 1
+              FROM due WHERE offer.id = due.id AND offer.tenant_id = :tenantId
+              RETURNING offer.attempt_id
+            )
+            SELECT DISTINCT attempt_id FROM expired
+            """)
+        .param("tenantId", tenantId).param("now", Timestamp.from(now))
+        .param("limit", Math.max(1, Math.min(limit, 500)))
+        .query(UUID.class).list();
+  }
+
+  @Override
+  public Optional<UUID> exhaustAttemptIfNoPending(UUID tenantId, UUID attemptId, Instant now) {
+    return jdbc.sql("""
+            UPDATE dispatch_attempts attempt
+            SET status = 'EXHAUSTED', completed_at = :now, updated_at = :now,
+                version = version + 1
+            WHERE attempt.tenant_id = :tenantId AND attempt.id = :attemptId
+              AND attempt.status IN ('SEARCHING', 'OFFERED')
+              AND NOT EXISTS (
+                SELECT 1 FROM driver_offers offer
+                WHERE offer.tenant_id = attempt.tenant_id AND offer.attempt_id = attempt.id
+                  AND offer.status = 'PENDING'
+              )
+            RETURNING attempt.ride_id
+            """)
+        .param("tenantId", tenantId).param("attemptId", attemptId)
+        .param("now", Timestamp.from(now)).query(UUID.class).optional();
+  }
+
+  @Override
   public void cancelRide(UUID tenantId, UUID rideId, Instant now) {
     jdbc.sql("""
             UPDATE driver_offers SET status = 'EXPIRED', responded_at = :now,

@@ -26,11 +26,16 @@ public class RedisLiveLocationStore implements LiveLocationStore {
         local separator = string.find(current, ':')
         local sequence = tonumber(string.sub(current, 1, separator - 1))
         local recorded = tonumber(string.sub(current, separator + 1))
-        if tonumber(ARGV[4]) <= sequence or tonumber(ARGV[5]) <= recorded then return 0 end
+        if tonumber(ARGV[4]) < sequence or tonumber(ARGV[5]) < recorded then return 0 end
       end
       redis.call('GEOADD', KEYS[1], ARGV[2], ARGV[3], ARGV[1])
       redis.call('HSET', KEYS[2], ARGV[1], ARGV[4] .. ':' .. ARGV[5])
       return 1
+      """, Long.class);
+  private static final DefaultRedisScript<Long> REMOVE = new DefaultRedisScript<>("""
+      local removed = redis.call('ZREM', KEYS[1], unpack(ARGV))
+      redis.call('HDEL', KEYS[2], unpack(ARGV))
+      return removed
       """, Long.class);
 
   private final StringRedisTemplate redis;
@@ -52,8 +57,9 @@ public class RedisLiveLocationStore implements LiveLocationStore {
   public List<UUID> nearby(
       UUID tenantId, GeoPoint point, double radiusMeters, int limit, Instant now, Duration maxAge) {
     int boundedLimit = Math.max(1, Math.min(limit, 100));
+    int overscanLimit = Math.min(boundedLimit * 5, 500);
     RedisGeoCommands.GeoRadiusCommandArgs args = RedisGeoCommands.GeoRadiusCommandArgs
-        .newGeoRadiusArgs().sortAscending().limit(boundedLimit);
+        .newGeoRadiusArgs().sortAscending().limit(overscanLimit);
     var results = redis.opsForGeo().radius(
         geoKey(tenantId),
         new Circle(new Point(point.longitude(), point.latitude()),
@@ -64,15 +70,40 @@ public class RedisLiveLocationStore implements LiveLocationStore {
     }
     Instant cutoff = now.minus(maxAge);
     List<UUID> fresh = new ArrayList<>();
+    List<String> invalid = new ArrayList<>();
     for (var result : results) {
       String member = result.getContent().getName();
       String metadata = (String) redis.opsForHash().get(metadataKey(tenantId), member);
-      if (metadata != null) {
-        int separator = metadata.indexOf(':');
-        if (separator > 0
-            && Instant.ofEpochMilli(Long.parseLong(metadata.substring(separator + 1))).isAfter(cutoff)) {
-          fresh.add(UUID.fromString(member));
+      try {
+        if (metadata == null) {
+          invalid.add(member);
+          continue;
         }
+        int separator = metadata.indexOf(':');
+        if (separator <= 0) {
+          invalid.add(member);
+          continue;
+        }
+        Instant recordedAt = Instant.ofEpochMilli(Long.parseLong(metadata.substring(separator + 1)));
+        UUID shiftId = UUID.fromString(member);
+        if (recordedAt.isBefore(cutoff)) {
+          invalid.add(member);
+          continue;
+        }
+        fresh.add(shiftId);
+        if (fresh.size() == boundedLimit) {
+          break;
+        }
+      } catch (IllegalArgumentException exception) {
+        invalid.add(member);
+      }
+    }
+    if (!invalid.isEmpty()) {
+      try {
+        redis.execute(REMOVE, List.of(geoKey(tenantId), metadataKey(tenantId)),
+            invalid.toArray());
+      } catch (RuntimeException ignored) {
+        // Stale cleanup is best effort; candidate reads remain available.
       }
     }
     return List.copyOf(fresh);

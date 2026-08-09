@@ -38,7 +38,9 @@ class RideTest {
 
   @Test
   void supportsNoDriverAndCancellationPolicies() {
-    assertEquals(RideStatus.NO_DRIVER, ride(RideStatus.REQUESTED).matching(NOW).noDriver(NOW).status());
+    Ride noDriver = ride(RideStatus.REQUESTED).matching(NOW).noDriver(NOW);
+    assertEquals(RideStatus.NO_DRIVER, noDriver.status());
+    assertEquals(RideStatus.MATCHING, noDriver.retryMatching(NOW.plusSeconds(1)).status());
     Ride assigned = ride(RideStatus.MATCHING).assign(
         UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), NOW);
     Ride cancelled = assigned.cancel(CancellationActor.DRIVER, "vehicle issue", NOW.plusSeconds(1));

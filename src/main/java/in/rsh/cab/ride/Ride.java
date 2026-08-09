@@ -34,6 +34,10 @@ public record Ride(
     return transition(RideStatus.REQUESTED, RideStatus.MATCHING, now, null, null, null);
   }
 
+  public Ride retryMatching(Instant now) {
+    return transition(RideStatus.NO_DRIVER, RideStatus.MATCHING, now, null, null, null);
+  }
+
   public Ride noDriver(Instant now) {
     return transition(RideStatus.MATCHING, RideStatus.NO_DRIVER, now, null, null, null);
   }

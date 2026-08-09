@@ -9,6 +9,7 @@ import in.rsh.cab.fleet.VehicleStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -155,8 +156,34 @@ public class JdbcFleetRepository implements FleetRepository {
   }
 
   @Override
+  public boolean reserveEligibleShift(
+      UUID tenantId, UUID shiftId, UUID driverId, UUID vehicleId, LocalDate currentDate,
+      java.time.Instant now) {
+    return jdbc.sql("""
+            UPDATE driver_shifts s
+            SET status = 'RESERVED', version = s.version + 1, updated_at = :now
+            FROM driver_profiles d, vehicles v
+            WHERE s.tenant_id = :tenantId AND s.id = :shiftId
+              AND s.driver_id = :driverId AND s.vehicle_id = :vehicleId
+              AND s.status = 'AVAILABLE'
+              AND d.tenant_id = s.tenant_id AND d.id = s.driver_id AND d.status = 'APPROVED'
+              AND v.tenant_id = s.tenant_id AND v.id = s.vehicle_id AND v.status = 'ACTIVE'
+              AND EXISTS (
+                SELECT 1 FROM driver_documents document
+                WHERE document.tenant_id = d.tenant_id AND document.driver_id = d.id
+                  AND document.document_type = 'DRIVING_LICENSE'
+                  AND document.verification_status = 'VERIFIED'
+                  AND document.expires_on >= :currentDate
+              )
+            """)
+        .param("tenantId", tenantId).param("shiftId", shiftId).param("driverId", driverId)
+        .param("vehicleId", vehicleId).param("currentDate", currentDate)
+        .param("now", Timestamp.from(now)).update() == 1;
+  }
+
+  @Override
   public List<SupplyCandidate> findAvailableCandidates(
-      UUID tenantId, List<UUID> shiftIds, String serviceClass) {
+      UUID tenantId, List<UUID> shiftIds, String serviceClass, LocalDate currentDate) {
     if (shiftIds.isEmpty()) {
       return List.of();
     }
@@ -167,8 +194,16 @@ public class JdbcFleetRepository implements FleetRepository {
             JOIN driver_profiles d ON d.tenant_id = s.tenant_id AND d.id = s.driver_id
             WHERE s.tenant_id = :tenantId AND s.id IN (:shiftIds) AND s.status = 'AVAILABLE'
               AND v.status = 'ACTIVE' AND v.service_class = :serviceClass AND d.status = 'APPROVED'
+              AND EXISTS (
+                SELECT 1 FROM driver_documents document
+                WHERE document.tenant_id = d.tenant_id AND document.driver_id = d.id
+                  AND document.document_type = 'DRIVING_LICENSE'
+                  AND document.verification_status = 'VERIFIED'
+                  AND document.expires_on >= :currentDate
+              )
             """)
         .param("tenantId", tenantId).param("shiftIds", shiftIds).param("serviceClass", serviceClass)
+        .param("currentDate", currentDate)
         .query((rs, row) -> new SupplyCandidate(rs.getObject("id", UUID.class),
             rs.getObject("driver_id", UUID.class), rs.getObject("vehicle_id", UUID.class))).list();
   }

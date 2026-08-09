@@ -3,8 +3,10 @@ package in.rsh.cab.dispatch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +32,7 @@ import in.rsh.cab.tenancy.TenantRole;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
@@ -81,7 +84,7 @@ class DispatchServiceTest {
             4, "STANDARD", NOW, NOW)));
     when(locations.nearby(eq(TENANT), any(), eq(5000.0), eq(10), eq(NOW), any()))
         .thenReturn(List.of(shift));
-    when(fleet.findAvailableCandidates(TENANT, List.of(shift), "STANDARD"))
+    when(fleet.findAvailableCandidates(TENANT, List.of(shift), "STANDARD", LocalDate.of(2026, 8, 8)))
         .thenReturn(List.of(new SupplyCandidate(shift, driver, vehicle)));
     List<DriverOffer> offers = service.start(requested.id(), 0);
     assertEquals(1, offers.size());
@@ -110,7 +113,7 @@ class DispatchServiceTest {
         driver, vehicle, DriverOfferStatus.PENDING, NOW.plusSeconds(30), null, NOW, NOW, 0);
     when(dispatch.lockOwnOffer(TENANT, ACCOUNT, offer.id())).thenReturn(Optional.of(offer));
     when(rides.find(TENANT, matching.id())).thenReturn(Optional.of(matching));
-    when(fleet.transitionShift(TENANT, shift, ShiftStatus.AVAILABLE, ShiftStatus.RESERVED, NOW))
+    when(fleet.reserveEligibleShift(TENANT, shift, driver, vehicle, LocalDate.of(2026, 8, 8), NOW))
         .thenReturn(true);
     when(rides.update(eq(TENANT), any(), eq(1L))).thenReturn(true);
     when(dispatch.respond(TENANT, offer.id(), "PENDING", "ACCEPTED", NOW)).thenReturn(true);
@@ -121,6 +124,71 @@ class DispatchServiceTest {
         driver, vehicle, DriverOfferStatus.PENDING, NOW, null, NOW.minusSeconds(30), NOW, 0);
     when(dispatch.lockOwnOffer(TENANT, ACCOUNT, expired.id())).thenReturn(Optional.of(expired));
     assertThrows(ConflictException.class, () -> service.accept(expired.id()));
+    verify(dispatch, never()).respond(TENANT, expired.id(), "PENDING", "EXPIRED", NOW);
+  }
+
+  @Test
+  void rejectsAcceptanceWhenCurrentEligibilityFails() {
+    context(TenantRole.DRIVER);
+    Ride matching = ride(RideStatus.MATCHING, 1, null, null, null);
+    DriverOffer offer = offer(matching, NOW.plusSeconds(30));
+    when(dispatch.lockOwnOffer(TENANT, ACCOUNT, offer.id())).thenReturn(Optional.of(offer));
+    when(rides.find(TENANT, matching.id())).thenReturn(Optional.of(matching));
+
+    assertThrows(ConflictException.class, () -> service.accept(offer.id()));
+    verify(rides, never()).update(eq(TENANT), any(), eq(1L));
+  }
+
+  @Test
+  void lastRejectionExhaustsAttemptAndMovesRideToNoDriver() {
+    context(TenantRole.DRIVER);
+    Ride matching = ride(RideStatus.MATCHING, 1, null, null, null);
+    DriverOffer offer = offer(matching, NOW.plusSeconds(30));
+    when(dispatch.lockOwnOffer(TENANT, ACCOUNT, offer.id())).thenReturn(Optional.of(offer));
+    when(dispatch.respond(TENANT, offer.id(), "PENDING", "REJECTED", NOW)).thenReturn(true);
+    when(dispatch.exhaustAttemptIfNoPending(TENANT, offer.attemptId(), NOW))
+        .thenReturn(Optional.of(matching.id()));
+    when(rides.find(TENANT, matching.id())).thenReturn(Optional.of(matching));
+    when(rides.update(eq(TENANT), any(), eq(1L))).thenReturn(true);
+
+    service.reject(offer.id());
+
+    verify(rides).update(eq(TENANT), any(), eq(1L));
+    verify(dispatch).exhaustAttemptIfNoPending(TENANT, offer.attemptId(), NOW);
+  }
+
+  @Test
+  void sweepExpiresDueOffersAndExhaustsCompletedAttempts() {
+    UUID attempt = UUID.randomUUID();
+    Ride matching = ride(RideStatus.MATCHING, 1, null, null, null);
+    when(dispatch.expireDueOffers(TENANT, NOW, 25)).thenReturn(List.of(attempt));
+    when(dispatch.exhaustAttemptIfNoPending(TENANT, attempt, NOW))
+        .thenReturn(Optional.of(matching.id()));
+    when(rides.find(TENANT, matching.id())).thenReturn(Optional.of(matching));
+    when(rides.update(eq(TENANT), any(), eq(1L))).thenReturn(true);
+
+    assertEquals(1, service.sweepExpired(TENANT, 25));
+  }
+
+  @Test
+  void retriesNoDriverRide() {
+    Ride noDriver = ride(RideStatus.NO_DRIVER, 2, null, null, null);
+    when(rides.find(TENANT, noDriver.id())).thenReturn(Optional.of(noDriver));
+    when(rides.update(eq(TENANT), any(), anyLong())).thenReturn(true);
+    when(pricing.findProduct(TENANT, noDriver.productId())).thenReturn(Optional.of(
+        new ServiceProduct(noDriver.productId(), "standard", "Standard", ProductStatus.ACTIVE,
+            4, "STANDARD", NOW, NOW)));
+    when(locations.nearby(eq(TENANT), any(), any(Double.class), eq(10), eq(NOW), any()))
+        .thenReturn(List.of());
+
+    assertEquals(List.of(), service.retry(noDriver.id(), 2));
+    verify(dispatch).insertAttempt(eq(TENANT), any(), eq(noDriver.id()), eq(5000), eq(10), eq(0),
+        eq("EXHAUSTED"), eq(NOW));
+  }
+
+  private DriverOffer offer(Ride matching, Instant expiresAt) {
+    return new DriverOffer(UUID.randomUUID(), UUID.randomUUID(), matching.id(), UUID.randomUUID(),
+        UUID.randomUUID(), UUID.randomUUID(), DriverOfferStatus.PENDING, expiresAt, null, NOW, NOW, 0);
   }
 
   private Ride ride(

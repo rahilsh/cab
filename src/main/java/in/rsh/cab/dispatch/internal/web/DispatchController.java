@@ -34,6 +34,12 @@ public class DispatchController {
     return dispatch.start(rideId, request.version());
   }
 
+  @PostMapping("/api/v1/dispatch/rides/{rideId}/retry")
+  public List<DriverOffer> retry(
+      @PathVariable UUID rideId, @Valid @RequestBody VersionRequest request) {
+    return dispatch.retry(rideId, request.version());
+  }
+
   @GetMapping("/api/v1/driver/offers")
   public List<DriverOffer> offers() {
     return dispatch.listOwnOffers();
