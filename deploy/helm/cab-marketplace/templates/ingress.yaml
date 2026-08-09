@@ -1,4 +1,7 @@
 {{- if .Values.ingress.enabled }}
+{{- if and .Values.ingress.requireTls (empty .Values.ingress.tls) }}
+{{- fail "ingress.tls must be configured when ingress.requireTls is true" }}
+{{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

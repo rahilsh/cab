@@ -131,7 +131,7 @@ curl --request POST http://localhost:8081/realms/cab/protocol/openid-connect/tok
   --data client_id=cab-local-cli \
   --data username=platform-admin \
   --data password=dev-only-platform-admin \
-  --data 'scope=openid platform.admin observability.read'
+  --data 'scope=openid'
 ```
 
 Local users are `platform-admin`, `operator`, `driver`, and `rider`; their matching realm roles are
@@ -207,7 +207,10 @@ The HTTP API is versioned under `/api/v1`:
 | `POST` | `/api/v1/driver/shifts/{id}/go-online` | Move an `OFFLINE` shift to `AVAILABLE` |
 | `POST` | `/api/v1/driver/shifts/{id}/go-offline` | Move an `AVAILABLE` shift to `OFFLINE` |
 | `POST` | `/api/v1/driver/shifts/{id}/close` | Close an offline shift |
-| `POST` | `/api/v1/current-tenant/roles/{role}` | Admin self-grant of `RIDER` or `DRIVER` for operations/testing |
+| `POST` | `/api/v1/current-tenant/roles/RIDER` | Let any active member opt into the rider role |
+| `POST` | `/api/v1/current-tenant/invitations` | Create an expiring email invitation; requires `TENANT_ADMIN` |
+| `POST` | `/api/v1/tenant-invitations/accept` | Accept an invitation as the matching verified OIDC email |
+| `POST` | `/api/v1/current-tenant/memberships` | Add an existing active account; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/products` | Create or list service products; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/pricing-rules` | Create or list versioned pricing rules; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/quotes` | Create or list the authenticated rider's immutable fare quotes |
@@ -216,7 +219,7 @@ The HTTP API is versioned under `/api/v1`:
 | `PUT` | `/api/v1/driver/location` | Persist and publish a fresh ordered location for the authenticated driver's available shift |
 | `POST`, `GET` | `/api/v1/rides` | Create a ride from an owned quote or list the authenticated rider's rides |
 | `GET`, `POST` | `/api/v1/rides/{id}` | Read an owned ride or cancel it at `/cancel` |
-| `GET` | `/api/v1/rides/{id}/events` | Stream authorized ride status events with SSE |
+| `GET` | `/api/v1/rides/{id}/events` | Stream authorized ride status events with an initial current snapshot and `Last-Event-ID` hint |
 | `POST` | `/api/v1/dispatch/rides/{id}/start` | Search bounded fresh supply and create expiring offers; requires `TENANT_ADMIN` or `DISPATCHER` |
 | `POST` | `/api/v1/dispatch/rides/{id}/retry` | Retry matching a versioned `NO_DRIVER` ride; requires `TENANT_ADMIN` or `DISPATCHER` |
 | `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
@@ -232,10 +235,13 @@ The HTTP API is versioned under `/api/v1`:
 | `POST` | `/api/v1/payment-providers/{provider}/accounts/{id}/events` | Receive signed provider callbacks |
 | `PUT`, `GET` | `/api/v1/notification-preferences` | Manage rider/driver event and channel preferences |
 | `POST` | `/api/v1/rides/{id}/ratings` | Rate the other participant after a completed ride |
+| `GET` | `/api/v1/ratings/{id}` | Read a rating as its reviewer or reviewee |
 | `POST`, `GET` | `/api/v1/support/cases` | Create an owned case or list visible tenant cases |
-| `POST` | `/api/v1/support/cases/{id}/state` | Triage a case; requires `SUPPORT` or `TENANT_ADMIN` |
+| `GET` | `/api/v1/support/cases/{id}` | Read an owned case or any case as support staff |
+| `POST` | `/api/v1/support/cases/{id}/state` | Apply an expected-state/version transition; requires `SUPPORT` or `TENANT_ADMIN` |
 | `POST` | `/api/v1/support/cases/{id}/messages`, `/assignments` | Add a case message or assignment |
 | `POST`, `GET` | `/api/v1/safety/incidents` | Participant reporting and restricted safety listing |
+| `GET` | `/api/v1/safety/incidents/{id}` | Read an incident as a ride participant or restricted safety staff |
 | `POST` | `/api/v1/safety/incidents/{id}/evidence` | Add external evidence metadata; no bytes or URLs |
 | `POST` | `/api/v1/safety/incidents/{id}/actions` | Apply audited restricted safety actions |
 | `POST`, `GET`, `PUT`, `DELETE` | `/api/v1/admin/webhook-subscriptions` | Manage tenant outbound webhooks |
@@ -250,12 +256,13 @@ counters. The `prod` profile emits Logstash-compatible structured JSON with safe
 correlation ID and authorized tenant/account UUIDs; request bodies, tokens, and idempotency keys are
 never added to MDC.
 
-Authenticated `/api/v1` tenant operations are rate limited by tenant and account using an atomic
-Redis counter. Configure `RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS` (default `120`), and
-`RATE_LIMIT_WINDOW` (default `PT1M`). Rejections use RFC problem JSON, status `429`, and
-`Retry-After`; health probes, tenant provisioning/listing, and signed provider callbacks are not
-included in this tenant limiter. Responses expose `RateLimit-Limit`, `RateLimit-Remaining`, and
-`RateLimit-Reset` headers.
+All `/api/v1` requests receive an early Redis-backed IP limit, with an additional authenticated
+subject limit. Signed payment callbacks also receive a separate account-and-IP limit before body
+handling. Tenant operations retain the tenant-and-account limiter. Configure these with
+`RATE_LIMIT_PRE_TENANT_REQUESTS`, `RATE_LIMIT_CALLBACK_REQUESTS`, `RATE_LIMIT_REQUESTS`, and
+`RATE_LIMIT_WINDOW`. Health probes are excluded. JSON requests over `REQUEST_MAX_BYTES` and callback
+bodies over `CALLBACK_REQUEST_MAX_BYTES` return RFC problem status `413` when `Content-Length` is
+present; Tomcat form and swallow limits provide an additional container bound.
 
 Tenant-owned requests require `X-Tenant-ID`. The header is only a selector: the backend verifies
 that the authenticated OIDC identity has an active database membership before binding tenant roles
@@ -273,6 +280,21 @@ verify or reject it once, with verifier attribution and append-only history. Obj
 and traversal. Document bytes, fetchable URLs, and raw secrets are never accepted. A license remains
 valid through its `expiresOn` date; a null expiry has no stated expiration. Approval requires at
 least one verified, non-expired `DRIVING_LICENSE`.
+
+Support and safety state changes require the caller's expected state and optimistic version. Stale
+or disallowed transitions return `409`, and `CLOSED` is terminal. Support assignments verify that
+the assignee has an active persisted `SUPPORT` or `TENANT_ADMIN` role. Case reads include messages
+(excluding internal messages for non-staff), incident reads include evidence, and settlement list
+responses include payouts.
+
+Fare quote snapshots remain immutable. Quote GET/list responses derive `EXPIRED` at read time from
+the application clock once an active quote reaches `expiresAt`.
+
+Tenant administrators can invite a normalized email with roles or add an existing account directly.
+Invitations return their opaque token only at creation, store only a SHA-256 hash, expire after
+`TENANT_INVITATION_TTL`, and require the accepting token's verified email to match. Members may
+self-grant only `RIDER`; `DRIVER` is never available through self-service. Tenant webhook signing
+secrets must use `env:CAB_WEBHOOK_*` references and be mounted through the deployment environment.
 
 Live locations require an owned `AVAILABLE` shift and monotonically increasing sequence and device
 timestamp. Redis keys are tenant namespaced; a Lua script atomically updates GEO membership and

@@ -3,6 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/rahilsh/cab
   tag: ""
+  digest: ""
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 
@@ -38,6 +39,7 @@ service:
 
 ingress:
   enabled: false
+  requireTls: true
   className: ""
   annotations: {}
   hosts:
@@ -56,7 +58,7 @@ config:
   oidcAudience: cab-api
   osrmBaseUrl: http://osrm:5000
   springProfilesActive: prod
-  flywayEnabled: "true"
+  flywayEnabled: "false"
   apiDocsEnabled: "false"
   swaggerUiEnabled: "false"
   outboxDispatcherEnabled: "true"
@@ -70,7 +72,25 @@ existingSecret:
   migrationDatabasePasswordKey: migration-database-password
   fakePaymentWebhookSecretKey: fake-payment-webhook-secret
 
+migration:
+  enabled: true
+  # The pre-install hook runs before chart-managed ServiceAccounts exist.
+  serviceAccountName: default
+  backoffLimit: 1
+  activeDeadlineSeconds: 900
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
 extraEnv: []
+
+# Additional externally managed secrets, including tenant webhook signing secrets.
+# Example: { name: CAB_WEBHOOK_PARTNER_A, secretName: cab-webhooks, key: partner-a }
+extraSecretEnv: []
 
 resources:
   requests:

@@ -12,7 +12,7 @@ ruleset that:
 - Requires pull requests, at least one approval, CODEOWNERS review, and dismissal of stale approvals.
 - Requires conversation resolution and blocks force pushes and deletions.
 - Requires branches to be current before merge and requires linear history.
-- Requires `Java CI / build`, `Dependency review / review`, `CodeQL / analyze`, and `PR title / conventional-commit`.
+- Requires `Java CI / build`, `Java CI / deployment-assets`, `Dependency review / review`, `CodeQL / analyze`, and `PR title / conventional-commit`.
 - Prevents bypass except for a documented emergency maintainer role.
 - Restricts workflow-file changes to CODEOWNERS review.
 
@@ -26,9 +26,10 @@ maintainers. Require maintainers to sign release tags as described in `RELEASING
 ## Workflow Scope
 
 - `maven.yml` runs `./mvnw clean verify` with Docker available for Testcontainers and always retains test and coverage reports.
+- Its deployment-assets job runs actionlint, validates Compose, builds the Dockerfile, and lints and renders the Helm chart with digest-pinned tool containers.
 - `dependency-review.yml` blocks newly introduced high-severity vulnerable dependencies and selected strong-copyleft licenses.
 - `codeql.yml` analyzes Java on pull requests, `main`, and weekly.
-- `release.yml` builds release artifacts and a GHCR image on semantic tags or a manual existing-tag rerun. It never deploys.
+- `release.yml` accepts annotated semantic tags reachable from `origin/main`, builds release artifacts and a GHCR image, and never deploys.
 
 Fork pull requests receive read-only tokens. Workflows that write packages, attestations, or releases
 run only for a maintainer-created release tag. The `pull_request_target` Dependabot workflow never

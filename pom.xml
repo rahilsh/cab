@@ -277,7 +277,7 @@
       <version>1.4.1</version>
     </dependency>
   </dependencies>
-  <description>Cab Management portal</description>
+  <description>Multi-tenant ride-hailing marketplace API</description>
   <groupId>in.rsh.cab</groupId>
   <url>https://github.com/rahilsh/cab</url>
   <licenses>

@@ -1,14 +1,18 @@
 package in.rsh.cab;
 
+import in.rsh.cab.config.MigrationApplication;
+import java.util.Arrays;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
 public class CabApplication {
 
   public static void main(String[] args) {
-    SpringApplication.run(CabApplication.class, args);
+    Class<?> application =
+        Arrays.asList(args).contains("--app.migration=true")
+            ? MigrationApplication.class
+            : CabApplication.class;
+    SpringApplication.run(application, args);
   }
 }

@@ -2,7 +2,7 @@
 
 ## Preconditions
 
-- Build and scan an immutable image from a reviewed commit; deploy by digest or immutable tag.
+- Build and scan an immutable image from a reviewed commit; deploy by digest.
 - Run `./mvnw clean verify`, `docker build`, `docker-compose config`, and Helm lint/template.
 - Provision PostgreSQL 17 with PostGIS, Redis 7, OIDC, OSRM, and object storage independently.
 - Create the Kubernetes Secret named by `existingSecret.name` with separate restricted application
@@ -11,12 +11,17 @@
 
 ## Deploy
 
-1. Follow [the migration runbook](migrations.md). Keep the API at one replica during startup migrations.
+1. Follow [the migration runbook](migrations.md). The chart's migration Job must succeed before the API rollout starts.
 2. Render and review manifests with the exact production values and image digest.
-3. Run `helm upgrade --install cab deploy/helm/cab-marketplace -n cab -f values-production.yaml --wait --timeout 10m`.
+3. Ensure `values-production.yaml` sets `existingSecret.name` and `image.digest`, then run `helm upgrade --install cab deploy/helm/cab-marketplace -n cab -f values-production.yaml --wait --wait-for-jobs --timeout 10m`.
 4. Check rollout status, pod events, `/actuator/health/readiness`, logs, error rate, latency, and database/Redis saturation.
 5. Exercise an authenticated read and a low-risk write using a synthetic tenant.
-6. Scale out or enable HPA only after the first pod is ready and Flyway has completed.
+6. Scale out or enable HPA only after the migration Job succeeded and the first pod is ready.
+
+The chart renders digest deployments as `repository@sha256:...`. Production values must also define
+environment-specific NetworkPolicy egress before enabling it. Ingress is off by default and requires
+a non-empty TLS configuration when enabled unless `ingress.requireTls=false` is an explicit platform
+decision.
 
 ## Outbox Operations
 

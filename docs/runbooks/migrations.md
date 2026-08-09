@@ -28,10 +28,9 @@ ALTER DEFAULT PRIVILEGES FOR ROLE cab_migration IN SCHEMA public
 
 Set `DATABASE_USERNAME`/`DATABASE_PASSWORD` to the application role. Set
 `MIGRATION_DATABASE_USERNAME`/`MIGRATION_DATABASE_PASSWORD` to the migration role. Both use
-`DATABASE_URL` unless `MIGRATION_DATABASE_URL` is supplied. Prefer running Flyway in a separately
-controlled migration job and setting `FLYWAY_ENABLED=false` on application pods afterward. If
-Flyway runs at application startup, protect the stronger migration credentials as deployment
-credentials and keep the rollout at one replica until migration completes.
+`DATABASE_URL` unless `MIGRATION_DATABASE_URL` is supplied. The chart mounts migration credentials
+only into its pre-install/pre-upgrade Job. API pods default to `FLYWAY_ENABLED=false` and receive
+only application credentials.
 
 ## Before Deployment
 
@@ -41,18 +40,19 @@ credentials and keep the rollout at one replica until migration completes.
 3. Measure lock time and disk growth; schedule a maintenance window when the operation cannot remain
    online.
 4. Take and verify a backup immediately before a risky migration.
-5. For startup migrations, set Helm `replicaCount: 1` and disable HPA for the migration-bearing rollout.
+5. Render the Helm migration Job with the exact image digest and production values, and confirm its deadline is sufficient.
 
 ## Apply And Verify
 
-1. Deploy one new pod and watch its logs for Flyway completion.
+1. Run `helm upgrade`; watch the `*-migration` hook Job and preserve its logs.
 2. Inspect `flyway_schema_history` and confirm exactly the expected versions succeeded.
-3. Wait for readiness, exercise critical reads/writes, then scale out.
+3. Confirm the Job completed, wait for API readiness, and exercise critical reads/writes.
 
-Flyway's PostgreSQL advisory locking prevents concurrent application migrators, but it does not make
-an unsafe DDL change safe. For long migrations, use a separately reviewed Flyway/SQL Job with the
-application Deployment scaled to zero, then restore replicas. The application image does not expose
-a migration-only command and must not be used as a Job that would remain running after startup.
+The hook passes `--app.migration=true` to select the dedicated `MigrationApplication` source and invokes the `migration` profile.
+That minimal application disables the web server, Hibernate, scheduling, dispatch maintenance, and
+outbox delivery; Spring Boot applies Flyway migrations and `MigrationRunner` then closes the context. Flyway's
+PostgreSQL advisory locking prevents concurrent migrators, but it does not make unsafe DDL safe. For
+long or incompatible migrations, use a separately reviewed Job with the API scaled to zero.
 
 ## Failure
 
