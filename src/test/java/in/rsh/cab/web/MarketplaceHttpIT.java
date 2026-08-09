@@ -14,6 +14,7 @@ import in.rsh.cab.payment.PaymentAccount;
 import in.rsh.cab.payment.PaymentOperationWorker;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
 import in.rsh.cab.tenancy.TenantExecution;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -231,6 +232,18 @@ class MarketplaceHttpIT {
         postWithBearer("/api/v1/tenants", "oversized-user", "x".repeat(4097));
     assertEquals(413, oversized.statusCode(), oversized.body());
     assertEquals("payload-too-large", JSON.readTree(oversized.body()).get("code").asText());
+
+    HttpResponse<String> chunkedOversized =
+        postChunked("/api/v1/tenants", "oversized-user", "x".repeat(4097));
+    assertEquals(413, chunkedOversized.statusCode(), chunkedOversized.body());
+    assertEquals("payload-too-large", JSON.readTree(chunkedOversized.body()).get("code").asText());
+
+    HttpResponse<String> chunkedOversizedCallback =
+        postChunked(
+            "/api/v1/payment-providers/fake/accounts/" + UUID.randomUUID() + "/events",
+            null,
+            "x".repeat(2049));
+    assertEquals(413, chunkedOversizedCallback.statusCode(), chunkedOversizedCallback.body());
 
     assertEquals(
         204, postWithTenant("/api/v1/current-tenant/roles/RIDER", tenantId, "").statusCode());
@@ -785,6 +798,12 @@ class MarketplaceHttpIT {
     assertEquals(201, refundResponse.statusCode(), refundResponse.body());
     assertEquals("false", refundResponse.headers().firstValue("Idempotent-Replayed").orElseThrow());
     String refundId = JSON.readTree(refundResponse.body()).get("id").asText();
+    assertEquals(
+        518,
+        JSON.readTree(getWithTenant("/api/v1/driver/earnings", tenantId, "platform-admin").body())
+            .get(0)
+            .get("availableMinor")
+            .asLong());
     HttpResponse<String> replayedRefund =
         postWithTenantAndIdempotency(
             "/api/v1/finance/payments/" + paymentId + "/refunds",
@@ -862,22 +881,65 @@ class MarketplaceHttpIT {
     assertTrue(paymentWorker.process(payoutRequest));
     payoutEvents.forEach(outboxPoller::published);
     Instant payoutTimestamp = Instant.now();
-    String payoutBody =
-        "{\"eventId\":\"payout-event-1\",\"type\":\"PAYOUT_SUCCEEDED\","
+    String payoutFailureBody =
+        "{\"eventId\":\"payout-event-1\",\"type\":\"PAYOUT_FAILED\","
             + "\"paymentId\":null,\"refundId\":null,\"payoutId\":\""
             + payoutId
             + "\","
             + "\"providerObjectId\":\"fake-payout-"
             + payoutId
             + "\",\"providerVersion\":1,"
+            + "\"amountMinor\":518,\"currency\":\"USD\",\"failureCode\":\"DECLINED\"}";
+    assertEquals(
+        200,
+        providerCallback(paymentAccount.id(), payoutTimestamp, payoutFailureBody).statusCode());
+    JsonNode failedSettlements =
+        JSON.readTree(
+            getWithTenant("/api/v1/finance/settlements", tenantId, "platform-admin").body());
+    assertEquals("FAILED", failedSettlements.get(0).get("payouts").get(0).get("state").asText());
+    assertEquals(
+        0,
+        JSON.readTree(getWithTenant("/api/v1/driver/earnings", tenantId, "platform-admin").body())
+            .get(0)
+            .get("availableMinor")
+            .asLong());
+    HttpResponse<String> releaseResponse =
+        postWithTenant("/api/v1/finance/payouts/" + payoutId + "/release-failed", tenantId, "");
+    assertEquals(200, releaseResponse.statusCode(), releaseResponse.body());
+    assertEquals("RELEASED", JSON.readTree(releaseResponse.body()).get("state").asText());
+    HttpResponse<String> repeatedRelease =
+        postWithTenant("/api/v1/finance/payouts/" + payoutId + "/release-failed", tenantId, "");
+    assertEquals(200, repeatedRelease.statusCode(), repeatedRelease.body());
+    assertEquals(
+        518,
+        JSON.readTree(getWithTenant("/api/v1/driver/earnings", tenantId, "platform-admin").body())
+            .get(0)
+            .get("availableMinor")
+            .asLong());
+    String latePayoutSuccessBody =
+        "{\"eventId\":\"payout-event-2\",\"type\":\"PAYOUT_SUCCEEDED\","
+            + "\"paymentId\":null,\"refundId\":null,\"payoutId\":\""
+            + payoutId
+            + "\",\"providerObjectId\":\"fake-payout-"
+            + payoutId
+            + "\",\"providerVersion\":2,"
             + "\"amountMinor\":518,\"currency\":\"USD\",\"failureCode\":null}";
     assertEquals(
-        200, providerCallback(paymentAccount.id(), payoutTimestamp, payoutBody).statusCode());
+        200,
+        providerCallback(paymentAccount.id(), Instant.now(), latePayoutSuccessBody).statusCode());
     JsonNode settlements =
         JSON.readTree(
             getWithTenant("/api/v1/finance/settlements", tenantId, "platform-admin").body());
-    assertEquals("COMPLETED", settlements.get(0).get("state").asText());
+    assertEquals("FAILED", settlements.get(0).get("state").asText());
     assertEquals(payoutId, settlements.get(0).get("payouts").get(0).get("id").asText());
+    assertEquals(
+        "RECONCILIATION_REQUIRED", settlements.get(0).get("payouts").get(0).get("state").asText());
+    assertEquals(
+        518,
+        JSON.readTree(getWithTenant("/api/v1/driver/earnings", tenantId, "platform-admin").body())
+            .get(0)
+            .get("availableMinor")
+            .asLong());
   }
 
   @Test
@@ -1031,6 +1093,26 @@ class MarketplaceHttpIT {
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postChunked(String path, String token, String body)
+      throws Exception {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .header("X-Provider-Timestamp", "0")
+            .header("X-Provider-Signature", "invalid");
+    if (token != null) {
+      request.header("Authorization", "Bearer " + token);
+    }
+    return httpClient.send(
+        request
+            .POST(
+                HttpRequest.BodyPublishers.ofInputStream(
+                    () -> new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8))))
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
   }
 
   private HttpResponse<String> postWithTenant(String path, String tenantId, String body)
