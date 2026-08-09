@@ -67,6 +67,15 @@ public class DriverDocumentService {
   }
 
   @Transactional(readOnly = true)
+  public DriverDocument getOwn(UUID documentId) {
+    TenantContext context = require(TenantRole.DRIVER);
+    DriverProfile driver = drivers.findByTenantIdAndAccountId(context.tenantId(), context.accountId())
+        .orElseThrow(() -> new NotFoundException("Driver profile not found"));
+    return documents.find(context.tenantId(), driver.id(), documentId)
+        .orElseThrow(() -> new NotFoundException("Driver document not found"));
+  }
+
+  @Transactional(readOnly = true)
   public List<DriverDocument> list(UUID driverId) {
     TenantContext context = require(TenantRole.TENANT_ADMIN);
     requireDriver(context.tenantId(), driverId);

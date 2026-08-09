@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.audit.AuditService;
 import in.rsh.cab.exception.InvalidRequestException;
+import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.safety.internal.persistence.SafetyRepository;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
@@ -51,8 +52,11 @@ class SafetyServiceTest {
     context(TenantRole.SAFETY);
     when(repository.find(TENANT, incident.id())).thenReturn(Optional.of(incident), Optional.of(
         new SafetyIncident(incident.id(), RIDE, ACCOUNT, incident.category(), incident.description(),
-            "TRIAGED", "HIGH", NOW, NOW, List.of())));
-    assertEquals("TRIAGED", service.action(incident.id(), "TRIAGE", "TRIAGED", "HIGH", null).state());
+            "TRIAGED", "HIGH", NOW, NOW, 1, List.of())));
+    when(repository.update(TENANT, incident.id(), "REPORTED", "TRIAGED", "HIGH", 0, NOW))
+        .thenReturn(true);
+    assertEquals("TRIAGED", service.action(incident.id(), "TRIAGE", "REPORTED", "TRIAGED",
+        "HIGH", 0, null).state());
     when(repository.findAll(TENANT)).thenReturn(List.of(incident));
     assertEquals(1, service.listRestricted().size());
   }
@@ -64,13 +68,30 @@ class SafetyServiceTest {
         () -> service.report(RIDE, "UNSAFE_DRIVING", "hard braking"));
     assertThrows(TenantAccessDeniedException.class, service::listRestricted);
     SafetyIncident incident = new SafetyIncident(UUID.randomUUID(), RIDE, ACCOUNT, "OTHER", "x",
-        "REPORTED", "UNASSESSED", NOW, NOW, List.of());
+        "REPORTED", "UNASSESSED", NOW, NOW, 0, List.of());
     when(repository.find(TENANT, incident.id())).thenReturn(Optional.of(incident));
     assertThrows(InvalidRequestException.class, () -> service.addEvidence(incident.id(),
         "https://objects.example/evidence", "image/jpeg", 10L, null));
     SafetyIncident.Evidence evidence = service.addEvidence(incident.id(),
         "tenant/incidents/photo.jpg", "image/jpeg", 10L, null);
     verify(repository).insertEvidence(TENANT, incident.id(), evidence);
+  }
+
+  @Test
+  void closedIncidentCannotReopenAndParticipantCanGetHydratedIncident() {
+    SafetyIncident.Evidence evidence = new SafetyIncident.Evidence(UUID.randomUUID(), ACCOUNT,
+        "incident/photo.jpg", "image/jpeg", 10L, null, NOW);
+    SafetyIncident closed = new SafetyIncident(UUID.randomUUID(), RIDE, ACCOUNT, "OTHER", "x",
+        "CLOSED", "HIGH", NOW, NOW, 4, List.of(evidence));
+    when(repository.find(TENANT, closed.id())).thenReturn(Optional.of(closed));
+
+    context(TenantRole.SAFETY);
+    assertThrows(ConflictException.class, () -> service.action(closed.id(), "REOPEN", "CLOSED",
+        "INVESTIGATING", "HIGH", 4, null));
+
+    context(TenantRole.RIDER);
+    when(repository.isRideParticipant(TENANT, RIDE, ACCOUNT)).thenReturn(true);
+    assertEquals(List.of(evidence), service.get(closed.id()).evidence());
   }
 
   private void context(TenantRole role) {

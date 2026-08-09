@@ -79,6 +79,17 @@ class RatingServiceTest {
     assertThrows(ConflictException.class, () -> service.create(RIDE, 3, null));
   }
 
+  @Test
+  void participantGetsOwnRating() {
+    context(ACCOUNT, TenantRole.RIDER);
+    Rating rating = new Rating(UUID.randomUUID(), RIDE, ACCOUNT, UUID.randomUUID(), "RIDER",
+        "DRIVER", 5, null, "PUBLISHED", NOW);
+    when(repository.findOwn(TENANT, ACCOUNT, rating.id())).thenReturn(Optional.of(rating));
+
+    assertEquals(rating, service.getOwn(rating.id()));
+    assertThrows(NotFoundException.class, () -> service.getOwn(UUID.randomUUID()));
+  }
+
   private void context(UUID account, TenantRole role) {
     TenantContext.set(new TenantContext(TENANT, account, UUID.randomUUID(), Set.of(role)));
   }

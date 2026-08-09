@@ -36,7 +36,7 @@ public class VehicleController {
   @PostMapping
   public ResponseEntity<Vehicle> create(@Valid @RequestBody CreateVehicleRequest request) {
     Vehicle vehicle = fleet.createVehicle(request.registration(), request.serviceClass(), request.capacity());
-    return ResponseEntity.created(URI.create("/api/v1/vehicles/" + vehicle.id())).body(vehicle);
+    return ResponseEntity.created(URI.create("/api/v1/vehicles")).body(vehicle);
   }
 
   @GetMapping

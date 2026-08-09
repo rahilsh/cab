@@ -201,7 +201,8 @@ CREATE TABLE safety_evidence (
     CONSTRAINT fk_safety_evidence_submitter FOREIGN KEY (tenant_id, submitted_by_account_id)
         REFERENCES tenant_memberships (tenant_id, user_account_id),
     CONSTRAINT chk_safety_evidence_key CHECK (
-        object_key ~ '^[A-Za-z0-9][A-Za-z0-9._/-]{0,511}$'
+        length(object_key) BETWEEN 1 AND 512
+        AND object_key ~ '^[A-Za-z0-9][A-Za-z0-9._/-]*$'
         AND object_key !~ '(^|/)\.\.(/|$)' AND object_key !~ '^[a-zA-Z][a-zA-Z0-9+.-]*:'),
     CONSTRAINT chk_safety_evidence_size CHECK (size_bytes IS NULL OR size_bytes >= 0),
     CONSTRAINT chk_safety_evidence_checksum CHECK

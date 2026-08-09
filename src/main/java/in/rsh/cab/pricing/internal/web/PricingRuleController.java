@@ -35,7 +35,7 @@ public class PricingRuleController {
         request.productId(), request.effectiveFrom(), request.effectiveTo(), request.baseFareMinor(),
         request.perKmMinor(), request.perMinuteMinor(), request.minimumFareMinor(), request.currency(),
         request.surgeBasisPoints(), request.taxBasisPoints(), request.active());
-    return ResponseEntity.created(URI.create("/api/v1/pricing-rules/" + rule.id())).body(rule);
+    return ResponseEntity.created(URI.create("/api/v1/pricing-rules")).body(rule);
   }
 
   @GetMapping

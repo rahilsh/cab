@@ -74,6 +74,17 @@ public class RatingService {
     return rating;
   }
 
+  @Transactional(readOnly = true)
+  public Rating getOwn(UUID ratingId) {
+    TenantContext context = TenantContext.require();
+    if (!context.roles().contains(TenantRole.RIDER)
+        && !context.roles().contains(TenantRole.DRIVER)) {
+      throw new TenantAccessDeniedException("RIDER or DRIVER role is required");
+    }
+    return ratings.findOwn(context.tenantId(), context.accountId(), ratingId)
+        .orElseThrow(() -> new NotFoundException("Rating not found"));
+  }
+
   private record RatingEvent(UUID ratingId, UUID rideId, UUID revieweeAccountId, int score) {}
 
   private record RatingAudit(UUID rideId, int score) {}

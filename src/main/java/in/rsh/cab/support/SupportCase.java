@@ -13,6 +13,7 @@ public record SupportCase(
     String priority,
     Instant createdAt,
     Instant updatedAt,
+    long version,
     List<Message> messages) {
 
   public record Message(

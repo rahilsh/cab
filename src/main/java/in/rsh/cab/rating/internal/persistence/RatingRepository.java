@@ -10,5 +10,7 @@ public interface RatingRepository {
 
   void insert(UUID tenantId, Rating rating);
 
+  Optional<Rating> findOwn(UUID tenantId, UUID accountId, UUID ratingId);
+
   record RideParticipants(UUID riderAccountId, UUID driverAccountId) {}
 }

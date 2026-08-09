@@ -209,13 +209,30 @@ public class PricingService {
   public FareQuote getOwnQuote(UUID quoteId) {
     TenantContext context = require(TenantRole.RIDER);
     return pricing.findQuote(context.tenantId(), context.accountId(), quoteId)
+        .map(this::withDerivedStatus)
         .orElseThrow(() -> new NotFoundException("Fare quote not found"));
   }
 
   @Transactional(readOnly = true)
   public List<FareQuote> listOwnQuotes() {
     TenantContext context = require(TenantRole.RIDER);
-    return pricing.findQuotes(context.tenantId(), context.accountId());
+    return pricing.findQuotes(context.tenantId(), context.accountId()).stream()
+        .map(this::withDerivedStatus).toList();
+  }
+
+  private FareQuote withDerivedStatus(FareQuote quote) {
+    if (quote.status() != QuoteStatus.ACTIVE || clock.instant().isBefore(quote.expiresAt())) {
+      return quote;
+    }
+    return new FareQuote(quote.id(), quote.productId(), quote.pricingRuleId(),
+        quote.pricingRuleVersion(), quote.pickup(), quote.dropoff(), quote.routeDistanceMeters(),
+        quote.routeDurationSeconds(), quote.baseRateMinor(), quote.perKmRateMinor(),
+        quote.perMinuteRateMinor(), quote.minimumFareMinor(), quote.surgeBasisPoints(),
+        quote.taxBasisPoints(), quote.baseFareMinor(), quote.distanceFareMinor(),
+        quote.timeFareMinor(), quote.minimumAdjustmentMinor(), quote.subtotalMinor(),
+        quote.surgeMinor(), quote.taxMinor(), quote.totalMinor(), quote.currency(),
+        QuoteStatus.EXPIRED, quote.expiresAt(), quote.requestFingerprint(), quote.createdAt(),
+        quote.updatedAt(), quote.version());
   }
 
   private FareQuote calculateQuote(

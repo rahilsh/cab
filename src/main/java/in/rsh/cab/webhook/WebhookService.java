@@ -22,6 +22,7 @@ public class WebhookService {
 
   public static final Set<String> EVENT_ALLOWLIST = Set.of(
       "ride.created", "ride.status_changed", "ride.completed", "ride.cancelled",
+      "ride.driver_assigned", "ride.no_driver",
       "rating.created", "support.case_created", "support.case_state_changed");
   private final WebhookRepository subscriptions;
   private final WebhookSecurity security;
@@ -88,8 +89,9 @@ public class WebhookService {
 
   private void validate(String url, String secretReference, Set<String> eventFilters) {
     security.validate(url);
-    if (secretReference == null || !secretReference.matches("^env:[A-Za-z_][A-Za-z0-9_]*$")) {
-      throw new InvalidRequestException("Webhook secret must be an env: reference");
+    if (secretReference == null || !secretReference.matches("^env:CAB_WEBHOOK_[A-Z0-9_]+$")) {
+      throw new InvalidRequestException(
+          "Webhook secret must use an env:CAB_WEBHOOK_ reference");
     }
     if (eventFilters == null || eventFilters.isEmpty()
         || !EVENT_ALLOWLIST.containsAll(eventFilters)) {

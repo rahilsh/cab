@@ -36,8 +36,8 @@ public class WebhookController {
   public ResponseEntity<WebhookSubscription> create(@Valid @RequestBody SubscriptionRequest request) {
     WebhookSubscription subscription = webhooks.create(request.url(), request.secretReference(),
         request.eventFilters(), request.enabled());
-    return ResponseEntity.created(URI.create("/api/v1/admin/webhook-subscriptions/"
-        + subscription.id())).body(subscription);
+    return ResponseEntity.created(URI.create("/api/v1/admin/webhook-subscriptions"))
+        .body(subscription);
   }
 
   @GetMapping

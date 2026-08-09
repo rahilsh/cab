@@ -92,6 +92,18 @@ class RideEventStreamTest {
     TransactionSynchronizationManager.setActualTransactionActive(false);
   }
 
+  @Test
+  void resumeSubscriptionAlwaysStartsWithCurrentSnapshot() throws IOException {
+    Ride ride = ride();
+    context(TenantRole.TENANT_ADMIN);
+    when(rides.find(TENANT, ride.id())).thenReturn(Optional.of(ride));
+
+    stream.subscribe(ride.id(), 1L);
+
+    verify(emitter).send(org.mockito.ArgumentMatchers.any(SseEmitter.SseEventBuilder.class));
+    assertEquals(1, stream.subscriberCount(TENANT, ride.id()));
+  }
+
   private Ride ride() {
     return new Ride(UUID.randomUUID(), ACCOUNT, UUID.randomUUID(), UUID.randomUUID(),
         new GeoPoint(12.95, 77.6), new GeoPoint(13.0, 77.65), 100, "USD",

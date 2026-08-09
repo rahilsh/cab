@@ -32,7 +32,7 @@ public class ServiceAreaController {
     ServiceArea serviceArea =
         serviceAreaService.create(
             request.slug(), request.name(), request.timezone(), request.boundary());
-    return ResponseEntity.created(URI.create("/api/v1/service-areas/" + serviceArea.id()))
+    return ResponseEntity.created(URI.create("/api/v1/service-areas"))
         .body(serviceArea);
   }
 

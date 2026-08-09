@@ -33,7 +33,7 @@ public class DriverController {
   public ResponseEntity<DriverProfile> create(@Valid @RequestBody CreateDriverRequest request) {
     DriverProfile driver =
         drivers.create(request.accountId(), request.legalName(), request.phoneNumber());
-    return ResponseEntity.created(URI.create("/api/v1/drivers/" + driver.id())).body(driver);
+    return ResponseEntity.created(URI.create("/api/v1/drivers")).body(driver);
   }
 
   @GetMapping

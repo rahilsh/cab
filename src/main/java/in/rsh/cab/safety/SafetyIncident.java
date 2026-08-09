@@ -14,6 +14,7 @@ public record SafetyIncident(
     String severity,
     Instant createdAt,
     Instant updatedAt,
+    long version,
     List<Evidence> evidence) {
 
   public record Evidence(

@@ -1,6 +1,7 @@
 package in.rsh.cab.safety;
 
 import in.rsh.cab.audit.AuditService;
+import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.exception.InvalidRequestException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.operations.OutboxService;
@@ -11,6 +12,7 @@ import in.rsh.cab.tenancy.TenantRole;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -21,8 +23,12 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class SafetyService {
 
-  private static final Set<String> STATES =
-      Set.of("REPORTED", "TRIAGED", "INVESTIGATING", "RESOLVED", "CLOSED");
+  private static final Map<String, Set<String>> TRANSITIONS = Map.of(
+      "REPORTED", Set.of("TRIAGED", "CLOSED"),
+      "TRIAGED", Set.of("INVESTIGATING", "RESOLVED", "CLOSED"),
+      "INVESTIGATING", Set.of("RESOLVED", "CLOSED"),
+      "RESOLVED", Set.of("INVESTIGATING", "CLOSED"),
+      "CLOSED", Set.of());
   private static final Set<String> SEVERITIES =
       Set.of("UNASSESSED", "LOW", "MEDIUM", "HIGH", "CRITICAL");
   private static final Pattern OBJECT_KEY =
@@ -51,7 +57,7 @@ public class SafetyService {
     }
     Instant now = clock.instant();
     SafetyIncident incident = new SafetyIncident(UUID.randomUUID(), rideId, context.accountId(),
-        category, description, "REPORTED", "UNASSESSED", now, now, List.of());
+        category, description, "REPORTED", "UNASSESSED", now, now, 0, List.of());
     incidents.insert(context.tenantId(), incident);
     incidents.appendAction(context.tenantId(), incident.id(), context.accountId(), "REPORTED",
         null, "REPORTED", null, now);
@@ -69,6 +75,21 @@ public class SafetyService {
   public List<SafetyIncident> listRestricted() {
     TenantContext context = requireRestricted();
     return incidents.findAll(context.tenantId());
+  }
+
+  @Transactional(readOnly = true)
+  public SafetyIncident get(UUID incidentId) {
+    TenantContext context = TenantContext.require();
+    SafetyIncident incident = incidents.find(context.tenantId(), incidentId)
+        .orElseThrow(() -> new NotFoundException("Safety incident not found"));
+    if (!isRestricted(context)) {
+      requireAny(TenantRole.RIDER, TenantRole.DRIVER);
+    }
+    if (!isRestricted(context) && !incidents.isRideParticipant(
+        context.tenantId(), incident.rideId(), context.accountId())) {
+      throw new NotFoundException("Safety incident not found");
+    }
+    return incident;
   }
 
   @Transactional
@@ -95,15 +116,27 @@ public class SafetyService {
 
   @Transactional
   public SafetyIncident action(
-      UUID incidentId, String action, String state, String severity, String note) {
+      UUID incidentId, String action, String expectedState, String state, String severity,
+      long expectedVersion, String note) {
     TenantContext context = requireRestricted();
-    if (!STATES.contains(state) || !SEVERITIES.contains(severity)) {
+    if (!TRANSITIONS.containsKey(expectedState) || !TRANSITIONS.containsKey(state)
+        || !SEVERITIES.contains(severity)) {
       throw new InvalidRequestException("Unsupported safety state or severity");
     }
     SafetyIncident current = incidents.find(context.tenantId(), incidentId)
         .orElseThrow(() -> new NotFoundException("Safety incident not found"));
+    if (current.version() != expectedVersion || !current.state().equals(expectedState)) {
+      throw new ConflictException("Safety incident state or version is stale");
+    }
+    if (!TRANSITIONS.get(current.state()).contains(state)) {
+      throw new ConflictException(
+          "Safety incident cannot transition from " + current.state() + " to " + state);
+    }
     Instant now = clock.instant();
-    incidents.update(context.tenantId(), incidentId, state, severity, now);
+    if (!incidents.update(context.tenantId(), incidentId, expectedState, state, severity,
+        expectedVersion, now)) {
+      throw new ConflictException("Safety incident changed concurrently");
+    }
     incidents.appendAction(context.tenantId(), incidentId, context.accountId(), action,
         current.state(), state, note, now);
     audit.record(context.tenantId(), context.accountId(), "safety_incident.action",
