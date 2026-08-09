@@ -27,7 +27,8 @@ public class TenantWebConfiguration implements WebMvcConfigurer {
     registry
         .addInterceptor(tenantSelectionInterceptor)
         .addPathPatterns("/api/v1/**")
-        .excludePathPatterns("/api/v1/tenants", "/api/v1/payment-providers/**");
+        .excludePathPatterns(
+            "/api/v1/tenants", "/api/v1/tenant-invitations/accept", "/api/v1/payment-providers/**");
     registry
         .addInterceptor(requestContextMdcInterceptor)
         .addPathPatterns("/api/v1/**")
@@ -35,6 +36,7 @@ public class TenantWebConfiguration implements WebMvcConfigurer {
     registry
         .addInterceptor(rateLimitInterceptor)
         .addPathPatterns("/api/v1/**")
-        .excludePathPatterns("/api/v1/tenants", "/api/v1/payment-providers/**");
+        .excludePathPatterns(
+            "/api/v1/tenants", "/api/v1/tenant-invitations/accept", "/api/v1/payment-providers/**");
   }
 }

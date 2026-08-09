@@ -14,4 +14,8 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
   @EntityGraph(attributePaths = "roles")
   Optional<TenantMembershipEntity> findByTenantIdAndUserAccountIdAndStatus(
       UUID tenantId, UUID userAccountId, String status);
+
+  @EntityGraph(attributePaths = "roles")
+  Optional<TenantMembershipEntity> findByTenantIdAndUserAccountId(
+      UUID tenantId, UUID userAccountId);
 }
