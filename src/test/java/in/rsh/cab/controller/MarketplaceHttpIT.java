@@ -6,10 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -32,6 +37,8 @@ import org.testcontainers.utility.DockerImageName;
 @Import(MarketplaceHttpIT.TestJwtConfiguration.class)
 class MarketplaceHttpIT {
 
+  private static final HttpServer OSRM = startOsrm();
+
   @Container
   static final PostgreSQLContainer<?> POSTGRES =
       new PostgreSQLContainer<>(
@@ -50,6 +57,14 @@ class MarketplaceHttpIT {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add(
+        "routing.osrm.base-url",
+        () -> "http://localhost:" + OSRM.getAddress().getPort());
+  }
+
+  @AfterAll
+  static void stopOsrm() {
+    OSRM.stop(0);
   }
 
   @Test
@@ -86,6 +101,38 @@ class MarketplaceHttpIT {
     assertEquals(
         403,
         getWithTenant("/api/v1/current-tenant", tenantId, "unknown-user").statusCode());
+
+    String boundary =
+        "{\"type\":\"Polygon\",\"coordinates\":[[[77.5,12.9],[77.7,12.9],[77.7,13.1],[77.5,12.9]]]}";
+    HttpResponse<String> serviceAreaCreated =
+        postWithTenant(
+            "/api/v1/service-areas",
+            tenantId,
+            "{\"slug\":\"central\",\"name\":\"Central\",\"timezone\":\"Asia/Kolkata\",\"boundary\":"
+                + boundary
+                + "}");
+    assertEquals(201, serviceAreaCreated.statusCode());
+    JsonObject serviceArea = JsonParser.parseString(serviceAreaCreated.body()).getAsJsonObject();
+    assertEquals("central", serviceArea.get("slug").getAsString());
+    assertEquals("Polygon", serviceArea.getAsJsonObject("boundary").get("type").getAsString());
+
+    HttpResponse<String> serviceAreas = getWithTenant("/api/v1/service-areas", tenantId, "platform-admin");
+    assertEquals(200, serviceAreas.statusCode());
+    JsonArray serviceAreaList = JsonParser.parseString(serviceAreas.body()).getAsJsonArray();
+    assertEquals(1, serviceAreaList.size());
+    assertEquals(
+        "MultiPolygon",
+        serviceAreaList.get(0).getAsJsonObject().getAsJsonObject("boundary").get("type").getAsString());
+
+    HttpResponse<String> route =
+        postWithTenant(
+            "/api/v1/routes/estimate",
+            tenantId,
+            "{\"origin\":{\"latitude\":12.9,\"longitude\":77.5},\"destination\":{\"latitude\":13.0,\"longitude\":77.6}}");
+    assertEquals(200, route.statusCode());
+    JsonObject estimate = JsonParser.parseString(route.body()).getAsJsonObject();
+    assertEquals(2450.5, estimate.get("distanceMeters").getAsDouble());
+    assertEquals(480.0, estimate.get("durationSeconds").getAsDouble());
   }
 
   private HttpResponse<String> post(String path, String body) throws Exception {
@@ -94,6 +141,19 @@ class MarketplaceHttpIT {
 
   private HttpResponse<String> postWithoutToken(String path, String body) throws Exception {
     return post(path, body, false);
+  }
+
+  private HttpResponse<String> postWithTenant(String path, String tenantId, String body)
+      throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .header("Authorization", "Bearer platform-admin")
+            .header("X-Tenant-ID", tenantId)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   private HttpResponse<String> post(String path, String body, boolean authenticated) throws Exception {
@@ -142,6 +202,27 @@ class MarketplaceHttpIT {
 
   private URI uri(String path) {
     return URI.create("http://localhost:" + port + path);
+  }
+
+  private static HttpServer startOsrm() {
+    try {
+      HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+      server.createContext(
+          "/route/v1/driving/",
+          exchange -> {
+            byte[] body =
+                "{\"code\":\"Ok\",\"routes\":[{\"distance\":2450.5,\"duration\":480.0}]}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+          });
+      server.start();
+      return server;
+    } catch (IOException exception) {
+      throw new ExceptionInInitializerError(exception);
+    }
   }
 
   @TestConfiguration(proxyBeanMethods = false)
