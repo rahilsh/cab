@@ -1,0 +1,54 @@
+README.md
+  h_6ca422f7d88004 21-22,142,151,200-202,278-281
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  h_6ca422f7d88004 80-95
+src/main/java/in/rsh/cab/geography/GeoPoint.java
+  h_6ca422f7d88004 1-13
+src/main/java/in/rsh/cab/geography/ServiceArea.java
+  h_6ca422f7d88004 1-15
+src/main/java/in/rsh/cab/geography/ServiceAreaService.java
+  h_6ca422f7d88004 1-13,14-28,30-96
+src/main/java/in/rsh/cab/geography/internal/persistence/JdbcServiceAreaRepository.java
+  h_6ca422f7d88004 1-3,5-79,100-116
+src/main/java/in/rsh/cab/geography/internal/persistence/ServiceAreaRepository.java
+  h_6ca422f7d88004 1-3,5-14,17
+src/main/java/in/rsh/cab/geography/internal/web/ServiceAreaController.java
+  h_6ca422f7d88004 1-34,36-49
+src/main/java/in/rsh/cab/routing/RouteEstimate.java
+  h_6ca422f7d88004 1-13
+src/main/java/in/rsh/cab/routing/RouteEstimator.java
+  h_6ca422f7d88004 1-8
+src/main/java/in/rsh/cab/routing/RouteProviderException.java
+  h_6ca422f7d88004 1-20
+src/main/java/in/rsh/cab/routing/internal/OsrmRouteEstimator.java
+  h_6ca422f7d88004 1-105
+src/main/java/in/rsh/cab/routing/internal/web/RouteController.java
+  h_6ca422f7d88004 1-35
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  h_6ca422f7d88004 81,105
+src/main/resources/application.properties
+  h_6ca422f7d88004 35-36
+src/main/resources/db/migration/V3__service_areas.sql
+  h_6ca422f7d88004 1-21
+src/test/java/in/rsh/cab/exception/GlobalExceptionHandlerTest.java
+  h_6ca422f7d88004 11,78-89
+src/test/java/in/rsh/cab/geography/GeoPointTest.java
+  h_6ca422f7d88004 1-34
+src/test/java/in/rsh/cab/geography/ServiceAreaServiceTest.java
+  h_6ca422f7d88004 1-146
+src/test/java/in/rsh/cab/routing/RouteEstimateTest.java
+  h_6ca422f7d88004 1-18
+src/test/java/in/rsh/cab/routing/internal/OsrmRouteEstimatorTest.java
+  h_6ca422f7d88004 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "3328466f1b523e44dec95e50b23e7d6649749d12",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
