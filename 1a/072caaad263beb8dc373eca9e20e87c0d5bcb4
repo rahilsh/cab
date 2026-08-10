@@ -1,0 +1,25 @@
+src/main/java/in/rsh/cab/geography/internal/persistence/JdbcServiceAreaRepository.java
+  s_abff4cbde2f02f::t_61ebe7b52e1d11 4,80-99
+src/main/java/in/rsh/cab/geography/internal/persistence/ServiceAreaRepository.java
+  s_abff4cbde2f02f::t_afd43e969671bc 4,15-16
+src/main/java/in/rsh/cab/pricing/internal/persistence/JdbcPricingRepository.java
+  s_abff4cbde2f02f::t_92ea5673451567 1-181,205-249
+src/main/java/in/rsh/cab/pricing/internal/persistence/PricingRepository.java
+  s_abff4cbde2f02f::t_b2ae71eb5fe088 1-31,35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "1a072caaad263beb8dc373eca9e20e87c0d5bcb4",
+  "prompts": {},
+  "sessions": {
+    "s_abff4cbde2f02f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e640d33ffecWxYnnadNrwiNC",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}

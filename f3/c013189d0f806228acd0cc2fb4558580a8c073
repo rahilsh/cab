@@ -1,0 +1,31 @@
+docs/runbooks/privacy-retention.md
+  s_00881510f73bac::t_7cce65e6f169f2 1-32
+src/main/java/in/rsh/cab/location/LocationRetention.java
+  s_00881510f73bac::t_c19aeab26d87bd 1-57
+src/main/java/in/rsh/cab/location/internal/persistence/JdbcLocationCheckpointRepository.java
+  s_00881510f73bac::t_2fd77188768f0d 78-93
+src/main/java/in/rsh/cab/location/internal/persistence/LocationCheckpointRepository.java
+  s_00881510f73bac::t_dde531c859b6e4 15-16
+src/main/java/in/rsh/cab/webhook/EnvironmentSecretResolver.java
+  s_00881510f73bac::t_9b06e3f34a68d1 17-19
+src/test/java/in/rsh/cab/location/LocationRetentionTest.java
+  s_00881510f73bac::t_92c34af908ddcb 1-46
+src/test/java/in/rsh/cab/webhook/EnvironmentSecretResolverTest.java
+  s_00881510f73bac::t_4badbd59ae90ac 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f3c013189d0f806228acd0cc2fb4558580a8c073",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
