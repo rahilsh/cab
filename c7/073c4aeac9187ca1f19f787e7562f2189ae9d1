@@ -1,0 +1,29 @@
+README.md
+  s_abff4cbde2f02f::t_695452d85a6441 26,227,230,232,234,308-320
+SECURITY.md
+  s_abff4cbde2f02f::t_7fd0303dc7ff32 21-27
+pom.xml
+  s_abff4cbde2f02f::t_fd8a9340a3587d 270-275
+src/main/java/in/rsh/cab/fleet/internal/persistence/FleetRepository.java
+  s_abff4cbde2f02f::t_a11fcd8688855b 5,8,31-32,36-37,42-43
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  s_abff4cbde2f02f::t_27983981c6b136 95-96,101-104
+src/main/resources/application.properties
+  s_abff4cbde2f02f::t_3247b400457bda 49-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "c7073c4aeac9187ca1f19f787e7562f2189ae9d1",
+  "prompts": {},
+  "sessions": {
+    "s_abff4cbde2f02f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e640d33ffecWxYnnadNrwiNC",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
