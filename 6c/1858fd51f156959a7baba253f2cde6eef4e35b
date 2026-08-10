@@ -1,0 +1,37 @@
+pom.xml
+  s_00881510f73bac::t_7119d7f00ee5a5 183-186
+src/main/java/in/rsh/cab/webhook/ApacheWebhookTransport.java
+  s_00881510f73bac::t_e28abf1b0d5c84 4-5,8-19,24,26,28,30,34-63,66-89
+src/main/java/in/rsh/cab/webhook/ValidatedWebhookTarget.java
+  s_00881510f73bac::t_52e734f5aa1e98 1-15
+src/main/java/in/rsh/cab/webhook/WebhookDeliveryWorker.java
+  s_00881510f73bac::t_e30caac195cd49 78,88,136-138
+src/main/java/in/rsh/cab/webhook/WebhookSecurity.java
+  s_00881510f73bac::t_a3d39534367378 18,38
+src/main/java/in/rsh/cab/webhook/WebhookTransport.java
+  s_00881510f73bac::t_83af8415381d21 8-12
+src/test/java/in/rsh/cab/webhook/ApacheWebhookTransportTest.java
+  s_00881510f73bac::t_3dc2770a46e898 1-29
+src/test/java/in/rsh/cab/webhook/WebhookDeliveryWorkerTest.java
+  s_00881510f73bac::t_3cce099d33e59d 72,74-75,79-83,105
+src/test/java/in/rsh/cab/webhook/WebhookSecurityTest.java
+  s_00881510f73bac::t_4ad9acd9f65c46 18-20
+src/test/java/in/rsh/cab/webhook/WebhookServiceTest.java
+  s_00881510f73bac::t_7e167f165a36a1 20,47,50-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "6c1858fd51f156959a7baba253f2cde6eef4e35b",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
