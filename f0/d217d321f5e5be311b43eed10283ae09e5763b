@@ -1,0 +1,67 @@
+README.md
+  s_c5580991fe82d6::t_65fe15eee38529 25,225,362-376,398-401
+SECURITY.md
+  s_abff4cbde2f02f::t_18d6638b78ff54 14-20
+src/main/java/in/rsh/cab/audit/AuditEvent.java
+  s_c5580991fe82d6::t_3c5fa005d754c8 1-16
+src/main/java/in/rsh/cab/audit/AuditService.java
+  s_c5580991fe82d6::t_1fdaa76842ac96 1-49
+src/main/java/in/rsh/cab/audit/internal/persistence/AuditRepository.java
+  s_c5580991fe82d6::t_e37c7b28b0c084 1-16
+src/main/java/in/rsh/cab/audit/internal/persistence/JdbcAuditRepository.java
+  s_c5580991fe82d6::t_d1653b4e373793 1-71
+src/main/java/in/rsh/cab/audit/internal/web/AuditController.java
+  s_c5580991fe82d6::t_6d307461c80461 1-25
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  s_c5580991fe82d6::t_6ffebe7dc2c1c0 45-47,52-54
+src/main/java/in/rsh/cab/operations/InboxService.java
+  s_c5580991fe82d6::t_545590bfb9f693 1-27
+src/main/java/in/rsh/cab/operations/internal/persistence/IdempotencyRepository.java
+  s_c5580991fe82d6::t_834eaa356b2bfb 1-27
+src/main/java/in/rsh/cab/operations/internal/persistence/InboxRepository.java
+  s_c5580991fe82d6::t_0e93b56736ac96 1-9
+src/main/java/in/rsh/cab/operations/internal/persistence/JdbcInboxRepository.java
+  s_c5580991fe82d6::t_2d9052aa275dae 1-28
+src/main/java/in/rsh/cab/operations/internal/persistence/OutboxRepository.java
+  s_c5580991fe82d6::t_90f783638c8af5 1-15,18,20,22,24
+src/main/java/in/rsh/cab/pricing/PricingService.java
+  s_c5580991fe82d6::t_159b7f4e04d89b 8-11,32-33,44-47,54-57,66-69,153-154,156-163,183-195,201-207
+src/main/java/in/rsh/cab/pricing/internal/web/FareQuoteController.java
+  s_c5580991fe82d6::t_93735e552e01c7 19,33-40
+src/main/resources/application.properties
+  s_c5580991fe82d6::t_8d4b996a3780a4 38
+src/test/java/in/rsh/cab/audit/AuditServiceTest.java
+  s_c5580991fe82d6::t_ff4944c05df58a 1-68
+src/test/java/in/rsh/cab/exception/GlobalExceptionHandlerTest.java
+  s_c5580991fe82d6::t_daa1a6e4d7bd90 12,51-62
+src/test/java/in/rsh/cab/operations/InboxServiceTest.java
+  s_abff4cbde2f02f::t_fb38acc33e9304 1-32
+src/test/java/in/rsh/cab/pricing/PricingServiceTest.java
+  s_c5580991fe82d6::t_744ce306325d65 17-20,39,52-55,61-65,78,150,165-167,179,187-204,208-209,211-212,215-216,218-219,224-225,228-229
+src/test/java/in/rsh/cab/web/CorrelationIdFilterTest.java
+  s_c5580991fe82d6::t_6ced719438acd3 24-27,33-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f0d217d321f5e5be311b43eed10283ae09e5763b",
+  "prompts": {},
+  "sessions": {
+    "s_abff4cbde2f02f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e640d33ffecWxYnnadNrwiNC",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_c5580991fe82d6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e5a683dffePtpbz9mSD7iO8o",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
