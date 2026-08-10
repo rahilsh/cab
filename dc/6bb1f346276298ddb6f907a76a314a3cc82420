@@ -1,0 +1,51 @@
+src/main/java/in/rsh/cab/config/RideStreamRedisConfiguration.java
+  s_00881510f73bac::t_bfeddeacae164f 1-26
+src/main/java/in/rsh/cab/dispatch/DispatchService.java
+  s_00881510f73bac::t_ec4c93f34d70fc 215,219
+src/main/java/in/rsh/cab/location/DriverLocationReconciler.java
+  s_00881510f73bac::t_6dcdcca7cd51a0 8-9,23,36-44,46-48,54-56
+src/main/java/in/rsh/cab/location/LiveLocationStore.java
+  s_00881510f73bac::t_8a6eb5b785910d 13-14
+src/main/java/in/rsh/cab/location/internal/persistence/JdbcLocationCheckpointRepository.java
+  s_00881510f73bac::t_81d17155ef9848 49-50,60,73
+src/main/java/in/rsh/cab/location/internal/persistence/LocationCheckpointRepository.java
+  s_00881510f73bac::t_a365b81d167950 13-14
+src/main/java/in/rsh/cab/location/internal/redis/RedisLiveLocationStore.java
+  s_00881510f73bac::t_aa4765cddfc504 56-74
+src/main/java/in/rsh/cab/operations/RideStreamOutboxConsumer.java
+  s_00881510f73bac::t_2c0d01f33b91a2 1-29
+src/main/java/in/rsh/cab/ride/RideEventStream.java
+  s_00881510f73bac::t_d31eb7079fa377 19-20,28,33,41,50-52,57,63,104,106,109,116,121-130,182,199-207,209
+src/main/java/in/rsh/cab/ride/RideService.java
+  s_00881510f73bac::t_e9a06ed2102c5e 182,186
+src/main/java/in/rsh/cab/ride/RideStreamRedisPublisher.java
+  s_00881510f73bac::t_7f43bb8c5d5381 1-34
+src/test/java/in/rsh/cab/dispatch/DispatchServiceTest.java
+  s_00881510f73bac::t_546d3ffa01ad4e 93
+src/test/java/in/rsh/cab/location/DriverLocationReconcilerTest.java
+  s_00881510f73bac::t_faf8bd82527a08 6,8,32-36,42-69
+src/test/java/in/rsh/cab/location/internal/redis/RedisLiveLocationStoreTest.java
+  s_00881510f73bac::t_a4be7ac4768fe8 4-5,14,38-53
+src/test/java/in/rsh/cab/ride/RideEventStreamTest.java
+  s_00881510f73bac::t_3e39f26fd12e5f 29,38,40,60-61,89-90,95-96,112-129
+src/test/java/in/rsh/cab/ride/RideServiceTest.java
+  s_00881510f73bac::t_4f5efdafb65e1f 86
+src/test/java/in/rsh/cab/ride/RideStreamRedisPublisherTest.java
+  s_00881510f73bac::t_277c704f6d9cbe 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "dc6bb1f346276298ddb6f907a76a314a3cc82420",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,75 @@
+.github/workflows/maven.yml
+  s_00881510f73bac::t_88e7af4cde3d1e 56-83
+.github/workflows/release.yml
+  s_00881510f73bac::t_1db32144de37f2 38,54-62,156,192,195-200,204-215
+CHANGELOG.md
+  s_00881510f73bac::t_0cfb2f84295e98 17
+README.md
+  s_00881510f73bac::t_21d7c6fbb1fe8a 134,210-213,222,238,240-241,244,259-265,284-298
+RELEASING.md
+  s_00881510f73bac::t_ce5bf0a48a60c8 29-34
+compose.yaml
+  s_00881510f73bac::t_2159e23c095687 26
+deploy/helm/cab-marketplace/README.md
+  s_00881510f73bac::t_9c9e6cdec37b4e 18,23-24,31-33,35-50,54-56
+deploy/helm/cab-marketplace/templates/_helpers.tpl
+  s_00881510f73bac::t_4dfc85c6d83dcc 32-42
+deploy/helm/cab-marketplace/templates/deployment.yaml
+  s_00881510f73bac::t_06a2742ffc15bd 19,29,45,80-86
+deploy/helm/cab-marketplace/templates/ingress.yaml
+  s_00881510f73bac::t_95f8d9baf27d55 2-4
+deploy/helm/cab-marketplace/templates/migration-job.yaml
+  s_00881510f73bac::t_f098e89fdb21d5 1-72
+deploy/helm/cab-marketplace/templates/pdb.yaml
+  s_00881510f73bac::t_67195a1a253f5f 13
+deploy/helm/cab-marketplace/templates/service.yaml
+  s_00881510f73bac::t_5aa5fbad7a6a20 16
+deploy/helm/cab-marketplace/values.yaml
+  s_00881510f73bac::t_65d1aa09ee30df 6,42,61,75-88,91-94
+docs/CI.md
+  s_00881510f73bac::t_965c8c5129d134 15,29,32
+docs/runbooks/backup-restore.md
+  s_00881510f73bac::t_09c8766becf2bb 18-21,25-44
+docs/runbooks/deployment.md
+  s_00881510f73bac::t_9c785f0fb539f8 5,14,16,19-24
+docs/runbooks/migrations.md
+  s_00881510f73bac::t_6cf10c2f27d461 31-33,43,47,49,51-55
+pom.xml
+  s_00881510f73bac::t_a8d71803340be3 280
+src/main/java/in/rsh/cab/CabApplication.java
+  s_00881510f73bac::t_b16cfb73ab362d 3-4,12-16
+src/main/java/in/rsh/cab/config/MigrationApplication.java
+  s_00881510f73bac::t_543cba09821704 1-21
+src/main/java/in/rsh/cab/config/MigrationRunner.java
+  s_00881510f73bac::t_4151812aef5d59 1-24
+src/main/java/in/rsh/cab/config/ProductionSecurityValidator.java
+  s_00881510f73bac::t_127fc140a5b975 1-97
+src/main/java/in/rsh/cab/config/SchedulingConfiguration.java
+  s_00881510f73bac::t_d0c76ac15ee75f 1-10
+src/main/resources/application-migration.properties
+  s_00881510f73bac::t_c3968be5565307 1-14
+src/main/resources/application-prod.properties
+  s_00881510f73bac::t_7797a99415d649 2-9
+src/main/resources/application.properties
+  s_00881510f73bac::t_1b109fc8397f0b 21,42-48,75-81
+src/test/java/in/rsh/cab/config/MigrationRunnerTest.java
+  s_00881510f73bac::t_60078aa47119fe 1-46
+src/test/java/in/rsh/cab/config/ProductionSecurityValidatorTest.java
+  s_00881510f73bac::t_36409f5befbf72 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "145ab994026dbd53115c200460cfba785ebbc4c5",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}

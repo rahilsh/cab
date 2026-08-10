@@ -1,0 +1,27 @@
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  s_00881510f73bac::t_dfbab412fd591c 5,108-116
+src/main/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilter.java
+  s_00881510f73bac::t_4408af1983b48e 86-127
+src/main/java/in/rsh/cab/ratelimit/PayloadTooLargeException.java
+  s_00881510f73bac::t_b7884885c94e99 1-8
+src/main/java/in/rsh/cab/ratelimit/SizeLimitedHttpServletRequest.java
+  s_00881510f73bac::t_abcdca62704ed3 1-175
+src/test/java/in/rsh/cab/ratelimit/ApiAbuseProtectionFilterTest.java
+  s_00881510f73bac::t_85f186088630ab 7-9,83-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "b59d5c6cc77910bc77287c8458e98961a17857c5",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}

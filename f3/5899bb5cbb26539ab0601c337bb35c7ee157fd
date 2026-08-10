@@ -1,0 +1,45 @@
+src/main/java/in/rsh/cab/notification/NotificationRecipientResolver.java
+  s_00881510f73bac::t_406d4f075f9569 50-66
+src/main/java/in/rsh/cab/operations/NotificationOutboxConsumer.java
+  s_00881510f73bac::t_1d484148864a07 32-33,35
+src/main/java/in/rsh/cab/safety/SafetyService.java
+  s_00881510f73bac::t_558e9695c4e9c5 67-68,98-99,107-109,116-122,153-155,179-182
+src/main/java/in/rsh/cab/safety/internal/persistence/JdbcSafetyRepository.java
+  s_00881510f73bac::t_be4621b43b76da 70-82,95
+src/main/java/in/rsh/cab/safety/internal/persistence/SafetyRepository.java
+  s_00881510f73bac::t_ccb944932d9fa7 19-21
+src/main/java/in/rsh/cab/safety/internal/web/SafetyController.java
+  s_00881510f73bac::t_815fc0937a45ee 52,69
+src/main/java/in/rsh/cab/support/SupportService.java
+  s_00881510f73bac::t_759141c0fcd280 94,104-112
+src/main/java/in/rsh/cab/support/internal/persistence/JdbcSupportRepository.java
+  s_00881510f73bac::t_c6816e77f6e7c8 93-109
+src/main/java/in/rsh/cab/support/internal/persistence/SupportRepository.java
+  s_00881510f73bac::t_7864e18e41c871 23-25
+src/main/java/in/rsh/cab/support/internal/web/SupportController.java
+  s_00881510f73bac::t_f2c61ca69ad974 50,72
+src/test/java/in/rsh/cab/notification/NotificationRecipientResolverTest.java
+  s_00881510f73bac::t_b34852b205172a 8,28-47
+src/test/java/in/rsh/cab/operations/OutboxConsumerTest.java
+  s_00881510f73bac::t_98c754df00d1b5 14,62-93
+src/test/java/in/rsh/cab/safety/SafetyServiceTest.java
+  s_00881510f73bac::t_e4963d49448d73 73,75-78,80,98-99
+src/test/java/in/rsh/cab/support/SupportServiceTest.java
+  s_00881510f73bac::t_55eff2f47d633a 73,81-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f35899bb5cbb26539ab0601c337bb35c7ee157fd",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+README.md
+  h_6ca422f7d88004 178,245-246,337
+src/main/java/in/rsh/cab/exception/GlobalExceptionHandler.java
+  h_6ca422f7d88004 60-62,105-106
+src/main/java/in/rsh/cab/security/SecurityConfiguration.java
+  h_6ca422f7d88004 78-79
+src/main/java/in/rsh/cab/tenancy/TenantAccessDeniedException.java
+  h_6ca422f7d88004 1-7
+src/main/java/in/rsh/cab/tenancy/TenantContext.java
+  h_6ca422f7d88004 1-22,27-34
+src/main/java/in/rsh/cab/tenancy/TenantService.java
+  h_6ca422f7d88004 88-102
+src/main/java/in/rsh/cab/tenancy/internal/web/CurrentTenantController.java
+  h_6ca422f7d88004 1-3,9-16,23-26,33
+src/main/java/in/rsh/cab/tenancy/internal/web/TenantSelectionInterceptor.java
+  h_6ca422f7d88004 1-11,13-14,16-44,51-56
+src/main/java/in/rsh/cab/tenancy/internal/web/TenantWebConfiguration.java
+  h_6ca422f7d88004 1-2,5-12,15,20,23-29,39-40
+src/test/java/in/rsh/cab/exception/GlobalExceptionHandlerTest.java
+  h_6ca422f7d88004 10,73-77
+src/test/java/in/rsh/cab/tenancy/TenantContextTest.java
+  h_6ca422f7d88004 1-31
+src/test/java/in/rsh/cab/tenancy/TenantServiceTest.java
+  h_6ca422f7d88004 92-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "9d3a23c7100b835902ee577b05eaa71efed3f5b8",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
