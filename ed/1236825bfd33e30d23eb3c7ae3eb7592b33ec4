@@ -1,0 +1,19 @@
+src/test/java/in/rsh/cab/webhook/WebhookServiceTest.java
+  s_00881510f73bac::t_8e4996cb14e2f6 1,4-10,12-29,31,33-71,74-120,124-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ed1236825bfd33e30d23eb3c7ae3eb7592b33ec4",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
