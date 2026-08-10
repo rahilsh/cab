@@ -1,0 +1,95 @@
+src/main/java/in/rsh/cab/driver/DriverDocumentService.java
+  s_00881510f73bac::t_e761be75f0460d 69-77
+src/main/java/in/rsh/cab/driver/internal/web/DriverController.java
+  s_00881510f73bac::t_ed38c644863335 36
+src/main/java/in/rsh/cab/driver/internal/web/DriverDocumentController.java
+  s_00881510f73bac::t_b80bc3850400d5 45-49
+src/main/java/in/rsh/cab/fleet/internal/web/DriverShiftController.java
+  s_00881510f73bac::t_3424cd25ea0279 32
+src/main/java/in/rsh/cab/fleet/internal/web/VehicleController.java
+  s_00881510f73bac::t_62e52eef03431e 39
+src/main/java/in/rsh/cab/geography/internal/web/ServiceAreaController.java
+  s_00881510f73bac::t_3bd19456d4fa15 35
+src/main/java/in/rsh/cab/payment/internal/persistence/JdbcPaymentRepository.java
+  s_00881510f73bac::t_eb3a5db4d45e36 573-581
+src/main/java/in/rsh/cab/payment/internal/web/PaymentController.java
+  s_00881510f73bac::t_48fd182bc46893 56-57,74
+src/main/java/in/rsh/cab/pricing/PricingService.java
+  s_00881510f73bac::t_5313072cb651a9 212,219-235
+src/main/java/in/rsh/cab/pricing/internal/web/PricingRuleController.java
+  s_00881510f73bac::t_84531f77129286 38
+src/main/java/in/rsh/cab/pricing/internal/web/ProductController.java
+  s_00881510f73bac::t_4205d9f2bc10b0 36
+src/main/java/in/rsh/cab/rating/RatingService.java
+  s_00881510f73bac::t_05c29eb2e1905b 77-87
+src/main/java/in/rsh/cab/rating/internal/persistence/JdbcRatingRepository.java
+  s_00881510f73bac::t_66a2fd4d8ba3a0 5-6,53-73
+src/main/java/in/rsh/cab/rating/internal/persistence/RatingRepository.java
+  s_00881510f73bac::t_2ca7c781c8db42 13-14
+src/main/java/in/rsh/cab/rating/internal/web/RatingController.java
+  s_00881510f73bac::t_5e0631e64e7deb 13,20,29,36-40
+src/main/java/in/rsh/cab/ride/RideEventStream.java
+  s_00881510f73bac::t_7360e658769880 60,62,67-69,75-88,93-96,122,133,135,137,144-149,152,155,163-171
+src/main/java/in/rsh/cab/ride/internal/web/RideController.java
+  s_00881510f73bac::t_eb4819781c9063 57-60
+src/main/java/in/rsh/cab/safety/SafetyIncident.java
+  s_00881510f73bac::t_852e431beebc4a 17
+src/main/java/in/rsh/cab/safety/SafetyService.java
+  s_00881510f73bac::t_8714e938a9056c 4,15,26-31,60,80-94,119-120,122-123,128-134,136-139
+src/main/java/in/rsh/cab/safety/internal/persistence/JdbcSafetyRepository.java
+  s_00881510f73bac::t_ada5298e05d627 19,58-59,65-66,86-88,90-93,96-97,122-141
+src/main/java/in/rsh/cab/safety/internal/persistence/SafetyRepository.java
+  s_00881510f73bac::t_e0922dd382bb5c 21-23
+src/main/java/in/rsh/cab/safety/internal/web/SafetyController.java
+  s_00881510f73bac::t_a259c7df14341b 44-48,54,59-60,76-77,80
+src/main/java/in/rsh/cab/support/SupportCase.java
+  s_00881510f73bac::t_ae96839f338e61 16
+src/main/java/in/rsh/cab/support/SupportService.java
+  s_00881510f73bac::t_f0bb66cc80edb0 4,15,25-30,57,74-90,106-107,111-112,114,119-124,126-129,131,140,142,144-153,175-181
+src/main/java/in/rsh/cab/support/internal/persistence/JdbcSupportRepository.java
+  s_00881510f73bac::t_d04d1f77b9a2d4 18-19,62-63,69-70,76-77,94-96,98-101,104-105,122-148,164,172-189
+src/main/java/in/rsh/cab/support/internal/persistence/SupportRepository.java
+  s_00881510f73bac::t_303be96f3f929d 23-25,30-33
+src/main/java/in/rsh/cab/support/internal/web/SupportController.java
+  s_00881510f73bac::t_49a4bc6397c627 43-47,55-56,62,75-76,78,81-83
+src/main/java/in/rsh/cab/webhook/WebhookService.java
+  s_00881510f73bac::t_f8230ceb0fbc9f 25,92-94
+src/main/java/in/rsh/cab/webhook/internal/web/WebhookController.java
+  s_00881510f73bac::t_c01513727fa754 39-40
+src/main/resources/db/migration/V16__validate_driver_document_constraints.sql
+  s_00881510f73bac::t_8fb5457e51cb04 1-5
+src/main/resources/db/migration/V17__domain_api_consistency.sql
+  s_00881510f73bac::t_bfe7dace6ea25d 1-29
+src/main/resources/db/migration/V9__notifications_ratings_support_safety_webhooks.sql
+  s_00881510f73bac::t_95b2a912a73721 204-205
+src/test/java/in/rsh/cab/driver/DriverDocumentServiceTest.java
+  s_00881510f73bac::t_088ffdf5e41545 62-63
+src/test/java/in/rsh/cab/pricing/PricingServiceTest.java
+  s_00881510f73bac::t_37cd740f953e99 247-260
+src/test/java/in/rsh/cab/rating/RatingServiceTest.java
+  s_00881510f73bac::t_3b75ecd9009394 82-92
+src/test/java/in/rsh/cab/ride/RideEventStreamTest.java
+  s_00881510f73bac::t_7b957055e87e93 95-106
+src/test/java/in/rsh/cab/safety/SafetyServiceTest.java
+  s_00881510f73bac::t_e97df031e0c306 12,55-59,71,80-96
+src/test/java/in/rsh/cab/support/SupportServiceTest.java
+  s_00881510f73bac::t_4ea659a1146e39 11,57-59,61,70,76-97
+src/test/java/in/rsh/cab/webhook/WebhookServiceTest.java
+  s_00881510f73bac::t_a7d2d026b4c398 60,71-72,83,99,106,114,122,138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "cd75a9b08ceb254b5a9ab3a1065e591e89d5fa15",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
