@@ -1,0 +1,24 @@
+CONTRIBUTING.md
+  h_6ca422f7d88004 19-26
+README.md
+  h_6ca422f7d88004 25,69-70,80-88,99-110,116-118
+pom.xml
+  h_6ca422f7d88004 148-158,175-191,220
+src/main/resources/application.properties
+  h_6ca422f7d88004 1-13
+src/main/resources/db/migration/V1__legacy_schema.sql
+  h_6ca422f7d88004 1-59
+src/test/java/in/rsh/cab/controller/MarketplaceHttpIT.java
+  h_6ca422f7d88004 17-22,24,28-36,41-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "827f2e87b7a7b4a460fe092615d08e8d6ea04a5f",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
