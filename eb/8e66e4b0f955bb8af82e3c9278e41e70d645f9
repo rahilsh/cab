@@ -1,0 +1,19 @@
+src/test/java/in/rsh/cab/web/MarketplaceHttpIT.java
+  s_00881510f73bac::t_56a8e2a979018f 623-636,642-649,656,673-674,692-700,708
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "eb8e66e4b0f955bb8af82e3c9278e41e70d645f9",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
