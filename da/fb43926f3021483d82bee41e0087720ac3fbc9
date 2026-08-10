@@ -1,0 +1,17 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "dafb43926f3021483d82bee41e0087720ac3fbc9",
+  "prompts": {},
+  "sessions": {
+    "s_35a521dc9d8715": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01d8a2b4effe9bMbt59QbG6sYl",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
