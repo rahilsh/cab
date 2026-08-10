@@ -1,0 +1,25 @@
+.github/workflows/release.yml
+  s_00881510f73bac::t_d41450bf1f03a9 204-216
+deploy/helm/cab-marketplace/templates/_helpers.tpl
+  s_00881510f73bac::t_9c13140b5a3660 34-41
+src/main/java/in/rsh/cab/ride/RideEventStream.java
+  s_00881510f73bac::t_521b68e4724a8e 82-83,85,95-97
+src/test/java/in/rsh/cab/ride/RideEventStreamTest.java
+  s_00881510f73bac::t_a19588d1bb9619 112-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "a03c5e0e7e4c2db9261c8ba79b9d83fe5099dc45",
+  "prompts": {},
+  "sessions": {
+    "s_00881510f73bac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e927844ffe8G83uRRcCyz1pj",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
