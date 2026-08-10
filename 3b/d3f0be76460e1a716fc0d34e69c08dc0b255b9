@@ -1,0 +1,14 @@
+src/main/java/in/rsh/cab/model/Location.java
+  h_6ca422f7d88004 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "3bd3f0be76460e1a716fc0d34e69c08dc0b255b9",
+  "prompts": {},
+  "humans": {
+    "h_6ca422f7d88004": {
+      "author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
