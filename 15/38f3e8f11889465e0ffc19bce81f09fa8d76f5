@@ -1,0 +1,29 @@
+src/test/java/in/rsh/cab/controller/MarketplaceHttpIT.java
+  s_c5580991fe82d6::t_9d98fee3da4431 164-165,170-234
+src/test/java/in/rsh/cab/exception/GlobalExceptionHandlerTest.java
+  s_039b63b4ebbbb3::t_dbefa5c4449672 45-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "1538f3e8f11889465e0ffc19bce81f09fa8d76f5",
+  "prompts": {},
+  "sessions": {
+    "s_039b63b4ebbbb3": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e88dd5bffe2A5BzQ92sDee2S",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    },
+    "s_c5580991fe82d6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_01e5a683dffePtpbz9mSD7iO8o",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
