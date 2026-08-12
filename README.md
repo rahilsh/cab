@@ -3,14 +3,10 @@
 [![Java CI](https://github.com/rahilsh/cab/actions/workflows/maven.yml/badge.svg)](https://github.com/rahilsh/cab/actions/workflows/maven.yml)
 [![CodeQL](https://github.com/rahilsh/cab/actions/workflows/codeql.yml/badge.svg)](https://github.com/rahilsh/cab/actions/workflows/codeql.yml)
 
-Cab Marketplace is an open-source backend for operating multi-tenant ride-hailing services. The
-project is evolving from a single-fleet prototype into a production-oriented modular monolith for
-operators, riders, drivers, vehicles, pricing, dispatch, trips, payments, and settlements.
-
-> [!WARNING]
-> The current code is an experimental prototype. Authentication and initial tenant isolation are
-> present, but production hardening is incomplete. Do not expose it publicly or use it for real
-> bookings.
+Cab Marketplace is an open-source, production-oriented modular monolith for operating multi-tenant
+ride-hailing services across operators, riders, drivers, vehicles, pricing, dispatch, trips,
+payments, and settlements. The project remains pre-1.0, so APIs and deployment contracts may change
+between releases.
 
 The customer and operator frontends will be maintained in separate repositories. This repository
 contains the HTTP API and backend services only.
@@ -19,13 +15,6 @@ contains the HTTP API and backend services only.
 
 The current implementation supports:
 
-- City and cab registration
-- Basic cab availability states
-- Booking creation with preliminary idempotency support
-- Redis GEO helpers
-- Distance- and idle-time-based selection policies
-- Paginated cab and booking queries
-- Unit tests and random-port HTTP integration tests
 - PostgreSQL/PostGIS persistence managed by Flyway
 - RFC 9457 validation errors, correlation IDs, and health probes
 - OIDC-protected tenant provisioning and operator memberships
@@ -50,7 +39,7 @@ See [the production roadmap](docs/ROADMAP.md) for sequencing and acceptance crit
 
 ## Architecture
 
-The target architecture is a package-modular Spring Boot monolith:
+The architecture is a package-modular Spring Boot monolith:
 
 ```text
 HTTP API
@@ -177,8 +166,7 @@ Read the operations runbooks before deployment:
 
 ## API
 
-The legacy prototype endpoints are blocked by the security policy and will be removed. The first
-versioned endpoint is:
+The HTTP API is versioned under `/api/v1`:
 
 | Method | Path | Purpose |
 | --- | --- | --- |

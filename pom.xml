@@ -86,11 +86,6 @@
               <artifactId>lombok</artifactId>
               <version>${lombok.version}</version>
             </path>
-            <path>
-              <groupId>org.mapstruct</groupId>
-              <artifactId>mapstruct-processor</artifactId>
-              <version>1.6.3</version>
-            </path>
           </annotationProcessorPaths>
         </configuration>
         <groupId>org.apache.maven.plugins</groupId>
@@ -125,11 +120,7 @@
           <dataFile>${project.build.directory}/jacoco-unit.exec</dataFile>
           <excludes>
             <exclude>**/CabApplication.class</exclude>
-            <exclude>**/constants/**</exclude>
-            <exclude>**/controller/**</exclude>
-            <exclude>**/entity/**</exclude>
-            <exclude>**/mapper/**</exclude>
-            <exclude>**/model/**</exclude>
+            <exclude>**/config/**</exclude>
             <exclude>**/internal/persistence/**</exclude>
             <exclude>**/internal/web/**</exclude>
             <exclude>**/*Configuration.class</exclude>
@@ -148,7 +139,7 @@
           </execution>
           <execution>
             <id>unit-test-report</id>
-            <phase>test</phase>
+            <phase>verify</phase>
             <goals>
               <goal>report</goal>
             </goals>
@@ -227,11 +218,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <artifactId>gson</artifactId>
-      <groupId>com.google.code.gson</groupId>
-      <version>2.14.0</version>
-    </dependency>
-    <dependency>
       <artifactId>spring-boot-starter-validation</artifactId>
       <groupId>org.springframework.boot</groupId>
     </dependency>
@@ -254,18 +240,8 @@
       <scope>runtime</scope>
     </dependency>
     <dependency>
-      <artifactId>GeographicLib-Java</artifactId>
-      <groupId>net.sf.geographiclib</groupId>
-      <version>2.1</version>
-    </dependency>
-    <dependency>
       <artifactId>spring-boot-starter-data-redis</artifactId>
       <groupId>org.springframework.boot</groupId>
-    </dependency>
-    <dependency>
-      <artifactId>mapstruct</artifactId>
-      <groupId>org.mapstruct</groupId>
-      <version>1.6.3</version>
     </dependency>
     <dependency>
       <artifactId>spring-boot-testcontainers</artifactId>
@@ -325,6 +301,7 @@
   <properties>
     <java.version>21</java.version>
     <testcontainers.version>2.0.5</testcontainers.version>
+    <integrationTestArgLine/>
     <unitTestArgLine/>
   </properties>
   <version>0.0.1-SNAPSHOT</version>

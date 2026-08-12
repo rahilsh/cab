@@ -2,8 +2,8 @@
 
 ## Supported Versions
 
-Until the first stable release, only the latest commit on `main` receives security fixes. The
-prototype must not be exposed publicly or used for real passenger, driver, payment, or trip data.
+Cab Marketplace is pre-1.0. Until the first stable release, only the latest release and the latest
+commit on `main` receive security fixes; older snapshots and feature branches are unsupported.
 
 Tenant-owned pricing and quote operations require a verified `X-Tenant-ID` membership. Product and
 pricing-rule administration requires the persisted `TENANT_ADMIN` role; quote operations require
