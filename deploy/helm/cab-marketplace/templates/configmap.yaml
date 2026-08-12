@@ -13,5 +13,6 @@ data:
   OIDC_AUDIENCE: {{ required "config.oidcAudience is required" .Values.config.oidcAudience | quote }}
   OSRM_BASE_URL: {{ required "config.osrmBaseUrl is required" .Values.config.osrmBaseUrl | quote }}
   SPRING_PROFILES_ACTIVE: {{ .Values.config.springProfilesActive | quote }}
+  FLYWAY_ENABLED: {{ .Values.config.flywayEnabled | quote }}
   API_DOCS_ENABLED: {{ .Values.config.apiDocsEnabled | quote }}
   SWAGGER_UI_ENABLED: {{ .Values.config.swaggerUiEnabled | quote }}

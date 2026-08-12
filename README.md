@@ -29,7 +29,7 @@ The current implementation supports:
 
 The production roadmap includes:
 
-- Strict tenant isolation and broader role-based access
+- Broader role-based access and audited platform-support workflows
 - Driver document upload and verification workflows
 - Production notification and payment-provider adapters
 - Expanded moderation, support automation, and safety escalation workflows
@@ -140,7 +140,9 @@ The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, 
 `FAKE_PAYMENT_WEBHOOK_SECRET`, and `PAYMENT_WEBHOOK_TOLERANCE`. OSRM defaults to
 `http://localhost:5000`. Defaults are intended
 for local development only. Flyway applies pending migrations; Hibernate validates the resulting
-schema and never creates or drops production tables.
+schema and never creates or drops production tables. The runtime database credentials must identify
+a non-owner role without `BYPASSRLS`; Flyway uses `MIGRATION_DATABASE_USERNAME` and
+`MIGRATION_DATABASE_PASSWORD` as described in the migration runbook.
 
 ## Deployment
 

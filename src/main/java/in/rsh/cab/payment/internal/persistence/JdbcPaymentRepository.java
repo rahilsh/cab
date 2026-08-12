@@ -62,6 +62,12 @@ public class JdbcPaymentRepository implements PaymentRepository {
   }
 
   @Override
+  public Optional<UUID> findTenantForAccount(UUID accountId) {
+    return jdbc.sql("SELECT routed_tenant FROM payment_account_routes WHERE payment_account_id = :id")
+        .param("id", accountId).query(UUID.class).optional();
+  }
+
+  @Override
   public Optional<PaymentAccount> findAccountForPayment(UUID tenantId, UUID paymentId) {
     return jdbc.sql("""
             SELECT a.id, a.tenant_id, a.provider, a.config_reference,

@@ -2,6 +2,7 @@ package in.rsh.cab.payment;
 
 import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
+import in.rsh.cab.tenancy.TenantExecution;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -12,7 +13,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
@@ -25,12 +25,14 @@ public class ProviderCallbackService {
   private final Clock clock;
   private final Duration tolerance;
   private final int commissionBasisPoints;
+  private final TenantExecution tenantExecution;
 
   public ProviderCallbackService(
       PaymentRepository payments, List<PaymentProvider> providers, OutboxService outbox,
-      ObjectMapper json, Clock clock,
-      @Value("${payments.webhook-tolerance}") Duration tolerance,
-      @Value("${payments.platform-commission-basis-points:1500}") int commissionBasisPoints) {
+       ObjectMapper json, Clock clock,
+       @Value("${payments.webhook-tolerance}") Duration tolerance,
+       @Value("${payments.platform-commission-basis-points:1500}") int commissionBasisPoints,
+       TenantExecution tenantExecution) {
     if (commissionBasisPoints < 0 || commissionBasisPoints > 10_000) {
       throw new IllegalArgumentException("Platform commission must be between 0 and 10000 basis points");
     }
@@ -42,15 +44,24 @@ public class ProviderCallbackService {
     this.clock = clock;
     this.tolerance = tolerance;
     this.commissionBasisPoints = commissionBasisPoints;
+    this.tenantExecution = tenantExecution;
   }
 
-  @Transactional
   public Result process(
       UUID accountId, String providerName, Instant timestamp, String signature, String rawBody) {
     Instant now = clock.instant();
     if (timestamp.isBefore(now.minus(tolerance)) || timestamp.isAfter(now.plus(tolerance))) {
       throw new PaymentSignatureException("Webhook timestamp is outside the replay window");
     }
+    UUID tenantId = payments.findTenantForAccount(accountId)
+        .orElseThrow(() -> new PaymentSignatureException("Payment account is not available"));
+    return tenantExecution.inTransaction(tenantId,
+        () -> processForTenant(accountId, providerName, timestamp, signature, rawBody, now));
+  }
+
+  private Result processForTenant(
+      UUID accountId, String providerName, Instant timestamp, String signature, String rawBody,
+      Instant now) {
     PaymentAccount account = payments.findAccount(accountId)
         .filter(value -> value.provider().equals(providerName))
         .orElseThrow(() -> new PaymentSignatureException("Payment account is not available"));
