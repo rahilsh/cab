@@ -46,8 +46,8 @@ public class JdbcLocationCheckpointRepository implements LocationCheckpointRepos
   }
 
   @Override
-  public List<DriverLocation> findLatestEligible(
-      UUID tenantId, Instant recordedSince, LocalDate currentDate, int limit) {
+  public List<DriverLocation> findLatestEligibleAfter(
+      UUID tenantId, Instant recordedSince, LocalDate currentDate, UUID afterShiftId, int limit) {
     return jdbc.sql("""
             SELECT DISTINCT ON (c.shift_id) c.shift_id,
               ST_Y(c.point) AS latitude, ST_X(c.point) AS longitude,
@@ -57,6 +57,7 @@ public class JdbcLocationCheckpointRepository implements LocationCheckpointRepos
             JOIN driver_profiles d ON d.tenant_id = s.tenant_id AND d.id = s.driver_id
             JOIN vehicles v ON v.tenant_id = s.tenant_id AND v.id = s.vehicle_id
             WHERE c.tenant_id = :tenantId AND c.recorded_at >= :recordedSince
+              AND (:afterShiftId IS NULL OR c.shift_id > CAST(:afterShiftId AS uuid))
               AND s.status = 'AVAILABLE' AND d.status = 'APPROVED' AND v.status = 'ACTIVE'
               AND EXISTS (
                 SELECT 1 FROM driver_documents document
@@ -69,6 +70,7 @@ public class JdbcLocationCheckpointRepository implements LocationCheckpointRepos
             LIMIT :limit
             """)
         .param("tenantId", tenantId).param("recordedSince", Timestamp.from(recordedSince))
+        .param("afterShiftId", afterShiftId)
         .param("currentDate", currentDate).param("limit", Math.max(1, Math.min(limit, 500)))
         .query((rs, row) -> new DriverLocation(rs.getObject("shift_id", UUID.class),
             new in.rsh.cab.geography.GeoPoint(rs.getDouble("latitude"), rs.getDouble("longitude")),

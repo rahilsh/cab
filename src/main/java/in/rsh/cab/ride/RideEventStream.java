@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.LongFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,10 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class RideEventStream {
 
+  private static final Logger log = LoggerFactory.getLogger(RideEventStream.class);
   private static final Set<TenantRole> STAFF =
       Set.of(TenantRole.TENANT_ADMIN, TenantRole.DISPATCHER, TenantRole.SUPPORT);
   private final RideRepository rides;
@@ -34,6 +38,7 @@ public class RideEventStream {
   private final int maxPerActor;
   private final int maxPerRide;
   private final LongFunction<SseEmitter> emitterFactory;
+  private final RideStreamRedisPublisher publisher;
   private final Map<ActorKey, Set<Subscription>> byActor = new HashMap<>();
   private final Map<RideKey, Set<Subscription>> byRide = new HashMap<>();
 
@@ -42,18 +47,20 @@ public class RideEventStream {
       RideRepository rides,
       @Value("${rides.events.timeout:PT5M}") Duration timeout,
       @Value("${rides.events.max-per-actor:3}") int maxPerActor,
-      @Value("${rides.events.max-per-ride:20}") int maxPerRide) {
-    this(rides, timeout, maxPerActor, maxPerRide, SseEmitter::new);
+      @Value("${rides.events.max-per-ride:20}") int maxPerRide,
+      RideStreamRedisPublisher publisher) {
+    this(rides, timeout, maxPerActor, maxPerRide, SseEmitter::new, publisher);
   }
 
   RideEventStream(
       RideRepository rides, Duration timeout, int maxPerActor, int maxPerRide,
-      LongFunction<SseEmitter> emitterFactory) {
+      LongFunction<SseEmitter> emitterFactory, RideStreamRedisPublisher publisher) {
     this.rides = rides;
     this.timeoutMillis = timeout.toMillis();
     this.maxPerActor = maxPerActor;
     this.maxPerRide = maxPerRide;
     this.emitterFactory = emitterFactory;
+    this.publisher = publisher;
   }
 
   @Transactional(readOnly = true)
@@ -94,21 +101,31 @@ public class RideEventStream {
     return subscribe(rideId, null);
   }
 
-  public void afterCommit(UUID tenantId, Ride ride) {
+  public void afterCommit(UUID tenantId, UUID eventId, Ride ride) {
     RideStatusEvent event =
-        new RideStatusEvent(ride.id(), ride.status(), ride.version(), ride.updatedAt());
+        new RideStatusEvent(eventId, ride.id(), ride.status(), ride.version(), ride.updatedAt());
     if (!TransactionSynchronizationManager.isActualTransactionActive()
         || !TransactionSynchronizationManager.isSynchronizationActive()) {
-      publish(tenantId, event);
+      publishRedisBestEffort(tenantId, event);
       return;
     }
     TransactionSynchronizationManager.registerSynchronization(
         new TransactionSynchronization() {
           @Override
           public void afterCommit() {
-            publish(tenantId, event);
+            publishRedisBestEffort(tenantId, event);
           }
         });
+  }
+
+  public void receive(String message, ObjectMapper json) {
+    try {
+      RideStreamRedisPublisher.RideStreamMessage decoded =
+          json.readValue(message, RideStreamRedisPublisher.RideStreamMessage.class);
+      publish(decoded.tenantId(), decoded.event());
+    } catch (RuntimeException exception) {
+      log.warn("Discarding invalid ride stream Redis message", exception);
+    }
   }
 
   void publish(UUID tenantId, RideStatusEvent event) {
@@ -162,7 +179,7 @@ public class RideEventStream {
 
   private SseEmitter.SseEventBuilder statusEvent(Ride ride) {
     return statusEvent(new RideStatusEvent(
-        ride.id(), ride.status(), ride.version(), ride.updatedAt()));
+        null, ride.id(), ride.status(), ride.version(), ride.updatedAt()));
   }
 
   private SseEmitter.SseEventBuilder statusEvent(RideStatusEvent event) {
@@ -179,8 +196,17 @@ public class RideEventStream {
     }
   }
 
+  private void publishRedisBestEffort(UUID tenantId, RideStatusEvent event) {
+    try {
+      publisher.publish(tenantId, event);
+    } catch (RuntimeException exception) {
+      log.warn("Immediate ride stream publish failed; outbox will retry event={}", event.eventId(),
+          exception);
+    }
+  }
+
   public record RideStatusEvent(
-      UUID rideId, RideStatus status, long version, Instant occurredAt) {}
+      UUID eventId, UUID rideId, RideStatus status, long version, Instant occurredAt) {}
 
   private record ActorKey(UUID tenantId, UUID accountId) {}
 

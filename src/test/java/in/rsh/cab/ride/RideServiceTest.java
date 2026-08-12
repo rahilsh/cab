@@ -83,7 +83,7 @@ class RideServiceTest {
     Ride cancelled = service.cancelOwn(created.id(), 0, "changed plans");
     assertEquals(RideStatus.CANCELLED, cancelled.status());
     verify(dispatch).cancelRide(TENANT, created.id(), NOW);
-    verify(eventStream).afterCommit(TENANT, cancelled);
+    verify(eventStream).afterCommit(eq(TENANT), any(), eq(cancelled));
   }
 
   @Test

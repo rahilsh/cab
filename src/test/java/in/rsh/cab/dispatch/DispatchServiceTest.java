@@ -90,7 +90,7 @@ class DispatchServiceTest {
     assertEquals(1, offers.size());
     assertEquals(driver, offers.get(0).driverId());
     verify(dispatch).insertOffer(TENANT, offers.get(0));
-    verify(eventStream).afterCommit(eq(TENANT), any());
+    verify(eventStream).afterCommit(eq(TENANT), any(), any());
   }
 
   @Test

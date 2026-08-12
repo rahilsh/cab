@@ -10,6 +10,8 @@ public interface LiveLocationStore {
 
   boolean update(UUID tenantId, DriverLocation location);
 
+  boolean isCurrent(UUID tenantId, DriverLocation location);
+
   List<UUID> nearby(
       UUID tenantId, GeoPoint point, double radiusMeters, int limit, Instant now, Duration maxAge);
 }
