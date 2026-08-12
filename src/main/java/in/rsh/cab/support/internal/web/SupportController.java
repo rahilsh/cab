@@ -47,7 +47,7 @@ public class SupportController {
 
   @PostMapping("/{id}/messages")
   public SupportCase message(@PathVariable UUID id, @Valid @RequestBody MessageRequest request) {
-    return support.addMessage(id, request.body(), request.internal());
+    return support.addMessage(id, request.version(), request.body(), request.internal());
   }
 
   @PostMapping("/{id}/state")
@@ -69,6 +69,7 @@ public class SupportController {
       @NotBlank @Size(max = 4000) String message) {}
 
   public record MessageRequest(
+      @NotNull @jakarta.validation.constraints.PositiveOrZero Long version,
       @NotBlank @Size(max = 4000) String body, boolean internal) {}
 
   public record StateRequest(

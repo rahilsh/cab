@@ -58,6 +58,24 @@ class OutboxConsumerTest {
     verify(worker).process(event, second, "LOCAL", "ride_completed", 1, "ride.completed");
   }
 
+  @Test
+  void safetyNotificationUsesGenericBody() {
+    NotificationRecipientResolver resolver = mock(NotificationRecipientResolver.class);
+    NotificationDeliveryWorker worker = mock(NotificationDeliveryWorker.class);
+    TenantExecution execution = mock(TenantExecution.class);
+    when(execution.inTransaction(any(), org.mockito.ArgumentMatchers
+        .<java.util.function.Supplier<List<UUID>>>any())).thenAnswer(invocation ->
+            ((java.util.function.Supplier<?>) invocation.getArgument(1)).get());
+    OutboxEvent event = event("safety.incident_reported");
+    UUID recipient = UUID.randomUUID();
+    when(resolver.resolve(event)).thenReturn(List.of(recipient));
+
+    assertTrue(new NotificationOutboxConsumer(resolver, worker, execution).process(event));
+
+    verify(worker).process(event, recipient, "LOCAL", "safety_incident_reported", 1,
+        "A safety incident has an update");
+  }
+
   private OutboxEvent event(String type) {
     return new OutboxEvent(UUID.randomUUID(), UUID.randomUUID(), "ride", UUID.randomUUID(), 1,
         type, 1, new ObjectMapper().createObjectNode(), Instant.parse("2026-08-09T10:00:00Z"),

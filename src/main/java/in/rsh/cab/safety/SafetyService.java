@@ -64,7 +64,8 @@ public class SafetyService {
     // Safety events deliberately stay off the outbound webhook allowlist.
     outbox.append(context.tenantId(), "safety_incident", incident.id(), 0,
         "safety.incident_reported", 1,
-        json.valueToTree(new SafetyEvent(incident.id(), rideId, category)), null);
+        json.valueToTree(new SafetyEvent(
+            incident.id(), rideId, context.accountId(), category)), null);
     audit.record(context.tenantId(), context.accountId(), "safety_incident.report",
         "safety_incident", incident.id(), "SUCCESS",
         json.valueToTree(new SafetyAudit(rideId, category, "REPORTED")));
@@ -94,7 +95,8 @@ public class SafetyService {
 
   @Transactional
   public SafetyIncident.Evidence addEvidence(
-      UUID incidentId, String objectKey, String mediaType, Long sizeBytes, String checksum) {
+      UUID incidentId, long expectedVersion, String objectKey, String mediaType, Long sizeBytes,
+      String checksum) {
     TenantContext context = TenantContext.require();
     SafetyIncident incident = incidents.find(context.tenantId(), incidentId)
         .orElseThrow(() -> new NotFoundException("Safety incident not found"));
@@ -102,13 +104,22 @@ public class SafetyService {
     if (!staff && !incident.reportedByAccountId().equals(context.accountId())) {
       throw new TenantAccessDeniedException("Safety incident access is restricted");
     }
+    if (incident.version() != expectedVersion || "CLOSED".equals(incident.state())) {
+      throw new ConflictException("Safety incident changed or is closed");
+    }
     if (!OBJECT_KEY.matcher(objectKey).matches() || objectKey.contains("../")
         || objectKey.contains("/..") || objectKey.contains(":")) {
       throw new InvalidRequestException("Evidence must be an external object key, not a URL or path traversal");
     }
     SafetyIncident.Evidence evidence = new SafetyIncident.Evidence(UUID.randomUUID(),
         context.accountId(), objectKey, mediaType, sizeBytes, checksum, clock.instant());
-    incidents.insertEvidence(context.tenantId(), incidentId, evidence);
+    if (!incidents.appendEvidence(
+        context.tenantId(), incidentId, expectedVersion, evidence, evidence.createdAt())) {
+      throw new ConflictException("Safety incident changed or is closed");
+    }
+    outbox.append(context.tenantId(), "safety_incident", incidentId, expectedVersion + 1,
+        "safety.evidence_added", 1,
+        json.valueToTree(new SafetyUpdateEvent(incidentId, incident.rideId())), null);
     audit.record(context.tenantId(), context.accountId(), "safety_evidence.add", "safety_incident",
         incidentId, "SUCCESS", json.valueToTree(new EvidenceAudit(evidence.id(), mediaType)));
     return evidence;
@@ -139,6 +150,9 @@ public class SafetyService {
     }
     incidents.appendAction(context.tenantId(), incidentId, context.accountId(), action,
         current.state(), state, note, now);
+    outbox.append(context.tenantId(), "safety_incident", incidentId, expectedVersion + 1,
+        "safety.incident_updated", 1,
+        json.valueToTree(new SafetyUpdateEvent(incidentId, current.rideId())), null);
     audit.record(context.tenantId(), context.accountId(), "safety_incident.action",
         "safety_incident", incidentId, "SUCCESS",
         json.valueToTree(new ActionAudit(action, state, severity)));
@@ -162,7 +176,10 @@ public class SafetyService {
         || context.roles().contains(TenantRole.TENANT_ADMIN);
   }
 
-  private record SafetyEvent(UUID incidentId, UUID rideId, String category) {}
+  private record SafetyEvent(
+      UUID incidentId, UUID rideId, UUID reporterAccountId, String category) {}
+
+  private record SafetyUpdateEvent(UUID incidentId, UUID rideId) {}
 
   private record SafetyAudit(UUID rideId, String category, String state) {}
 

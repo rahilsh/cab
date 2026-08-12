@@ -621,18 +621,39 @@ class MarketplaceHttpIT {
         getWithTenant("/api/v1/support/cases/" + supportCaseId, tenantId, "platform-admin")
             .statusCode());
     assertEquals(
+        400,
+        postWithTenant(
+                "/api/v1/support/cases/" + supportCaseId + "/messages",
+                tenantId,
+                "{\"body\":\"missing version\",\"internal\":false}")
+            .statusCode());
+    assertEquals(
+        200,
+        postWithTenant(
+                "/api/v1/support/cases/" + supportCaseId + "/messages",
+                tenantId,
+                "{\"version\":0,\"body\":\"We are reviewing this\",\"internal\":true}")
+            .statusCode());
+    assertEquals(
         200,
         postWithTenant(
                 "/api/v1/support/cases/" + supportCaseId + "/state",
                 tenantId,
-                "{\"expectedState\":\"OPEN\",\"state\":\"CLOSED\",\"version\":0}")
+                "{\"expectedState\":\"OPEN\",\"state\":\"CLOSED\",\"version\":1}")
+            .statusCode());
+    assertEquals(
+        409,
+        postWithTenant(
+                "/api/v1/support/cases/" + supportCaseId + "/messages",
+                tenantId,
+                "{\"version\":2,\"body\":\"late\",\"internal\":true}")
             .statusCode());
     assertEquals(
         409,
         postWithTenant(
                 "/api/v1/support/cases/" + supportCaseId + "/state",
                 tenantId,
-                "{\"expectedState\":\"CLOSED\",\"state\":\"IN_PROGRESS\",\"version\":1}")
+                "{\"expectedState\":\"CLOSED\",\"state\":\"IN_PROGRESS\",\"version\":2}")
             .statusCode());
 
     HttpResponse<String> incident =
@@ -649,7 +670,8 @@ class MarketplaceHttpIT {
         postWithTenant(
             "/api/v1/safety/incidents/" + incidentId + "/evidence",
             tenantId,
-            "{\"objectKey\":\"incidents/photo.jpg\",\"mediaType\":\"image/jpeg\",\"sizeBytes\":10}");
+            "{\"version\":0,\"objectKey\":\"incidents/photo.jpg\","
+                + "\"mediaType\":\"image/jpeg\",\"sizeBytes\":10}");
     assertEquals(201, evidence.statusCode(), evidence.body());
     assertEquals(
         1,
@@ -667,7 +689,15 @@ class MarketplaceHttpIT {
                 "/api/v1/safety/incidents/" + incidentId + "/actions",
                 tenantId,
                 "{\"action\":\"CLOSE\",\"expectedState\":\"REPORTED\","
-                    + "\"state\":\"CLOSED\",\"severity\":\"HIGH\",\"version\":0}")
+                    + "\"state\":\"CLOSED\",\"severity\":\"HIGH\",\"version\":1}")
+            .statusCode());
+    assertEquals(
+        409,
+        postWithTenant(
+                "/api/v1/safety/incidents/" + incidentId + "/evidence",
+                tenantId,
+                "{\"version\":2,\"objectKey\":\"incidents/late.jpg\","
+                    + "\"mediaType\":\"image/jpeg\",\"sizeBytes\":10}")
             .statusCode());
     assertEquals(
         409,
@@ -675,7 +705,7 @@ class MarketplaceHttpIT {
                 "/api/v1/safety/incidents/" + incidentId + "/actions",
                 tenantId,
                 "{\"action\":\"REOPEN\",\"expectedState\":\"CLOSED\","
-                    + "\"state\":\"INVESTIGATING\",\"severity\":\"HIGH\",\"version\":1}")
+                    + "\"state\":\"INVESTIGATING\",\"severity\":\"HIGH\",\"version\":2}")
             .statusCode());
 
     HttpResponse<String> preference =

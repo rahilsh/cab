@@ -67,7 +67,19 @@ public class JdbcSafetyRepository implements SafetyRepository {
   }
 
   @Override
-  public void insertEvidence(UUID tenantId, UUID incidentId, SafetyIncident.Evidence evidence) {
+  public boolean appendEvidence(
+      UUID tenantId, UUID incidentId, long expectedVersion, SafetyIncident.Evidence evidence,
+      Instant now) {
+    int claimed = jdbc.sql("""
+            UPDATE safety_incidents SET updated_at = :now, version = version + 1
+            WHERE tenant_id = :tenantId AND id = :incidentId AND version = :expectedVersion
+              AND state <> 'CLOSED'
+            """)
+        .param("now", Timestamp.from(now)).param("tenantId", tenantId)
+        .param("incidentId", incidentId).param("expectedVersion", expectedVersion).update();
+    if (claimed != 1) {
+      return false;
+    }
     jdbc.sql("""
             INSERT INTO safety_evidence
               (id, tenant_id, incident_id, submitted_by_account_id, object_key,
@@ -80,6 +92,7 @@ public class JdbcSafetyRepository implements SafetyRepository {
         .param("mediaType", evidence.mediaType()).param("sizeBytes", evidence.sizeBytes())
         .param("checksum", evidence.checksumSha256()).param("now", Timestamp.from(evidence.createdAt()))
         .update();
+    return true;
   }
 
   @Override

@@ -49,7 +49,7 @@ public class SafetyController {
   @PostMapping("/{id}/evidence")
   public ResponseEntity<SafetyIncident.Evidence> evidence(
       @PathVariable UUID id, @Valid @RequestBody EvidenceRequest request) {
-    SafetyIncident.Evidence evidence = safety.addEvidence(id, request.objectKey(),
+    SafetyIncident.Evidence evidence = safety.addEvidence(id, request.version(), request.objectKey(),
         request.mediaType(), request.sizeBytes(), request.checksumSha256());
     return ResponseEntity.created(URI.create("/api/v1/safety/incidents/" + id)).body(evidence);
   }
@@ -66,6 +66,7 @@ public class SafetyController {
       @NotBlank @Size(max = 2000) String description) {}
 
   public record EvidenceRequest(
+      @NotNull @PositiveOrZero Long version,
       @NotBlank @Size(max = 512) String objectKey,
       @NotBlank @Size(max = 120) String mediaType,
       @PositiveOrZero Long sizeBytes,

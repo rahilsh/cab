@@ -91,6 +91,23 @@ public class JdbcSupportRepository implements SupportRepository {
   }
 
   @Override
+  public boolean appendMessage(
+      UUID tenantId, UUID caseId, long expectedVersion, SupportCase.Message message, Instant now) {
+    int claimed = jdbc.sql("""
+            UPDATE support_cases SET updated_at = :now, version = version + 1
+            WHERE tenant_id = :tenantId AND id = :caseId AND version = :expectedVersion
+              AND state IN ('OPEN', 'IN_PROGRESS')
+            """)
+        .param("now", Timestamp.from(now)).param("tenantId", tenantId).param("caseId", caseId)
+        .param("expectedVersion", expectedVersion).update();
+    if (claimed != 1) {
+      return false;
+    }
+    insertMessage(tenantId, caseId, message);
+    return true;
+  }
+
+  @Override
   public boolean updateState(
       UUID tenantId, UUID caseId, String expectedState, String state, long expectedVersion,
       Instant now) {

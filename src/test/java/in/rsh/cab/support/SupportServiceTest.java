@@ -70,12 +70,34 @@ class SupportServiceTest {
         "NORMAL", NOW, NOW, 0, List.of());
     when(repository.find(TENANT, supportCase.id())).thenReturn(Optional.of(supportCase));
     assertThrows(TenantAccessDeniedException.class,
-        () -> service.addMessage(supportCase.id(), "private", true));
+        () -> service.addMessage(supportCase.id(), 0, "private", true));
     context(TenantRole.TENANT_ADMIN);
     assertThrows(InvalidRequestException.class,
         () -> service.changeState(supportCase.id(), "OPEN", "INVALID", 0, null));
     assertThrows(ConflictException.class,
         () -> service.changeState(supportCase.id(), "OPEN", "CLOSED", 1, null));
+  }
+
+  @Test
+  void messageRequiresCurrentVersionAndOpenCase() {
+    context(TenantRole.RIDER);
+    SupportCase open = new SupportCase(UUID.randomUUID(), ACCOUNT, null, "Receipt", "OPEN",
+        "NORMAL", NOW, NOW, 2, List.of());
+    when(repository.find(TENANT, open.id())).thenReturn(Optional.of(open), Optional.of(
+        new SupportCase(open.id(), ACCOUNT, null, "Receipt", "OPEN", "NORMAL", NOW, NOW, 3,
+            List.of())));
+    when(repository.appendMessage(org.mockito.ArgumentMatchers.eq(TENANT),
+        org.mockito.ArgumentMatchers.eq(open.id()), org.mockito.ArgumentMatchers.eq(2L),
+        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(NOW))).thenReturn(true);
+    assertEquals(3, service.addMessage(open.id(), 2, "reply", false).version());
+
+    SupportCase closed = new SupportCase(UUID.randomUUID(), ACCOUNT, null, "Receipt", "CLOSED",
+        "NORMAL", NOW, NOW, 4, List.of());
+    when(repository.find(TENANT, closed.id())).thenReturn(Optional.of(closed));
+    assertThrows(ConflictException.class,
+        () -> service.addMessage(closed.id(), 4, "late reply", false));
+    assertThrows(ConflictException.class,
+        () -> service.addMessage(open.id(), 1, "stale reply", false));
   }
 
   @Test
