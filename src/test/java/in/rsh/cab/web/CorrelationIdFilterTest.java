@@ -21,12 +21,27 @@ class CorrelationIdFilterTest {
     request.addHeader(CorrelationIdFilter.HEADER_NAME, "request-123");
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain chain =
-        (ignoredRequest, ignoredResponse) -> assertEquals("request-123", MDC.get("correlationId"));
+        (ignoredRequest, ignoredResponse) -> {
+          assertEquals("request-123", MDC.get("correlationId"));
+          assertEquals("request-123", RequestMetadata.correlationIdOrNull());
+        };
 
     filter.doFilter(request, response, chain);
 
     assertEquals("request-123", response.getHeader(CorrelationIdFilter.HEADER_NAME));
     assertNull(MDC.get("correlationId"));
+    assertNull(RequestMetadata.correlationIdOrNull());
+  }
+
+  @Test
+  void replacesOverlongCorrelationId() throws Exception {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.addHeader(CorrelationIdFilter.HEADER_NAME, "x".repeat(129));
+    MockHttpServletResponse response = new MockHttpServletResponse();
+
+    filter.doFilter(request, response, (ignoredRequest, ignoredResponse) -> {});
+
+    assertFalse("x".repeat(129).equals(response.getHeader(CorrelationIdFilter.HEADER_NAME)));
   }
 
   @Test

@@ -35,6 +35,7 @@ public class SecurityConfiguration {
                         "/api/v1/driver/shifts/**",
                         "/api/v1/products/**",
                         "/api/v1/pricing-rules/**",
+                        "/api/v1/admin/audit-events/**",
                         "/api/v1/quotes/**")
                     .authenticated()
                     .requestMatchers("/api/v1/**")

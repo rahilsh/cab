@@ -1,12 +1,17 @@
 package in.rsh.cab.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpServer;
+import in.rsh.cab.operations.InboxService;
+import in.rsh.cab.operations.OutboxEvent;
+import in.rsh.cab.operations.OutboxPoller;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -14,15 +19,22 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -51,6 +63,10 @@ class MarketplaceHttpIT {
   private final HttpClient httpClient = HttpClient.newHttpClient();
 
   @LocalServerPort private int port;
+
+  @Autowired private JdbcClient jdbc;
+  @Autowired private OutboxPoller outboxPoller;
+  @Autowired private InboxService inbox;
 
   @DynamicPropertySource
   static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -221,19 +237,31 @@ class MarketplaceHttpIT {
     assertEquals(1, JsonParser.parseString(
         getWithTenant("/api/v1/pricing-rules", tenantId, "platform-admin").body()).getAsJsonArray().size());
 
+    String quoteBody =
+        "{\"productId\":\"" + productId + "\","
+            + "\"pickup\":{\"latitude\":12.95,\"longitude\":77.6},"
+            + "\"dropoff\":{\"latitude\":13.0,\"longitude\":77.65}}";
     HttpResponse<String> quoteCreated =
-        postWithTenant(
+        postWithTenantAndIdempotency(
             "/api/v1/quotes",
             tenantId,
-            "{\"productId\":\"" + productId + "\","
-                + "\"pickup\":{\"latitude\":12.95,\"longitude\":77.6},"
-                + "\"dropoff\":{\"latitude\":13.0,\"longitude\":77.65}}");
+            "quote-key-1",
+            quoteBody);
     assertEquals(201, quoteCreated.statusCode());
     JsonObject quote = JsonParser.parseString(quoteCreated.body()).getAsJsonObject();
     assertEquals(809, quote.get("totalMinor").getAsLong());
     assertEquals("USD", quote.get("currency").getAsString());
     assertEquals("ACTIVE", quote.get("status").getAsString());
     String quoteId = quote.get("id").getAsString();
+    HttpResponse<String> quoteReplay = postWithTenantAndIdempotency(
+        "/api/v1/quotes", tenantId, "quote-key-1", quoteBody);
+    assertEquals(201, quoteReplay.statusCode());
+    assertEquals(quoteCreated.body(), quoteReplay.body());
+    HttpResponse<String> quoteConflict = postWithTenantAndIdempotency(
+        "/api/v1/quotes", tenantId, "quote-key-1",
+        quoteBody.replace("13.0", "13.01"));
+    assertEquals(409, quoteConflict.statusCode());
+    assertTrue(quoteConflict.body().contains("idempotency-key-reused"));
     assertEquals(200,
         getWithTenant("/api/v1/quotes/" + quoteId, tenantId, "platform-admin").statusCode());
     assertEquals(1, JsonParser.parseString(
@@ -241,6 +269,34 @@ class MarketplaceHttpIT {
     assertEquals(404,
         getWithTenant("/api/v1/quotes/00000000-0000-0000-0000-000000000000",
             tenantId, "platform-admin").statusCode());
+
+    HttpResponse<String> auditEvents = getWithTenant(
+        "/api/v1/admin/audit-events", tenantId, "platform-admin");
+    assertEquals(200, auditEvents.statusCode());
+    JsonArray auditList = JsonParser.parseString(auditEvents.body()).getAsJsonArray();
+    assertEquals(1, auditList.size());
+    JsonObject audit = auditList.get(0).getAsJsonObject();
+    assertEquals("fare_quote.create", audit.get("action").getAsString());
+    assertEquals(quoteId, audit.get("targetId").getAsString());
+    assertEquals("marketplace-http-it", audit.get("correlationId").getAsString());
+
+    UUID tenantUuid = UUID.fromString(tenantId);
+    List<OutboxEvent> leased = outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30));
+    assertEquals(1, leased.size());
+    assertEquals("marketplace-http-it", leased.get(0).correlationId());
+    outboxPoller.retry(tenantUuid, leased.get(0).id(), Instant.now().minusSeconds(1), "temporary");
+    List<OutboxEvent> retried = outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30));
+    assertEquals(2, retried.get(0).attempts());
+    outboxPoller.published(tenantUuid, retried.get(0).id());
+    assertTrue(outboxPoller.lease(tenantUuid, 10, Duration.ofSeconds(30)).isEmpty());
+
+    UUID incomingEvent = UUID.randomUUID();
+    assertTrue(inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent));
+    assertFalse(inbox.receive(tenantUuid, "marketplace-http-it", incomingEvent));
+    UUID auditId = UUID.fromString(audit.get("id").getAsString());
+    assertThrows(DataAccessException.class,
+        () -> jdbc.sql("UPDATE audit_events SET action = 'changed' WHERE tenant_id = :tenantId AND id = :id")
+            .param("tenantId", tenantUuid).param("id", auditId).update());
 
     HttpResponse<String> route =
         postWithTenant(
@@ -269,6 +325,21 @@ class MarketplaceHttpIT {
             .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
             .header("Authorization", "Bearer platform-admin")
             .header("X-Tenant-ID", tenantId)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postWithTenantAndIdempotency(
+      String path, String tenantId, String idempotencyKey, String body) throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder(uri(path))
+            .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+            .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            .header("Authorization", "Bearer platform-admin")
+            .header("X-Tenant-ID", tenantId)
+            .header("X-Correlation-ID", "marketplace-http-it")
+            .header("Idempotency-Key", idempotencyKey)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build();
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());

@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.routing.RouteProviderException;
+import in.rsh.cab.operations.IdempotencyConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,14 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ConflictException.class)
   public ResponseEntity<ProblemDetail> handleConflict(ConflictException exception) {
     return problem(HttpStatus.CONFLICT, "Conflict", exception.getMessage(), "resource-conflict");
+  }
+
+  @ExceptionHandler(IdempotencyConflictException.class)
+  public ResponseEntity<ProblemDetail> handleIdempotencyConflict(
+      IdempotencyConflictException exception) {
+    String code = exception.reason() == IdempotencyConflictException.Reason.KEY_REUSED
+        ? "idempotency-key-reused" : "idempotency-in-progress";
+    return problem(HttpStatus.CONFLICT, "Idempotency conflict", exception.getMessage(), code);
   }
 
   @ExceptionHandler({IllegalArgumentException.class, InvalidRequestException.class})

@@ -21,12 +21,15 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
     String supplied = request.getHeader(HEADER_NAME);
-    String correlationId = supplied == null || supplied.isBlank() ? UUID.randomUUID().toString() : supplied;
+    String correlationId = supplied == null || supplied.isBlank() || supplied.length() > 128
+        ? UUID.randomUUID().toString() : supplied;
     response.setHeader(HEADER_NAME, correlationId);
     MDC.put(MDC_KEY, correlationId);
+    RequestMetadata.set(new RequestMetadata(correlationId));
     try {
       filterChain.doFilter(request, response);
     } finally {
+      RequestMetadata.clear();
       MDC.remove(MDC_KEY);
     }
   }

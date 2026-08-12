@@ -11,6 +11,13 @@ the persisted `RIDER` role and derive rider ownership from the authenticated ten
 and rider identifiers are not accepted in quote request bodies. Monetary arithmetic is checked for
 overflow, and quote snapshots are immutable through the HTTP API.
 
+Fare quote creation requires a tenant/account/operation-scoped idempotency key. Only a
+caller-selected safe response is retained for replay; raw requests, authorization headers, and
+arbitrary responses must never be stored. Outbox payloads and audit summaries must be explicitly
+minimized and redacted. Correlation IDs are bounded and must not contain secrets. Audit reads
+require `TENANT_ADMIN` or `SUPPORT`, all operational queries are tenant-qualified, and database
+triggers reject audit updates and deletes.
+
 ## Reporting A Vulnerability
 
 Use GitHub private vulnerability reporting for this repository. Open the repository's **Security**
