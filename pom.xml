@@ -204,6 +204,12 @@
       <scope>test</scope>
       <version>${testcontainers.version}</version>
     </dependency>
+    <dependency>
+      <artifactId>testcontainers</artifactId>
+      <groupId>org.testcontainers</groupId>
+      <scope>test</scope>
+      <version>${testcontainers.version}</version>
+    </dependency>
   </dependencies>
   <description>Cab Management portal</description>
   <groupId>in.rsh.cab</groupId>

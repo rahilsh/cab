@@ -18,6 +18,13 @@ minimized and redacted. Correlation IDs are bounded and must not contain secrets
 require `TENANT_ADMIN` or `SUPPORT`, all operational queries are tenant-qualified, and database
 triggers reject audit updates and deletes.
 
+Driver location, offer, and ride operations derive ownership from the selected tenant membership.
+Location updates are freshness and sequence checked and stored under tenant-namespaced Redis keys.
+Dispatch always rechecks PostgreSQL supply eligibility; Redis candidates are hints, not authority.
+Quote consumption, offer acceptance, ride assignment, shift reservation, history, outbox, and audit
+writes use database transactions and conditional updates. Fare and currency snapshots are never
+accepted from clients or recalculated during the lifecycle.
+
 ## Reporting A Vulnerability
 
 Use GitHub private vulnerability reporting for this repository. Open the repository's **Security**

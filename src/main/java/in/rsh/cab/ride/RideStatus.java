@@ -1,0 +1,13 @@
+package in.rsh.cab.ride;
+
+public enum RideStatus {
+  REQUESTED,
+  MATCHING,
+  DRIVER_ASSIGNED,
+  DRIVER_ARRIVING,
+  DRIVER_ARRIVED,
+  IN_PROGRESS,
+  COMPLETED,
+  CANCELLED,
+  NO_DRIVER
+}

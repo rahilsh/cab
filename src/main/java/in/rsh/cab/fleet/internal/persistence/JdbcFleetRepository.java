@@ -3,6 +3,7 @@ package in.rsh.cab.fleet.internal.persistence;
 import in.rsh.cab.driver.DriverStatus;
 import in.rsh.cab.fleet.DriverShift;
 import in.rsh.cab.fleet.ShiftStatus;
+import in.rsh.cab.fleet.SupplyCandidate;
 import in.rsh.cab.fleet.Vehicle;
 import in.rsh.cab.fleet.VehicleStatus;
 import java.sql.ResultSet;
@@ -111,6 +112,12 @@ public class JdbcFleetRepository implements FleetRepository {
   }
 
   @Override
+  public Optional<DriverShift> findShift(UUID tenantId, UUID shiftId) {
+    return jdbc.sql(SHIFT_SELECT + " WHERE s.tenant_id = :tenantId AND s.id = :shiftId")
+        .param("tenantId", tenantId).param("shiftId", shiftId).query(this::mapShift).optional();
+  }
+
+  @Override
   public List<DriverShift> findShifts(UUID tenantId, UUID accountId) {
     return jdbc.sql(SHIFT_SELECT + """
             WHERE s.tenant_id = :tenantId AND d.account_id = :accountId
@@ -131,6 +138,39 @@ public class JdbcFleetRepository implements FleetRepository {
         .param("version", shift.version()).param("updatedAt", Timestamp.from(shift.updatedAt()))
         .param("availableAt", timestamp(shift.availableAt())).param("closedAt", timestamp(shift.closedAt()))
         .param("expectedVersion", expectedVersion).update() == 1;
+  }
+
+  @Override
+  public boolean transitionShift(
+      UUID tenantId, UUID shiftId, ShiftStatus expected, ShiftStatus next, java.time.Instant now) {
+    return jdbc.sql("""
+            UPDATE driver_shifts
+            SET status = :next, version = version + 1, updated_at = :now,
+                available_at = CASE WHEN :next = 'AVAILABLE' THEN :now ELSE available_at END
+            WHERE tenant_id = :tenantId AND id = :shiftId AND status = :expected
+            """)
+        .param("tenantId", tenantId).param("shiftId", shiftId)
+        .param("expected", expected.name()).param("next", next.name())
+        .param("now", Timestamp.from(now)).update() == 1;
+  }
+
+  @Override
+  public List<SupplyCandidate> findAvailableCandidates(
+      UUID tenantId, List<UUID> shiftIds, String serviceClass) {
+    if (shiftIds.isEmpty()) {
+      return List.of();
+    }
+    return jdbc.sql("""
+            SELECT s.id, s.driver_id, s.vehicle_id
+            FROM driver_shifts s
+            JOIN vehicles v ON v.tenant_id = s.tenant_id AND v.id = s.vehicle_id
+            JOIN driver_profiles d ON d.tenant_id = s.tenant_id AND d.id = s.driver_id
+            WHERE s.tenant_id = :tenantId AND s.id IN (:shiftIds) AND s.status = 'AVAILABLE'
+              AND v.status = 'ACTIVE' AND v.service_class = :serviceClass AND d.status = 'APPROVED'
+            """)
+        .param("tenantId", tenantId).param("shiftIds", shiftIds).param("serviceClass", serviceClass)
+        .query((rs, row) -> new SupplyCandidate(rs.getObject("id", UUID.class),
+            rs.getObject("driver_id", UUID.class), rs.getObject("vehicle_id", UUID.class))).list();
   }
 
   private Vehicle mapVehicle(ResultSet resultSet, int rowNumber) throws SQLException {

@@ -29,4 +29,7 @@ public interface PricingRepository {
   Optional<FareQuote> findQuote(UUID tenantId, UUID riderAccountId, UUID quoteId);
 
   List<FareQuote> findQuotes(UUID tenantId, UUID riderAccountId);
+
+  Optional<FareQuote> consumeQuote(
+      UUID tenantId, UUID riderAccountId, UUID quoteId, Instant now);
 }
