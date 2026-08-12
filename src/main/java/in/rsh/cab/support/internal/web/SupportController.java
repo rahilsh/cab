@@ -40,6 +40,11 @@ public class SupportController {
     return support.list();
   }
 
+  @GetMapping("/{id}")
+  public SupportCase get(@PathVariable UUID id) {
+    return support.get(id);
+  }
+
   @PostMapping("/{id}/messages")
   public SupportCase message(@PathVariable UUID id, @Valid @RequestBody MessageRequest request) {
     return support.addMessage(id, request.body(), request.internal());
@@ -47,13 +52,14 @@ public class SupportController {
 
   @PostMapping("/{id}/state")
   public SupportCase state(@PathVariable UUID id, @Valid @RequestBody StateRequest request) {
-    return support.changeState(id, request.state(), request.reason());
+    return support.changeState(
+        id, request.expectedState(), request.state(), request.version(), request.reason());
   }
 
   @PostMapping("/{id}/assignments")
   public ResponseEntity<Void> assign(
       @PathVariable UUID id, @Valid @RequestBody AssignmentRequest request) {
-    support.assign(id, request.assigneeAccountId());
+    support.assign(id, request.assigneeAccountId(), request.version());
     return ResponseEntity.noContent().build();
   }
 
@@ -66,8 +72,13 @@ public class SupportController {
       @NotBlank @Size(max = 4000) String body, boolean internal) {}
 
   public record StateRequest(
+      @NotBlank @Pattern(regexp = "OPEN|IN_PROGRESS|WAITING|RESOLVED|CLOSED")
+          String expectedState,
       @NotBlank @Pattern(regexp = "OPEN|IN_PROGRESS|WAITING|RESOLVED|CLOSED") String state,
+      @jakarta.validation.constraints.PositiveOrZero long version,
       @Size(max = 500) String reason) {}
 
-  public record AssignmentRequest(@NotNull UUID assigneeAccountId) {}
+  public record AssignmentRequest(
+      @NotNull UUID assigneeAccountId,
+      @jakarta.validation.constraints.PositiveOrZero long version) {}
 }

@@ -33,7 +33,7 @@ public class ProductController {
   public ResponseEntity<ServiceProduct> create(@Valid @RequestBody CreateProductRequest request) {
     ServiceProduct product = pricing.createProduct(
         request.slug(), request.name(), request.status(), request.capacity(), request.serviceClass());
-    return ResponseEntity.created(URI.create("/api/v1/products/" + product.id())).body(product);
+    return ResponseEntity.created(URI.create("/api/v1/products")).body(product);
   }
 
   @GetMapping

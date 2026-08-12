@@ -57,7 +57,7 @@ class WebhookServiceTest {
   @Test
   void createsAndListsTenantSubscriptionsWithAudit() {
     WebhookSubscription created =
-        service.create("https://example.com/hook", "env:WEBHOOK_SECRET", FILTERS, true);
+        service.create("https://example.com/hook", "env:CAB_WEBHOOK_SECRET", FILTERS, true);
 
     assertEquals("https://example.com/hook", created.url());
     assertEquals(NOW, created.createdAt());
@@ -68,6 +68,8 @@ class WebhookServiceTest {
 
     when(repository.findAll(TENANT)).thenReturn(List.of(created));
     assertEquals(List.of(created), service.list());
+    assertTrue(WebhookService.EVENT_ALLOWLIST.contains("ride.driver_assigned"));
+    assertTrue(WebhookService.EVENT_ALLOWLIST.contains("ride.no_driver"));
   }
 
   @Test
@@ -78,7 +80,7 @@ class WebhookServiceTest {
     when(repository.update(eq(TENANT), any(), eq(2L))).thenReturn(true);
 
     WebhookSubscription updated = service.update(
-        id, 2, "https://example.com/updated", "env:UPDATED_SECRET", FILTERS, false);
+        id, 2, "https://example.com/updated", "env:CAB_WEBHOOK_UPDATED_SECRET", FILTERS, false);
 
     assertEquals(3, updated.version());
     assertEquals(current.createdAt(), updated.createdAt());
@@ -94,14 +96,14 @@ class WebhookServiceTest {
         () -> service.create("https://example.com", "secret", FILTERS, true));
     assertThrows(
         InvalidRequestException.class,
-        () -> service.create("https://example.com", "env:SECRET", Set.of("payment.captured"), true));
+        () -> service.create("https://example.com", "env:CAB_WEBHOOK_SECRET", Set.of("payment.captured"), true));
 
     UUID missing = UUID.randomUUID();
     when(repository.find(TENANT, missing)).thenReturn(Optional.empty());
     assertThrows(
         NotFoundException.class,
         () -> service.update(
-            missing, 0, "https://example.com", "env:SECRET", FILTERS, true));
+            missing, 0, "https://example.com", "env:CAB_WEBHOOK_SECRET", FILTERS, true));
     assertThrows(NotFoundException.class, () -> service.delete(missing));
 
     UUID stale = UUID.randomUUID();
@@ -109,7 +111,7 @@ class WebhookServiceTest {
     assertThrows(
         ConflictException.class,
         () -> service.update(
-            stale, 1, "https://example.com", "env:SECRET", FILTERS, true));
+            stale, 1, "https://example.com", "env:CAB_WEBHOOK_SECRET", FILTERS, true));
 
     UUID raced = UUID.randomUUID();
     when(repository.find(TENANT, raced)).thenReturn(Optional.of(subscription(raced, 2)));
@@ -117,7 +119,7 @@ class WebhookServiceTest {
     assertThrows(
         ConflictException.class,
         () -> service.update(
-            raced, 2, "https://example.com", "env:SECRET", FILTERS, true));
+            raced, 2, "https://example.com", "env:CAB_WEBHOOK_SECRET", FILTERS, true));
   }
 
   @Test
@@ -133,7 +135,7 @@ class WebhookServiceTest {
     return new WebhookSubscription(
         id,
         "https://example.com/hook",
-        "env:SECRET",
+        "env:CAB_WEBHOOK_SECRET",
         FILTERS,
         true,
         NOW.minusSeconds(60),

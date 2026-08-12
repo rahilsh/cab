@@ -570,7 +570,15 @@ public class JdbcPaymentRepository implements PaymentRepository {
             """)
         .param("tenantId", tenantId).query((rs, row) -> new SettlementBatch(
             rs.getObject("id", UUID.class), rs.getString("currency"), rs.getString("state"),
-            rs.getLong("total_minor"), rs.getTimestamp("created_at").toInstant(), List.of())).list();
+            rs.getLong("total_minor"), rs.getTimestamp("created_at").toInstant(), List.of())).list()
+        .stream().map(batch -> new SettlementBatch(batch.id(), batch.currency(), batch.state(),
+            batch.totalMinor(), batch.createdAt(), jdbc.sql("""
+                SELECT id, driver_id, amount_minor, currency, state, payment_account_id,
+                       provider_payout_id, provider_version, failure_code
+                FROM payouts WHERE tenant_id = :tenantId AND settlement_batch_id = :batchId
+                ORDER BY created_at, id
+                """).param("tenantId", tenantId).param("batchId", batch.id())
+                .query(this::mapPayout).list())).toList();
   }
 
   private void postMarketplaceLedger(

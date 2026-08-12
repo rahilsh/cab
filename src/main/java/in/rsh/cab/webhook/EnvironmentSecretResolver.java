@@ -14,8 +14,9 @@ public class EnvironmentSecretResolver implements SecretResolver {
 
   @Override
   public String resolve(String reference) {
-    if (reference == null || !reference.matches("^env:[A-Za-z_][A-Za-z0-9_]*$")) {
-      throw new IllegalArgumentException("Only env secret references are supported");
+    if (reference == null || !reference.matches("^env:CAB_WEBHOOK_[A-Z0-9_]+$")) {
+      throw new IllegalArgumentException(
+          "Webhook secret references must use the env:CAB_WEBHOOK_ prefix");
     }
     String secret = environment.getProperty(reference.substring(4));
     if (secret == null || secret.isBlank()) {

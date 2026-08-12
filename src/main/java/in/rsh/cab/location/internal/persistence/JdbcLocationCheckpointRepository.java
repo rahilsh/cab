@@ -75,4 +75,20 @@ public class JdbcLocationCheckpointRepository implements LocationCheckpointRepos
             rs.getTimestamp("recorded_at").toInstant(), rs.getLong("sequence")))
         .list();
   }
+
+  @Override
+  public int deleteCreatedBefore(UUID tenantId, Instant cutoff, int limit) {
+    return jdbc.sql("""
+            DELETE FROM driver_location_checkpoints checkpoint
+            USING (
+              SELECT id FROM driver_location_checkpoints
+              WHERE tenant_id = :tenantId AND created_at < :cutoff
+              ORDER BY created_at, id
+              LIMIT :limit
+            ) expired
+            WHERE checkpoint.tenant_id = :tenantId AND checkpoint.id = expired.id
+            """)
+        .param("tenantId", tenantId).param("cutoff", Timestamp.from(cutoff))
+        .param("limit", Math.max(1, Math.min(limit, 10_000))).update();
+  }
 }

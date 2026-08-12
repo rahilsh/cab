@@ -54,8 +54,10 @@ public class RideController {
   }
 
   @GetMapping(value = "/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public SseEmitter events(@PathVariable UUID id) {
-    return events.subscribe(id);
+  public SseEmitter events(
+      @PathVariable UUID id,
+      @RequestHeader(value = "Last-Event-ID", required = false) Long lastEventId) {
+    return events.subscribe(id, lastEventId);
   }
 
   @PostMapping("/{id}/cancel")

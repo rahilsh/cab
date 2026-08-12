@@ -42,6 +42,11 @@ public class DriverDocumentController {
     return documents.listOwn();
   }
 
+  @GetMapping("/drivers/me/documents/{documentId}")
+  public DriverDocument getOwn(@PathVariable UUID documentId) {
+    return documents.getOwn(documentId);
+  }
+
   @GetMapping("/drivers/{driverId}/documents")
   public List<DriverDocument> list(@PathVariable UUID driverId) {
     return documents.list(driverId);

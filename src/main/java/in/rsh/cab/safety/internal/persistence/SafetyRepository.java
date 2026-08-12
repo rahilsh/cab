@@ -18,7 +18,9 @@ public interface SafetyRepository {
 
   void insertEvidence(UUID tenantId, UUID incidentId, SafetyIncident.Evidence evidence);
 
-  boolean update(UUID tenantId, UUID incidentId, String state, String severity, Instant now);
+  boolean update(
+      UUID tenantId, UUID incidentId, String expectedState, String state, String severity,
+      long expectedVersion, Instant now);
 
   void appendAction(UUID tenantId, UUID incidentId, UUID actorId, String action,
       String fromState, String toState, String note, Instant now);

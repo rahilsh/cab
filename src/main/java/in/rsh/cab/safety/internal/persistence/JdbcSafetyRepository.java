@@ -16,7 +16,7 @@ public class JdbcSafetyRepository implements SafetyRepository {
 
   private static final String SELECT = """
       SELECT id, ride_id, reported_by_account_id, category, description, state, severity,
-             created_at, updated_at FROM safety_incidents
+             created_at, updated_at, version FROM safety_incidents
       """;
   private final JdbcClient jdbc;
 
@@ -55,13 +55,15 @@ public class JdbcSafetyRepository implements SafetyRepository {
   @Override
   public Optional<SafetyIncident> find(UUID tenantId, UUID incidentId) {
     return jdbc.sql(SELECT + " WHERE tenant_id = :tenantId AND id = :id")
-        .param("tenantId", tenantId).param("id", incidentId).query(this::map).optional();
+        .param("tenantId", tenantId).param("id", incidentId).query(this::map).optional()
+        .map(incident -> withEvidence(tenantId, incident));
   }
 
   @Override
   public List<SafetyIncident> findAll(UUID tenantId) {
     return jdbc.sql(SELECT + " WHERE tenant_id = :tenantId ORDER BY created_at DESC, id")
-        .param("tenantId", tenantId).query(this::map).list();
+        .param("tenantId", tenantId).query(this::map).list().stream()
+        .map(incident -> withEvidence(tenantId, incident)).toList();
   }
 
   @Override
@@ -81,13 +83,18 @@ public class JdbcSafetyRepository implements SafetyRepository {
   }
 
   @Override
-  public boolean update(UUID tenantId, UUID incidentId, String state, String severity, Instant now) {
+  public boolean update(
+      UUID tenantId, UUID incidentId, String expectedState, String state, String severity,
+      long expectedVersion, Instant now) {
     return jdbc.sql("""
-            UPDATE safety_incidents SET state = :state, severity = :severity, updated_at = :now
-            WHERE tenant_id = :tenantId AND id = :id
+            UPDATE safety_incidents
+            SET state = :state, severity = :severity, updated_at = :now, version = version + 1
+            WHERE tenant_id = :tenantId AND id = :id AND state = :expectedState
+              AND version = :expectedVersion
             """)
         .param("state", state).param("severity", severity).param("now", Timestamp.from(now))
-        .param("tenantId", tenantId).param("id", incidentId).update() == 1;
+        .param("tenantId", tenantId).param("id", incidentId).param("expectedState", expectedState)
+        .param("expectedVersion", expectedVersion).update() == 1;
   }
 
   @Override
@@ -112,6 +119,25 @@ public class JdbcSafetyRepository implements SafetyRepository {
         rs.getObject("reported_by_account_id", UUID.class), rs.getString("category"),
         rs.getString("description"), rs.getString("state"), rs.getString("severity"),
         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("updated_at").toInstant(),
-        List.of());
+        rs.getLong("version"), List.of());
+  }
+
+  private SafetyIncident withEvidence(UUID tenantId, SafetyIncident incident) {
+    List<SafetyIncident.Evidence> evidence = jdbc.sql("""
+            SELECT id, submitted_by_account_id, object_key, media_type, size_bytes,
+                   checksum_sha256, created_at
+            FROM safety_evidence
+            WHERE tenant_id = :tenantId AND incident_id = :incidentId
+            ORDER BY created_at, id
+            """)
+        .param("tenantId", tenantId).param("incidentId", incident.id())
+        .query((rs, row) -> new SafetyIncident.Evidence(rs.getObject("id", UUID.class),
+            rs.getObject("submitted_by_account_id", UUID.class), rs.getString("object_key"),
+            rs.getString("media_type"), rs.getObject("size_bytes", Long.class),
+            rs.getString("checksum_sha256"), rs.getTimestamp("created_at").toInstant()))
+        .list();
+    return new SafetyIncident(incident.id(), incident.rideId(), incident.reportedByAccountId(),
+        incident.category(), incident.description(), incident.state(), incident.severity(),
+        incident.createdAt(), incident.updatedAt(), incident.version(), evidence);
   }
 }

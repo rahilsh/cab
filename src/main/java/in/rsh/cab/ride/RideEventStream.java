@@ -57,31 +57,41 @@ public class RideEventStream {
   }
 
   @Transactional(readOnly = true)
-  public SseEmitter subscribe(UUID rideId) {
+  public SseEmitter subscribe(UUID rideId, Long lastEventId) {
     TenantContext context = TenantContext.require();
-    authorize(context, rideId);
+    visibleRide(context, rideId);
     ActorKey actorKey = new ActorKey(context.tenantId(), context.accountId());
     RideKey rideKey = new RideKey(context.tenantId(), rideId);
     SseEmitter emitter = emitterFactory.apply(timeoutMillis);
     Subscription subscription = new Subscription(actorKey, rideKey, emitter);
+    emitter.onCompletion(() -> remove(subscription));
+    emitter.onTimeout(() -> remove(subscription));
+    emitter.onError(ignored -> remove(subscription));
     synchronized (this) {
       if (byActor.getOrDefault(actorKey, Set.of()).size() >= maxPerActor
           || byRide.getOrDefault(rideKey, Set.of()).size() >= maxPerRide) {
         throw new ConflictException("Too many active ride event streams");
       }
-      byActor.computeIfAbsent(actorKey, ignored -> new HashSet<>()).add(subscription);
-      byRide.computeIfAbsent(rideKey, ignored -> new HashSet<>()).add(subscription);
-    }
-    emitter.onCompletion(() -> remove(subscription));
-    emitter.onTimeout(() -> remove(subscription));
-    emitter.onError(ignored -> remove(subscription));
-    try {
-      emitter.send(SseEmitter.event().name("ready").comment("ride status stream ready"));
-    } catch (IOException exception) {
-      remove(subscription);
-      throw new IllegalStateException("Could not open ride event stream", exception);
+      Ride current = visibleRide(context, rideId);
+      try {
+        // Always establish the stream with a full current snapshot. A newer version than the
+        // resume hint therefore also supplies the minimal Last-Event-ID catch-up behavior.
+        if (lastEventId != null && current.version() <= lastEventId) {
+          emitter.send(SseEmitter.event().comment("current ride version already observed"));
+        }
+        emitter.send(statusEvent(current));
+        byActor.computeIfAbsent(actorKey, ignored -> new HashSet<>()).add(subscription);
+        byRide.computeIfAbsent(rideKey, ignored -> new HashSet<>()).add(subscription);
+      } catch (IOException | IllegalStateException exception) {
+        remove(subscription);
+        throw new IllegalStateException("Could not open ride event stream", exception);
+      }
     }
     return emitter;
+  }
+
+  public SseEmitter subscribe(UUID rideId) {
+    return subscribe(rideId, null);
   }
 
   public void afterCommit(UUID tenantId, Ride ride) {
@@ -109,8 +119,7 @@ public class RideEventStream {
     }
     for (Subscription subscription : subscribers) {
       try {
-        subscription.emitter().send(
-            SseEmitter.event().name("ride-status").id(Long.toString(event.version())).data(event));
+        subscription.emitter().send(statusEvent(event));
       } catch (IOException | IllegalStateException exception) {
         remove(subscription);
       }
@@ -121,30 +130,43 @@ public class RideEventStream {
     return byRide.getOrDefault(new RideKey(tenantId, rideId), Set.of()).size();
   }
 
-  private void authorize(TenantContext context, UUID rideId) {
+  private Ride visibleRide(TenantContext context, UUID rideId) {
     boolean staff = context.roles().stream().anyMatch(STAFF::contains);
-    boolean visible;
+    Ride visible = null;
     if (staff) {
-      visible = rides.find(context.tenantId(), rideId).isPresent();
+      visible = rides.find(context.tenantId(), rideId).orElse(null);
     } else {
       boolean rider = context.roles().contains(TenantRole.RIDER);
       boolean driver = context.roles().contains(TenantRole.DRIVER);
       if (!rider && !driver) {
         throw new TenantAccessDeniedException("Ride event stream access is restricted");
       }
-      visible = rider && rides.findOwn(context.tenantId(), context.accountId(), rideId).isPresent();
-      if (!visible && driver) {
-        visible = rides.findAssignedToDriver(context.tenantId(), context.accountId(), rideId).isPresent();
+      if (rider) {
+        visible = rides.findOwn(context.tenantId(), context.accountId(), rideId).orElse(null);
+      }
+      if (visible == null && driver) {
+        visible = rides.findAssignedToDriver(context.tenantId(), context.accountId(), rideId)
+            .orElse(null);
       }
     }
-    if (!visible) {
+    if (visible == null) {
       throw new NotFoundException("Ride not found");
     }
+    return visible;
   }
 
   private synchronized void remove(Subscription subscription) {
     remove(byActor, subscription.actorKey(), subscription);
     remove(byRide, subscription.rideKey(), subscription);
+  }
+
+  private SseEmitter.SseEventBuilder statusEvent(Ride ride) {
+    return statusEvent(new RideStatusEvent(
+        ride.id(), ride.status(), ride.version(), ride.updatedAt()));
+  }
+
+  private SseEmitter.SseEventBuilder statusEvent(RideStatusEvent event) {
+    return SseEmitter.event().name("ride-status").id(Long.toString(event.version())).data(event);
   }
 
   private <K> void remove(Map<K, Set<Subscription>> index, K key, Subscription subscription) {

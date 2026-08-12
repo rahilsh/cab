@@ -244,6 +244,20 @@ class PricingServiceTest {
     assertThrows(TenantAccessDeniedException.class, service::listOwnQuotes);
   }
 
+  @Test
+  void derivesExpiredStatusOnGetAndListWithoutChangingStoredSnapshot() {
+    rider();
+    FareQuote stored = new FareQuote(UUID.randomUUID(), PRODUCT_ID, UUID.randomUUID(), 1,
+        PICKUP, DROPOFF, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, "USD",
+        QuoteStatus.ACTIVE, NOW, "fingerprint", NOW.minusSeconds(60), NOW.minusSeconds(60), 0);
+    when(repository.findQuote(TENANT_ID, ACCOUNT_ID, stored.id())).thenReturn(Optional.of(stored));
+    when(repository.findQuotes(TENANT_ID, ACCOUNT_ID)).thenReturn(List.of(stored));
+
+    assertEquals(QuoteStatus.EXPIRED, service.getOwnQuote(stored.id()).status());
+    assertEquals(QuoteStatus.EXPIRED, service.listOwnQuotes().getFirst().status());
+    assertEquals(QuoteStatus.ACTIVE, stored.status());
+  }
+
   private ServiceProduct product(ProductStatus status) {
     return new ServiceProduct(PRODUCT_ID, "standard", "Standard", status, 4, "STANDARD", NOW, NOW);
   }

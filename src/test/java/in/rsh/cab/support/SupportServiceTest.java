@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import in.rsh.cab.audit.AuditService;
 import in.rsh.cab.exception.InvalidRequestException;
+import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.support.internal.persistence.SupportRepository;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
@@ -53,9 +54,11 @@ class SupportServiceTest {
     assertEquals(1, service.list().size());
     when(repository.find(TENANT, supportCase.id())).thenReturn(Optional.of(supportCase), Optional.of(
         new SupportCase(supportCase.id(), ACCOUNT, RIDE, "Receipt", "IN_PROGRESS", "NORMAL",
-            NOW, NOW, List.of())));
+            NOW, NOW, 1, List.of())));
+    when(repository.updateState(TENANT, supportCase.id(), "OPEN", "IN_PROGRESS", 0, NOW))
+        .thenReturn(true);
     assertEquals("IN_PROGRESS",
-        service.changeState(supportCase.id(), "IN_PROGRESS", "triaged").state());
+        service.changeState(supportCase.id(), "OPEN", "IN_PROGRESS", 0, "triaged").state());
   }
 
   @Test
@@ -64,13 +67,34 @@ class SupportServiceTest {
     assertThrows(TenantAccessDeniedException.class,
         () -> service.create(RIDE, "Receipt", "Question"));
     SupportCase supportCase = new SupportCase(UUID.randomUUID(), ACCOUNT, null, "Receipt", "OPEN",
-        "NORMAL", NOW, NOW, List.of());
+        "NORMAL", NOW, NOW, 0, List.of());
     when(repository.find(TENANT, supportCase.id())).thenReturn(Optional.of(supportCase));
     assertThrows(TenantAccessDeniedException.class,
         () -> service.addMessage(supportCase.id(), "private", true));
     context(TenantRole.TENANT_ADMIN);
     assertThrows(InvalidRequestException.class,
-        () -> service.changeState(supportCase.id(), "INVALID", null));
+        () -> service.changeState(supportCase.id(), "OPEN", "INVALID", 0, null));
+    assertThrows(ConflictException.class,
+        () -> service.changeState(supportCase.id(), "OPEN", "CLOSED", 1, null));
+  }
+
+  @Test
+  void closedCaseCannotReopenAndAssignmentRequiresPersistedStaffRole() {
+    context(TenantRole.SUPPORT);
+    UUID assignee = UUID.randomUUID();
+    SupportCase closed = new SupportCase(UUID.randomUUID(), ACCOUNT, null, "Receipt", "CLOSED",
+        "NORMAL", NOW, NOW, 3, List.of());
+    when(repository.find(TENANT, closed.id())).thenReturn(Optional.of(closed));
+
+    assertThrows(ConflictException.class,
+        () -> service.changeState(closed.id(), "CLOSED", "IN_PROGRESS", 3, null));
+    assertThrows(InvalidRequestException.class, () -> service.assign(closed.id(), assignee, 3));
+    assertThrows(ConflictException.class, () -> service.assign(closed.id(), assignee, 2));
+
+    when(repository.hasStaffRole(TENANT, assignee)).thenReturn(true);
+    when(repository.assign(TENANT, closed.id(), assignee, ACCOUNT, 3, NOW)).thenReturn(true);
+    service.assign(closed.id(), assignee, 3);
+    verify(repository).assign(TENANT, closed.id(), assignee, ACCOUNT, 3, NOW);
   }
 
   private void context(TenantRole role) {

@@ -59,6 +59,8 @@ class DriverDocumentServiceTest {
 
     when(documents.findAll(TENANT, DRIVER)).thenReturn(List.of(submitted));
     assertEquals(List.of(submitted), service.listOwn());
+    when(documents.find(TENANT, DRIVER, submitted.id())).thenReturn(Optional.of(submitted));
+    assertEquals(submitted, service.getOwn(submitted.id()));
   }
 
   @Test

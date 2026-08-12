@@ -41,18 +41,23 @@ public class SafetyController {
     return safety.listRestricted();
   }
 
+  @GetMapping("/{id}")
+  public SafetyIncident get(@PathVariable UUID id) {
+    return safety.get(id);
+  }
+
   @PostMapping("/{id}/evidence")
   public ResponseEntity<SafetyIncident.Evidence> evidence(
       @PathVariable UUID id, @Valid @RequestBody EvidenceRequest request) {
     SafetyIncident.Evidence evidence = safety.addEvidence(id, request.objectKey(),
         request.mediaType(), request.sizeBytes(), request.checksumSha256());
-    return ResponseEntity.created(URI.create("/api/v1/safety/incidents/" + id + "/evidence/"
-        + evidence.id())).body(evidence);
+    return ResponseEntity.created(URI.create("/api/v1/safety/incidents/" + id)).body(evidence);
   }
 
   @PostMapping("/{id}/actions")
   public SafetyIncident action(@PathVariable UUID id, @Valid @RequestBody ActionRequest request) {
-    return safety.action(id, request.action(), request.state(), request.severity(), request.note());
+    return safety.action(id, request.action(), request.expectedState(), request.state(),
+        request.severity(), request.version(), request.note());
   }
 
   public record ReportRequest(
@@ -68,7 +73,10 @@ public class SafetyController {
 
   public record ActionRequest(
       @NotBlank @Size(max = 64) String action,
+      @NotBlank @Pattern(regexp = "REPORTED|TRIAGED|INVESTIGATING|RESOLVED|CLOSED")
+          String expectedState,
       @NotBlank @Pattern(regexp = "REPORTED|TRIAGED|INVESTIGATING|RESOLVED|CLOSED") String state,
       @NotBlank @Pattern(regexp = "UNASSESSED|LOW|MEDIUM|HIGH|CRITICAL") String severity,
+      @PositiveOrZero long version,
       @Size(max = 500) String note) {}
 }

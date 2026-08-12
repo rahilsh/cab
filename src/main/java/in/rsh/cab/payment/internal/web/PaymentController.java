@@ -53,8 +53,8 @@ public class PaymentController {
     PaymentService.RefundCreation result = payments.refund(
         idempotencyKey, paymentId, request.amountMinor(), request.reason());
     Refund refund = result.refund();
-    return ResponseEntity.created(URI.create("/api/v1/payments/" + paymentId + "/refunds/"
-        + refund.id())).header("Idempotent-Replayed", Boolean.toString(result.replayed())).body(refund);
+    return ResponseEntity.created(URI.create("/api/v1/finance/refunds/" + refund.id()))
+        .header("Idempotent-Replayed", Boolean.toString(result.replayed())).body(refund);
   }
 
   @GetMapping("/api/v1/finance/refunds/{refundId}")
@@ -71,7 +71,7 @@ public class PaymentController {
   public ResponseEntity<SettlementBatch> settle(
       @Valid @RequestBody SettlementRequest request) {
     SettlementBatch batch = payments.settle(request.currency());
-    return ResponseEntity.created(URI.create("/api/v1/finance/settlements/" + batch.id()))
+    return ResponseEntity.created(URI.create("/api/v1/finance/settlements"))
         .body(batch);
   }
 

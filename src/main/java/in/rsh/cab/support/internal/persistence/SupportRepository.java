@@ -20,10 +20,15 @@ public interface SupportRepository {
 
   void insertMessage(UUID tenantId, UUID caseId, SupportCase.Message message);
 
-  boolean updateState(UUID tenantId, UUID caseId, String state, Instant now);
+  boolean updateState(
+      UUID tenantId, UUID caseId, String expectedState, String state, long expectedVersion,
+      Instant now);
 
   void appendState(UUID tenantId, UUID caseId, String from, String to, UUID actorId,
       String reason, Instant now);
 
-  void assign(UUID tenantId, UUID caseId, UUID assigneeId, UUID actorId, Instant now);
+  boolean hasStaffRole(UUID tenantId, UUID accountId);
+
+  boolean assign(
+      UUID tenantId, UUID caseId, UUID assigneeId, UUID actorId, long expectedVersion, Instant now);
 }

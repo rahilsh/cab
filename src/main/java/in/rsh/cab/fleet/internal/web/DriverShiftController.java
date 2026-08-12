@@ -29,7 +29,7 @@ public class DriverShiftController {
   @PostMapping
   public ResponseEntity<DriverShift> create(@Valid @RequestBody CreateShiftRequest request) {
     DriverShift shift = fleet.createShift(request.driverId(), request.vehicleId());
-    return ResponseEntity.created(URI.create("/api/v1/driver/shifts/" + shift.id())).body(shift);
+    return ResponseEntity.created(URI.create("/api/v1/driver/shifts")).body(shift);
   }
 
   @GetMapping
