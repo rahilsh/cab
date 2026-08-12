@@ -59,6 +59,7 @@ config:
   flywayEnabled: "true"
   apiDocsEnabled: "false"
   swaggerUiEnabled: "false"
+  outboxDispatcherEnabled: "true"
 
 # Create this Secret outside Helm. This chart never stores credential values.
 existingSecret:

@@ -135,6 +135,7 @@ public class JdbcPaymentRepository implements PaymentRepository {
             UPDATE payment_attempts SET state = 'PROCESSING'
             WHERE tenant_id = :tenantId AND payment_id = :paymentId
               AND operation = 'CAPTURE' AND state IN ('PENDING', 'PROCESSING')
+              AND provider_request_id IS NULL
             """)
         .param("tenantId", tenantId).param("paymentId", paymentId).update() == 1;
   }
@@ -158,21 +159,16 @@ public class JdbcPaymentRepository implements PaymentRepository {
   }
 
   @Override
-  public void markCaptureSubmissionFailed(
-      UUID tenantId, UUID paymentId, String failureCode, Instant now) {
+  public void markCaptureSubmissionRetryable(
+      UUID tenantId, UUID paymentId, String failureCode) {
     jdbc.sql("""
-            UPDATE payments SET state = 'FAILED', failure_code = :failure, version = version + 1,
-              updated_at = :now WHERE tenant_id = :tenantId AND id = :paymentId
-              AND state = 'CAPTURE_PENDING'
-            """)
-        .param("tenantId", tenantId).param("paymentId", paymentId).param("failure", failureCode)
-        .param("now", Timestamp.from(now)).update();
-    jdbc.sql("""
-            UPDATE payment_attempts SET state = 'FAILED', failure_code = :failure, completed_at = :now
+            UPDATE payment_attempts SET state = 'PENDING', failure_code = :failure,
+              completed_at = NULL
             WHERE tenant_id = :tenantId AND payment_id = :paymentId AND operation = 'CAPTURE'
+              AND state = 'PROCESSING' AND provider_request_id IS NULL
             """)
         .param("tenantId", tenantId).param("paymentId", paymentId).param("failure", failureCode)
-        .param("now", Timestamp.from(now)).update();
+        .update();
   }
 
   @Override

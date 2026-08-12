@@ -115,53 +115,85 @@ public class JdbcWebhookRepository implements WebhookRepository {
         .param("signatureTimestamp", Timestamp.from(signatureTimestamp))
         .param("now", Timestamp.from(now)).update();
     return inserted == 0 ? Optional.empty() : Optional.of(new Delivery(id, tenantId, subscription,
-        event.id(), event.eventType(), event.eventVersion(), payload, signatureTimestamp, 0));
+        event.id(), event.eventType(), event.eventVersion(), payload, signatureTimestamp, 0, null));
   }
 
   @Override
-  public List<Delivery> findDue(UUID tenantId, int limit, Instant now) {
+  public List<Delivery> claimDue(
+      UUID tenantId, int limit, Instant now, Instant leaseExpiresAt, UUID leaseToken) {
     return jdbc.sql("""
+            WITH candidates AS (
+              SELECT d.id
+              FROM webhook_deliveries d JOIN webhook_subscriptions s
+                ON s.tenant_id = d.tenant_id AND s.id = d.subscription_id
+              WHERE d.tenant_id = :tenantId AND d.next_attempt_at <= :now
+                AND (d.status IN ('PENDING', 'RETRY')
+                  OR (d.status = 'PROCESSING' AND d.lease_expires_at <= :now))
+                AND s.enabled AND s.deleted_at IS NULL
+              ORDER BY d.next_attempt_at, d.id
+              FOR UPDATE OF d SKIP LOCKED
+              LIMIT :limit
+            ), claimed AS (
+              UPDATE webhook_deliveries d
+              SET status = 'PROCESSING', lease_token = :leaseToken,
+                  lease_started_at = :now, lease_expires_at = :leaseExpiresAt,
+                  signature_timestamp = :now
+              FROM candidates
+              WHERE d.tenant_id = :tenantId AND d.id = candidates.id
+              RETURNING d.*
+            )
             SELECT d.id delivery_id, d.tenant_id, d.event_id, d.event_type, d.event_version,
-                   d.payload, d.signature_timestamp, d.attempt_count,
+                   d.payload, d.signature_timestamp, d.attempt_count, d.lease_token,
                    s.id, s.url, s.secret_reference, s.event_filters, s.enabled,
                    s.created_at, s.updated_at, s.version
-            FROM webhook_deliveries d JOIN webhook_subscriptions s
+            FROM claimed d JOIN webhook_subscriptions s
               ON s.tenant_id = d.tenant_id AND s.id = d.subscription_id
-            WHERE d.tenant_id = :tenantId AND d.status = 'RETRY'
-              AND d.next_attempt_at <= :now AND s.enabled AND s.deleted_at IS NULL
-            ORDER BY d.next_attempt_at, d.id LIMIT :limit
+            ORDER BY d.next_attempt_at, d.id
             """)
-        .param("tenantId", tenantId).param("now", Timestamp.from(now)).param("limit", limit)
+        .param("tenantId", tenantId).param("now", Timestamp.from(now))
+        .param("leaseExpiresAt", Timestamp.from(leaseExpiresAt)).param("leaseToken", leaseToken)
+        .param("limit", limit)
         .query((rs, row) -> new Delivery(rs.getObject("delivery_id", UUID.class),
             rs.getObject("tenant_id", UUID.class), map(rs, row),
             rs.getObject("event_id", UUID.class), rs.getString("event_type"),
             rs.getInt("event_version"), rs.getString("payload"),
-            rs.getTimestamp("signature_timestamp").toInstant(), rs.getInt("attempt_count")))
+            rs.getTimestamp("signature_timestamp").toInstant(), rs.getInt("attempt_count"),
+            rs.getObject("lease_token", UUID.class)))
         .list();
   }
 
   @Override
-  public void complete(UUID tenantId, UUID deliveryId, int attemptNumber, int responseStatus, Instant now) {
-    attempt(tenantId, deliveryId, attemptNumber, "SUCCEEDED", responseStatus, null, now);
-    jdbc.sql("""
-            UPDATE webhook_deliveries SET status = 'DELIVERED', attempt_count = :attempt,
-              delivered_at = :now WHERE tenant_id = :tenantId AND id = :id
-            """)
+  public void complete(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber,
+      int responseStatus, Instant now) {
+    requireClaim(jdbc.sql("""
+             UPDATE webhook_deliveries SET status = 'DELIVERED', attempt_count = :attempt,
+               delivered_at = :now, lease_token = NULL, lease_started_at = NULL,
+               lease_expires_at = NULL
+             WHERE tenant_id = :tenantId AND id = :id AND status = 'PROCESSING'
+               AND lease_token = :leaseToken
+             """)
         .param("attempt", attemptNumber).param("now", Timestamp.from(now))
-        .param("tenantId", tenantId).param("id", deliveryId).update();
+        .param("tenantId", tenantId).param("id", deliveryId).param("leaseToken", leaseToken)
+        .update());
+    attempt(tenantId, deliveryId, attemptNumber, "SUCCEEDED", responseStatus, null, now);
   }
 
   @Override
-  public void retry(UUID tenantId, UUID deliveryId, int attemptNumber, Integer responseStatus,
+  public void retry(
+      UUID tenantId, UUID deliveryId, UUID leaseToken, int attemptNumber, Integer responseStatus,
       String errorCode, Instant nextAttemptAt, boolean failed, Instant now) {
-    attempt(tenantId, deliveryId, attemptNumber, "FAILED", responseStatus, errorCode, now);
-    jdbc.sql("""
-            UPDATE webhook_deliveries SET status = :status, attempt_count = :attempt,
-              next_attempt_at = :nextAttempt WHERE tenant_id = :tenantId AND id = :id
-            """)
+    requireClaim(jdbc.sql("""
+             UPDATE webhook_deliveries SET status = :status, attempt_count = :attempt,
+               next_attempt_at = :nextAttempt, lease_token = NULL, lease_started_at = NULL,
+               lease_expires_at = NULL
+             WHERE tenant_id = :tenantId AND id = :id AND status = 'PROCESSING'
+               AND lease_token = :leaseToken
+             """)
         .param("status", failed ? "FAILED" : "RETRY").param("attempt", attemptNumber)
         .param("nextAttempt", Timestamp.from(nextAttemptAt)).param("tenantId", tenantId)
-        .param("id", deliveryId).update();
+        .param("id", deliveryId).param("leaseToken", leaseToken).update());
+    attempt(tenantId, deliveryId, attemptNumber, "FAILED", responseStatus, errorCode, now);
   }
 
   private void attempt(UUID tenantId, UUID deliveryId, int number, String status,
@@ -194,6 +226,12 @@ public class JdbcWebhookRepository implements WebhookRepository {
       return json.writeValueAsString(values);
     } catch (JacksonException exception) {
       throw new IllegalArgumentException("Webhook filters are invalid", exception);
+    }
+  }
+
+  private void requireClaim(int updated) {
+    if (updated != 1) {
+      throw new IllegalStateException("Webhook delivery lease is no longer owned");
     }
   }
 }

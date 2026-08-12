@@ -16,3 +16,4 @@ data:
   FLYWAY_ENABLED: {{ .Values.config.flywayEnabled | quote }}
   API_DOCS_ENABLED: {{ .Values.config.apiDocsEnabled | quote }}
   SWAGGER_UI_ENABLED: {{ .Values.config.swaggerUiEnabled | quote }}
+  OUTBOX_DISPATCHER_ENABLED: {{ .Values.config.outboxDispatcherEnabled | quote }}

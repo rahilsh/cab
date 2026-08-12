@@ -28,22 +28,28 @@ public class OutboxPoller {
     }
     Instant now = clock.instant();
     return tenantExecution.inTransaction(
-        tenantId, () -> events.lease(tenantId, limit, now, now.plus(leaseDuration)));
+        tenantId,
+        () -> events.lease(tenantId, limit, now, now.plus(leaseDuration), UUID.randomUUID()));
   }
 
-  public void published(UUID tenantId, UUID eventId) {
+  public void published(OutboxEvent event) {
     tenantExecution.inTransaction(
-        tenantId, () -> events.markPublished(tenantId, eventId, clock.instant()));
+        event.tenantId(),
+        () -> events.markPublished(event.tenantId(), event.id(), event.leaseToken(), clock.instant()));
   }
 
-  public void retry(UUID tenantId, UUID eventId, Instant availableAt, String error) {
+  public void retry(OutboxEvent event, Instant availableAt, String error) {
     tenantExecution.inTransaction(
-        tenantId, () -> events.markRetry(tenantId, eventId, availableAt, sanitizeError(error)));
+        event.tenantId(),
+        () -> events.markRetry(event.tenantId(), event.id(), event.leaseToken(), availableAt,
+            sanitizeError(error)));
   }
 
-  public void failed(UUID tenantId, UUID eventId, String error) {
+  public void failed(OutboxEvent event, String error) {
     tenantExecution.inTransaction(
-        tenantId, () -> events.markFailed(tenantId, eventId, sanitizeError(error)));
+        event.tenantId(),
+        () -> events.markFailed(event.tenantId(), event.id(), event.leaseToken(),
+            sanitizeError(error)));
   }
 
   private String sanitizeError(String error) {

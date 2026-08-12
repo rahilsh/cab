@@ -13,11 +13,12 @@ public interface OutboxRepository {
       String eventType, int eventVersion, JsonNode payload, Instant occurredAt, Instant availableAt,
       String correlationId, UUID causationId);
 
-  List<OutboxEvent> lease(UUID tenantId, int limit, Instant now, Instant leaseExpiresAt);
+  List<OutboxEvent> lease(
+      UUID tenantId, int limit, Instant now, Instant leaseExpiresAt, UUID leaseToken);
 
-  void markPublished(UUID tenantId, UUID eventId, Instant publishedAt);
+  void markPublished(UUID tenantId, UUID eventId, UUID leaseToken, Instant publishedAt);
 
-  void markRetry(UUID tenantId, UUID eventId, Instant availableAt, String error);
+  void markRetry(UUID tenantId, UUID eventId, UUID leaseToken, Instant availableAt, String error);
 
-  void markFailed(UUID tenantId, UUID eventId, String error);
+  void markFailed(UUID tenantId, UUID eventId, UUID leaseToken, String error);
 }

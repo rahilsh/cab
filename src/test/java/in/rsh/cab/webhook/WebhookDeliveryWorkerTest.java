@@ -51,7 +51,7 @@ class WebhookDeliveryWorkerTest {
     }).when(tenantExecution).inTransaction(any(), any(Runnable.class));
     worker = new WebhookDeliveryWorker(repository, security, transport, secrets,
         new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6,
-        tenantExecution);
+        Duration.ofSeconds(30), tenantExecution);
   }
 
   @Test
@@ -59,9 +59,14 @@ class WebhookDeliveryWorkerTest {
     OutboxEvent event = event("ride.completed");
     WebhookSubscription subscription = subscription();
     when(repository.matching(TENANT, event.eventType())).thenReturn(List.of(subscription));
+    final String[] envelope = new String[1];
     when(repository.createDelivery(eq(subscription), eq(TENANT), eq(event), any(), eq(NOW), eq(NOW)))
-        .thenAnswer(invocation -> Optional.of(new Delivery(UUID.randomUUID(), TENANT, subscription,
-            event.id(), event.eventType(), 1, invocation.getArgument(3), NOW, 0)));
+        .thenAnswer(invocation -> {
+          envelope[0] = invocation.getArgument(3);
+          return Optional.of(delivery(subscription, event.id(), envelope[0], 0));
+        });
+    when(repository.claimDue(eq(TENANT), eq(200), eq(NOW), eq(NOW.plusSeconds(30)), any()))
+        .thenAnswer(invocation -> List.of(delivery(subscription, event.id(), envelope[0], 0)));
     when(transport.post(any(), any(), any(), eq(Duration.ofSeconds(10))))
         .thenAnswer(invocation -> {
           Map<String, String> headers = invocation.getArgument(2);
@@ -73,7 +78,7 @@ class WebhookDeliveryWorkerTest {
         });
 
     assertEquals(1, worker.process(event));
-    verify(repository).complete(eq(TENANT), any(), eq(1), eq(204), eq(NOW));
+    verify(repository).complete(eq(TENANT), any(), any(), eq(1), eq(204), eq(NOW));
   }
 
   @Test
@@ -82,10 +87,10 @@ class WebhookDeliveryWorkerTest {
     verify(repository, never()).matching(any(), any());
 
     Delivery delivery = new Delivery(UUID.randomUUID(), TENANT, subscription(), UUID.randomUUID(),
-        "ride.completed", 1, "{}", NOW, 2);
+        "ride.completed", 1, "{}", NOW, 2, UUID.randomUUID());
     when(transport.post(any(), any(), any(), any())).thenReturn(new WebhookTransport.Response(503));
     assertFalse(worker.deliver(delivery));
-    verify(repository).retry(TENANT, delivery.id(), 3, 503, "HTTP_STATUS",
+    verify(repository).retry(TENANT, delivery.id(), delivery.leaseToken(), 3, 503, "HTTP_STATUS",
         NOW.plusSeconds(8), false, NOW);
   }
 
@@ -94,20 +99,21 @@ class WebhookDeliveryWorkerTest {
     WebhookSecurity rebinding = new WebhookSecurity(host -> List.of(InetAddress.getByName("127.0.0.1")));
     WebhookDeliveryWorker blocked = new WebhookDeliveryWorker(repository, rebinding, transport,
         secrets, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofSeconds(10), 6,
-        tenantExecution);
+        Duration.ofSeconds(30), tenantExecution);
     Delivery delivery = new Delivery(UUID.randomUUID(), TENANT, subscription(), UUID.randomUUID(),
-        "ride.completed", 1, "{}", NOW, 0);
+        "ride.completed", 1, "{}", NOW, 0, UUID.randomUUID());
     assertFalse(blocked.deliver(delivery));
     verify(transport, never()).post(any(), any(), any(), any());
-    verify(repository).retry(TENANT, delivery.id(), 1, null, "DELIVERY_FAILED",
+    verify(repository).retry(TENANT, delivery.id(), delivery.leaseToken(), 1, null, "DELIVERY_FAILED",
         NOW.plusSeconds(2), false, NOW);
   }
 
   @Test
   void processesBoundedDueRetries() {
     Delivery delivery = new Delivery(UUID.randomUUID(), TENANT, subscription(), UUID.randomUUID(),
-        "ride.completed", 1, "{}", NOW, 1);
-    when(repository.findDue(TENANT, 10, NOW)).thenReturn(List.of(delivery));
+        "ride.completed", 1, "{}", NOW, 1, UUID.randomUUID());
+    when(repository.claimDue(eq(TENANT), eq(10), eq(NOW), eq(NOW.plusSeconds(30)), any()))
+        .thenReturn(List.of(delivery));
     when(transport.post(any(), any(), any(), any())).thenReturn(new WebhookTransport.Response(200));
     assertEquals(1, worker.retryDue(TENANT, 10));
     assertThrows(IllegalArgumentException.class, () -> worker.retryDue(TENANT, 0));
@@ -120,6 +126,12 @@ class WebhookDeliveryWorkerTest {
 
   private OutboxEvent event(String type) {
     return new OutboxEvent(UUID.randomUUID(), TENANT, "ride", UUID.randomUUID(), 6, type, 1,
-        new ObjectMapper().createObjectNode(), NOW, null, null, 1);
+        new ObjectMapper().createObjectNode(), NOW, null, null, 1, UUID.randomUUID());
+  }
+
+  private Delivery delivery(
+      WebhookSubscription subscription, UUID eventId, String payload, int attempts) {
+    return new Delivery(UUID.randomUUID(), TENANT, subscription, eventId, "ride.completed", 1,
+        payload, NOW, attempts, UUID.randomUUID());
   }
 }

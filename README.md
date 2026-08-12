@@ -167,6 +167,14 @@ Read the operations runbooks before deployment:
 - [Incident response and rollback](docs/runbooks/incident-rollback.md)
 - [OSRM data preparation](docs/runbooks/osrm-data.md)
 
+The embedded outbox dispatcher is enabled by default. Every replica polls active tenants, while
+PostgreSQL `SKIP LOCKED` leases and UUID fencing tokens ensure one coordinator owns an event or
+delivery attempt at a time. Payment, notification, and webhook consumers run synchronously before
+the outbox event is acknowledged; replay is at-least-once and relies on stable provider idempotency
+keys plus unique delivery constraints. Configure cadence, batch sizes, leases, retry limits, and
+backoff with the `OUTBOX_DISPATCHER_*`, `NOTIFICATION_*`, and `WEBHOOK_*` environment variables in
+`application.properties`. Disable it only for maintenance with `OUTBOX_DISPATCHER_ENABLED=false`.
+
 ## API
 
 The HTTP API is versioned under `/api/v1`:
