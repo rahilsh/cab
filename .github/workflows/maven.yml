@@ -53,3 +53,31 @@ jobs:
             target/classes/META-INF/sbom/application.cdx.json
           if-no-files-found: error
           retention-days: 14
+
+  deployment-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate workflows
+        run: docker run --rm --volume "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
+
+      - name: Validate Compose configuration
+        env:
+          APP_DATABASE_PASSWORD: ci-app-password
+          KEYCLOAK_ADMIN_PASSWORD: ci-keycloak-password
+          MINIO_ROOT_USER: ci-minio
+          MINIO_ROOT_PASSWORD: ci-minio-password
+          POSTGRES_PASSWORD: ci-postgres-password
+        run: docker compose config --quiet
+
+      - name: Build container image
+        run: docker build --tag cab-marketplace:ci .
+
+      - name: Validate Helm chart
+        run: |
+          docker run --rm --volume "$PWD:/apps" --workdir /apps alpine/helm:3.19.0@sha256:aef9b56f64e866207d9591d0abd8f6d767b36aadd12edf68f8a719716d9d29c9 lint deploy/helm/cab-marketplace --set existingSecret.name=ci-secret
+          docker run --rm --volume "$PWD:/apps" --workdir /apps alpine/helm:3.19.0@sha256:aef9b56f64e866207d9591d0abd8f6d767b36aadd12edf68f8a719716d9d29c9 template cab deploy/helm/cab-marketplace --set existingSecret.name=ci-secret --set image.digest=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa >/dev/null

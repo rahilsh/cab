@@ -6,7 +6,14 @@
   "registrationAllowed": false,
   "roles": {
     "realm": [
-      { "name": "platform-admin", "description": "Local platform administrator" },
+      {
+        "name": "platform-admin",
+        "description": "Local platform administrator",
+        "composite": true,
+        "composites": { "realm": ["platform.admin", "observability.read"] }
+      },
+      { "name": "platform.admin", "description": "Provision local tenants" },
+      { "name": "observability.read", "description": "Read local operational endpoints" },
       { "name": "tenant-admin", "description": "Local tenant administrator" },
       { "name": "dispatcher", "description": "Local dispatcher" },
       { "name": "driver", "description": "Local driver" },
@@ -17,16 +24,6 @@
     ]
   },
   "clientScopes": [
-    {
-      "name": "platform.admin",
-      "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
-    },
-    {
-      "name": "observability.read",
-      "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" }
-    },
     {
       "name": "cab-api-audience",
       "protocol": "openid-connect",
@@ -65,8 +62,25 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": false,
       "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "cab local privileged scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "scope",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ],
       "defaultClientScopes": ["cab-api-audience"],
-      "optionalClientScopes": ["platform.admin", "observability.read"]
+      "optionalClientScopes": []
     }
   ],
   "users": [

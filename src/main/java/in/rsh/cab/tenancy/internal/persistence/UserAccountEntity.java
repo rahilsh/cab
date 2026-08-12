@@ -35,4 +35,10 @@ public class UserAccountEntity {
     this.createdAt = now;
     this.updatedAt = now;
   }
+
+  public void updateProfile(String email, String displayName, Instant now) {
+    this.email = email;
+    this.displayName = displayName;
+    this.updatedAt = now;
+  }
 }

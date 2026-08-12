@@ -40,7 +40,7 @@ public class TenantController {
             request.displayName(),
             request.defaultCurrency(),
             request.timezone());
-    return ResponseEntity.created(URI.create("/api/v1/tenants/" + tenant.id())).body(tenant);
+    return ResponseEntity.created(URI.create("/api/v1/tenants")).body(tenant);
   }
 
   @GetMapping

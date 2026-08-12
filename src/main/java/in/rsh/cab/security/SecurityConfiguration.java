@@ -1,11 +1,15 @@
 package in.rsh.cab.security;
 
+import in.rsh.cab.ratelimit.ApiAbuseProtectionFilter;
+import in.rsh.cab.ratelimit.SubjectRateLimitFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
@@ -15,7 +19,29 @@ import org.springframework.security.web.header.writers.StaticHeadersWriter;
 public class SecurityConfiguration {
 
   @Bean
-  SecurityFilterChain apiSecurity(HttpSecurity http, SecurityProblemWriter problems)
+  FilterRegistrationBean<ApiAbuseProtectionFilter> disableContainerRegistration(
+      ApiAbuseProtectionFilter filter) {
+    FilterRegistrationBean<ApiAbuseProtectionFilter> registration =
+        new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
+  }
+
+  @Bean
+  FilterRegistrationBean<SubjectRateLimitFilter> disableSubjectFilterContainerRegistration(
+      SubjectRateLimitFilter filter) {
+    FilterRegistrationBean<SubjectRateLimitFilter> registration =
+        new FilterRegistrationBean<>(filter);
+    registration.setEnabled(false);
+    return registration;
+  }
+
+  @Bean
+  SecurityFilterChain apiSecurity(
+      HttpSecurity http,
+      SecurityProblemWriter problems,
+      ApiAbuseProtectionFilter abuseProtectionFilter,
+      SubjectRateLimitFilter subjectRateLimitFilter)
       throws Exception {
     return http.csrf(csrf -> csrf.disable())
         .sessionManagement(
@@ -51,6 +77,8 @@ public class SecurityConfiguration {
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tenants")
                     .hasAuthority("SCOPE_platform.admin")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/tenant-invitations/accept")
+                    .authenticated()
                     .requestMatchers("/api/v1/payment-providers/*/accounts/*/events")
                     .permitAll()
                     .requestMatchers(
@@ -80,6 +108,8 @@ public class SecurityConfiguration {
                     .anyRequest()
                     .denyAll())
         .oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt -> {}))
+        .addFilterBefore(abuseProtectionFilter, BearerTokenAuthenticationFilter.class)
+        .addFilterAfter(subjectRateLimitFilter, BearerTokenAuthenticationFilter.class)
         .build();
   }
 }

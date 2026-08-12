@@ -23,7 +23,7 @@ services:
       OIDC_JWK_SET_URI: http://keycloak:8080/realms/cab/protocol/openid-connect/certs
       OIDC_AUDIENCE: cab-api
       OSRM_BASE_URL: http://osrm:5000
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: local
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:

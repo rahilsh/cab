@@ -26,8 +26,12 @@ git push origin v1.2.3
 ```
 
 The tag starts `.github/workflows/release.yml`. A maintainer may rerun it with `workflow_dispatch`
-only by naming an existing tag. The workflow refuses non-semantic tags and existing GitHub releases.
-Protect `v*` tags with a GitHub ruleset that limits tag creation and deletion to maintainers.
+only by naming an existing tag. The workflow rejects lightweight or non-semantic tags, tags not
+reachable from `origin/main`, existing image tags, and existing GitHub releases. Protect `v*` tags
+with a GitHub ruleset that limits creation and deletion to maintainers. Signed tags remain a
+maintainer policy: CI does not run `git verify-tag` because the repository does not distribute a
+trusted maintainer keyring. GitHub artifact attestations provide independently verifiable build
+provenance for published assets and images.
 
 After publication, verify the release assets, checksum file, image digest, and attestations. Consumers
 should pull GHCR images by digest and verify local assets with `shasum -a 256 -c SHA256SUMS`. GitHub
