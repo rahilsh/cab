@@ -1,6 +1,7 @@
 package in.rsh.cab.geography.internal.persistence;
 
 import in.rsh.cab.geography.ServiceArea;
+import in.rsh.cab.geography.GeoPoint;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -74,6 +75,26 @@ public class JdbcServiceAreaRepository implements ServiceAreaRepository {
         .param("tenantId", tenantId)
         .query(this::map)
         .list();
+  }
+
+  @Override
+  public boolean coversRoute(UUID tenantId, GeoPoint pickup, GeoPoint dropoff) {
+    return jdbc.sql(
+            """
+            SELECT EXISTS (
+              SELECT 1 FROM service_areas
+              WHERE tenant_id = :tenantId AND status = 'ACTIVE'
+                AND ST_Covers(boundary, ST_SetSRID(ST_MakePoint(:pickupLongitude, :pickupLatitude), 4326))
+                AND ST_Covers(boundary, ST_SetSRID(ST_MakePoint(:dropoffLongitude, :dropoffLatitude), 4326))
+            )
+            """)
+        .param("tenantId", tenantId)
+        .param("pickupLongitude", pickup.longitude())
+        .param("pickupLatitude", pickup.latitude())
+        .param("dropoffLongitude", dropoff.longitude())
+        .param("dropoffLatitude", dropoff.latitude())
+        .query(Boolean.class)
+        .single();
   }
 
   private ServiceArea map(ResultSet resultSet, int rowNumber) throws SQLException {

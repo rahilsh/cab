@@ -29,12 +29,13 @@ The current implementation supports:
 - Tenant-owned PostGIS service areas
 - OSRM-backed route distance and duration estimates
 - Tenant-scoped rider and driver profiles, driver approval, vehicles, and driver shifts
+- Tenant-scoped service products, versioned pricing rules, and immutable rider fare quotes
 
 The production roadmap includes:
 
 - Strict tenant isolation and broader role-based access
 - Driver document upload and verification workflows
-- Fare quotes, dispatch offers, and complete trip lifecycle
+- Dispatch offers and complete trip lifecycle
 - Provider-neutral payments, notifications, refunds, and settlements
 - Auditing, webhooks, ratings, support, and safety workflows
 - OpenAPI, observability, Docker Compose, and a Helm chart
@@ -147,6 +148,10 @@ versioned endpoint is:
 | `POST` | `/api/v1/driver/shifts/{id}/go-online` | Move an `OFFLINE` shift to `AVAILABLE` |
 | `POST` | `/api/v1/driver/shifts/{id}/go-offline` | Move an `AVAILABLE` shift to `OFFLINE` |
 | `POST` | `/api/v1/current-tenant/roles/{role}` | Admin self-grant of `RIDER` or `DRIVER` for operations/testing |
+| `POST`, `GET` | `/api/v1/products` | Create or list service products; requires `TENANT_ADMIN` |
+| `POST`, `GET` | `/api/v1/pricing-rules` | Create or list versioned pricing rules; requires `TENANT_ADMIN` |
+| `POST`, `GET` | `/api/v1/quotes` | Create or list the authenticated rider's immutable fare quotes |
+| `GET` | `/api/v1/quotes/{id}` | Read one fare quote owned by the authenticated rider |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -165,6 +170,16 @@ operations resolve the account from the authenticated tenant context. Vehicle an
 use optimistic versions and return stable `409 resource-conflict` errors for stale or invalid
 transitions. Driver document storage is metadata-only; document bytes and raw secrets are never
 stored in the marketplace database.
+
+Pricing amounts use signed 64-bit integer minor units and ISO 4217 currency codes. Active pricing
+rules cannot overlap for the same tenant and product. Quote creation requires one active service
+area to cover both endpoints, obtains distance and duration from OSRM, and snapshots the selected
+rule, route, component amounts, adjustments, total, expiry, and request fingerprint. Distance and
+duration are rounded up to whole meters and seconds; component multiplication and basis-point
+adjustments use deterministic half-up rounding. Quote ownership always comes from the authenticated
+tenant context, never from request data. Quotes have no update API and persisted quote fields are
+never recalculated when products or rules change. Configure validity with `QUOTE_TTL` (default
+`PT10M`).
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather
