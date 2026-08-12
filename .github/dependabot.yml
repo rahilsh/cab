@@ -32,6 +32,9 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "build(deps)"
+    ignore:
+      - dependency-name: eclipse-temurin
+        update-types: ["version-update:semver-major"]
     groups:
       container-images:
         patterns: ["*"]
