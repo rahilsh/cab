@@ -42,6 +42,7 @@ Use `!` and a `BREAKING CHANGE:` footer for incompatible changes.
 ## Pull Requests
 
 - Keep changes focused and independently deployable.
+- Use a Conventional Commit title; squash merges use the pull request title as the commit subject.
 - Explain user-visible behavior and migration impact.
 - Update the README, OpenAPI contract, and operations documentation when applicable.
 - Add Flyway migrations for schema changes; never edit an applied migration.

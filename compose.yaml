@@ -1,0 +1,168 @@
+name: ${COMPOSE_PROJECT_NAME:-cab}
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VERSION: ${APP_VERSION:-0.0.1-SNAPSHOT}
+        REVISION: ${GIT_REVISION:-local}
+        CREATED: ${BUILD_CREATED:-local}
+    image: cab-marketplace:${APP_VERSION:-local}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m,uid=10001,gid=10001
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-cab}
+      DATABASE_USERNAME: ${POSTGRES_USER:-cab}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      REDIS_HOST: redis
+      OIDC_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8081}/realms/cab
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/cab/protocol/openid-connect/certs
+      OIDC_AUDIENCE: cab-api
+      OSRM_BASE_URL: http://osrm:5000
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      osrm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    restart: unless-stopped
+    networks: [backend]
+
+  postgres:
+    image: postgis/postgis:17-3.5@sha256:45f2a608397fa67d236b012c14a9e3ea31e9fe813edbeb5c1c0d1acbf0d48ea9
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cab}
+      POSTGRES_USER: ${POSTGRES_USER:-cab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  redis:
+    image: redis:7.4.5-alpine@sha256:bb186d083732f669da90be8b0f975a37812b15e913465bb14d845db72a4e3e08
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.7@sha256:9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007
+    command: ["start-dev", "--import-realm", "--health-enabled=true"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+    ports:
+      - "${KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./deploy/keycloak/cab-realm.json:/opt/keycloak/data/import/cab-realm.json:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; grep -q '200 OK' <&3"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks: [backend]
+
+  osrm-prepare:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1@sha256:855614a38f464b0558a2ad6eaa7cb8c139f39887da9b38b485ce453c6e6e6124
+    user: "0:0"
+    environment:
+      OSRM_PBF_URL: ${OSRM_PBF_URL:-https://download.geofabrik.de/europe/monaco-latest.osm.pbf}
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        if [[ ! -f /data/region.osrm.cells ]]; then
+          apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+          curl --fail --location --retry 3 "$${OSRM_PBF_URL}" --output /data/region.osm.pbf
+          osrm-extract -p /opt/car.lua /data/region.osm.pbf
+          osrm-partition /data/region.osrm
+          osrm-customize /data/region.osrm
+        fi
+    volumes:
+      - osrm-data:/data
+    restart: "no"
+    networks: [backend]
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1@sha256:855614a38f464b0558a2ad6eaa7cb8c139f39887da9b38b485ce453c6e6e6124
+    command: ["osrm-routed", "--algorithm", "mld", "/data/region.osrm"]
+    ports:
+      - "${OSRM_PORT:-5000}:5000"
+    depends_on:
+      osrm-prepare:
+        condition: service_completed_successfully
+    volumes:
+      - osrm-data:/data:ro
+    healthcheck:
+      test:
+        - CMD
+        - /bin/bash
+        - -ec
+        - "exec 3<>/dev/tcp/127.0.0.1/5000; printf 'GET /route/v1/driving/7.4189,43.7325;7.4246,43.7384?overview=false HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3; grep -q '200 OK' <&3"
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    networks: [backend]
+
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+volumes:
+  postgres-data:
+  redis-data:
+  keycloak-data:
+  osrm-data:
+  minio-data:
+
+networks:
+  backend:
+    driver: bridge

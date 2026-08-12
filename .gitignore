@@ -11,3 +11,4 @@ build
 .settings/
 .vscode/
 .factorypath
+.env

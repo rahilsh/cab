@@ -1,21 +1,31 @@
 name: Dependabot auto-merge
-on: pull_request_target
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
 permissions:
-  pull-requests: write
   contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   dependabot:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+
     steps:
       - name: Dependabot metadata
         id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v1
-      - name: Print update-type
-        run: echo ${{steps.dependabot-metadata.outputs.update-type}}
-      - name: Enable auto-merge for Dependabot PRs
-        if: ${{steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor'}}
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
+
+      - name: Enable patch-only auto-merge after required checks
+        if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' }}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
