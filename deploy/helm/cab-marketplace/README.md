@@ -12,7 +12,6 @@ cab-marketplace
   database-password
   migration-database-username
   migration-database-password
-  fake-payment-webhook-secret
 ```
 
 Set `config.*` endpoints and install with the externally managed Secret and immutable image digest:
@@ -25,8 +24,16 @@ helm upgrade --install cab deploy/helm/cab-marketplace \
   --set config.databaseUrl=jdbc:postgresql://postgres.example:5432/cab \
   --set config.redisHost=redis.example \
   --set config.oidcIssuerUri=https://identity.example/realms/cab \
-  --set config.osrmBaseUrl=http://osrm.routing:5000
+  --set config.osrmBaseUrl=http://osrm.routing:5000 \
+  --set config.paymentProvider=your-provider \
+  --set config.paymentConfigReference=vault:payments/account \
+  --set config.paymentWebhookSecretReference=vault:payments/webhook
 ```
+
+The application intentionally has no production payment adapter. The production image must include
+a `PaymentProvider` bean whose name matches `config.paymentProvider`; startup rejects `fake` and
+missing adapters. Mount provider credentials through `extraSecretEnv` or the adapter's external
+secret integration.
 
 When `image.digest` is set, the chart renders `repository@sha256:...` and ignores `image.tag`. The
 pods run as UID/GID `10001`, drop all capabilities, use a read-only root filesystem, and mount a
@@ -44,10 +51,25 @@ and migration identities.
 Tenant webhook secret references are restricted to `env:CAB_WEBHOOK_*`. Mount each referenced value
 from an external Secret with `extraSecretEnv`; never put webhook values in a ConfigMap or values file.
 
-NetworkPolicy is intentionally disabled by default because safe egress destinations are
-environment-specific. Enable it only after supplying egress rules for PostgreSQL, Redis, OIDC, OSRM,
-payment providers, and configured webhooks. Ingress is disabled by default; when enabled, TLS is
-required unless `ingress.requireTls=false` is explicitly accepted for an internal environment.
+NetworkPolicy is enabled by default. It permits cluster DNS and API ingress, but no application
+egress until `networkPolicy.egress` contains environment-specific rules for PostgreSQL, Redis, OIDC,
+OSRM, payment providers, and every configured webhook destination. Keep destination CIDRs and ports
+as narrow as possible; for example:
+
+```yaml
+networkPolicy:
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 203.0.113.10/32
+      ports:
+        - protocol: TCP
+          port: 5432
+```
+
+The `prod` profile requires `image.digest`; tags remain available for non-production profiles.
+Ingress is disabled by default; when enabled, TLS is required unless `ingress.requireTls=false` is
+explicitly accepted for an internal environment.
 
 Ride status SSE subscriptions are stored in-process. Keep ingress proxy buffering disabled for the
 SSE path and provide external pub/sub before scaling replicas when cross-instance delivery is

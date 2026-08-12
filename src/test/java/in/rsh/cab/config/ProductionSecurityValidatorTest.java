@@ -8,31 +8,34 @@ import org.junit.jupiter.api.Test;
 class ProductionSecurityValidatorTest {
 
   @Test
-  void acceptsSeparatedCredentialsSecretAndHttpsOidc() {
+  void acceptsSeparatedCredentialsConfiguredProviderAndHttpsOidc() {
     assertDoesNotThrow(
         () ->
             ProductionSecurityValidator.validate(
                 "cab_app",
                 "cab_migration",
-                "strong-secret",
+                "stripe",
+                java.util.List.of("stripe"),
                 "https://identity.example/realms/cab",
                 "https://identity.example/realms/cab/certs"));
   }
 
   @Test
-  void rejectsDevelopmentSecretInsecureOidcAndEqualUsers() {
+  void rejectsFakeOrMissingProviderInsecureOidcAndEqualUsers() {
     assertThrows(
         IllegalStateException.class,
         () ->
             ProductionSecurityValidator.validate(
-                "cab", "cab", "strong-secret", "https://issuer.example", "https://issuer.example/certs"));
+                "cab", "cab", "stripe", java.util.List.of("stripe"),
+                "https://issuer.example", "https://issuer.example/certs"));
     assertThrows(
         IllegalStateException.class,
         () ->
             ProductionSecurityValidator.validate(
                 "app",
                 "migration",
-                "local-development-only",
+                "fake",
+                java.util.List.of(),
                 "https://issuer.example",
                 "https://issuer.example/certs"));
     assertThrows(
@@ -41,7 +44,8 @@ class ProductionSecurityValidatorTest {
             ProductionSecurityValidator.validate(
                 "app",
                 "migration",
-                "secret",
+                "stripe",
+                java.util.List.of("stripe"),
                 "http://issuer.example",
                 "https://issuer.example/certs"));
     assertThrows(
@@ -50,7 +54,8 @@ class ProductionSecurityValidatorTest {
             ProductionSecurityValidator.validate(
                 "app",
                 "migration",
-                "secret",
+                "stripe",
+                java.util.List.of("stripe"),
                 "https://issuer.example",
                 "http://issuer.example/certs"));
     assertThrows(
@@ -59,8 +64,15 @@ class ProductionSecurityValidatorTest {
             ProductionSecurityValidator.validate(
                 "app",
                 "",
-                "secret",
+                "stripe",
+                java.util.List.of("stripe"),
                 "https://issuer.example",
                 "https://issuer.example/certs"));
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            ProductionSecurityValidator.validate(
+                "app", "migration", "stripe", java.util.List.of(),
+                "https://issuer.example", "https://issuer.example/certs"));
   }
 }

@@ -57,6 +57,9 @@ config:
   oidcJwkSetUri: https://identity.example.com/realms/cab/protocol/openid-connect/certs
   oidcAudience: cab-api
   osrmBaseUrl: http://osrm:5000
+  paymentProvider: ""
+  paymentConfigReference: ""
+  paymentWebhookSecretReference: ""
   springProfilesActive: prod
   flywayEnabled: "false"
   apiDocsEnabled: "false"
@@ -70,7 +73,6 @@ existingSecret:
   databasePasswordKey: database-password
   migrationDatabaseUsernameKey: migration-database-username
   migrationDatabasePasswordKey: migration-database-password
-  fakePaymentWebhookSecretKey: fake-payment-webhook-secret
 
 migration:
   enabled: true
@@ -124,8 +126,9 @@ podDisruptionBudget:
   minAvailable: 1
 
 networkPolicy:
-  enabled: false
+  enabled: true
   ingressNamespaceSelector: {}
+  # Production must add destination-specific PostgreSQL, Redis, OIDC, OSRM, payment, and webhook rules.
   egress: []
 
 nodeSelector: {}

@@ -143,8 +143,10 @@ The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, 
 `REDIS_PORT`, and `OSRM_BASE_URL`. API documentation is disabled by default; set
 `API_DOCS_ENABLED=true` and optionally `SWAGGER_UI_ENABLED=true` to expose `/v3/api-docs` and
 `/swagger-ui.html`. Payment settings use `PAYMENT_PROVIDER`,
-`FAKE_PAYMENT_CONFIG_REFERENCE`, `FAKE_PAYMENT_WEBHOOK_SECRET_REFERENCE`,
-`FAKE_PAYMENT_WEBHOOK_SECRET`, and `PAYMENT_WEBHOOK_TOLERANCE`. OSRM defaults to
+`PAYMENT_CONFIG_REFERENCE`, `PAYMENT_WEBHOOK_SECRET_REFERENCE`, and
+`PAYMENT_WEBHOOK_TOLERANCE`. The built-in `fake` adapter is local-only. Production startup rejects
+`PAYMENT_PROVIDER=fake` and rejects any provider name without a matching `PaymentProvider` bean;
+deployments must supply their own provider adapter and secret resolution. OSRM defaults to
 `http://localhost:5000`. Defaults are intended
 for local development only. Flyway applies pending migrations; Hibernate validates the resulting
 schema and never creates or drops production tables. The runtime database credentials must identify
@@ -180,6 +182,11 @@ the outbox event is acknowledged; replay is at-least-once and relies on stable p
 keys plus unique delivery constraints. Configure cadence, batch sizes, leases, retry limits, and
 backoff with the `OUTBOX_DISPATCHER_*`, `NOTIFICATION_*`, and `WEBHOOK_*` environment variables in
 `application.properties`. Disable it only for maintenance with `OUTBOX_DISPATCHER_ENABLED=false`.
+
+Refund requests reserve their calculated driver and platform shares immediately, so pending refunds
+cannot be settled. Failed payouts remain in `PAYOUT_CLEARING` until finance confirms provider
+certainty through `release-failed`; contradictory later provider events are exposed as
+`RECONCILIATION_REQUIRED` and block further settlement for the affected driver.
 
 ## API
 
@@ -232,6 +239,7 @@ The HTTP API is versioned under `/api/v1`:
 | `GET` | `/api/v1/finance/refunds/{id}` | Read a refund; requires finance access |
 | `GET` | `/api/v1/driver/earnings` | Read the authenticated driver's ledger balance |
 | `POST`, `GET` | `/api/v1/finance/settlements` | Settle positive driver balances or list batches; creation requires `FINANCE` |
+| `POST` | `/api/v1/finance/payouts/{id}/release-failed` | Idempotently release a provider-confirmed failed payout; requires `FINANCE` |
 | `POST` | `/api/v1/payment-providers/{provider}/accounts/{id}/events` | Receive signed provider callbacks |
 | `PUT`, `GET` | `/api/v1/notification-preferences` | Manage rider/driver event and channel preferences |
 | `POST` | `/api/v1/rides/{id}/ratings` | Rate the other participant after a completed ride |
@@ -239,10 +247,10 @@ The HTTP API is versioned under `/api/v1`:
 | `POST`, `GET` | `/api/v1/support/cases` | Create an owned case or list visible tenant cases |
 | `GET` | `/api/v1/support/cases/{id}` | Read an owned case or any case as support staff |
 | `POST` | `/api/v1/support/cases/{id}/state` | Apply an expected-state/version transition; requires `SUPPORT` or `TENANT_ADMIN` |
-| `POST` | `/api/v1/support/cases/{id}/messages`, `/assignments` | Add a case message or assignment |
+| `POST` | `/api/v1/support/cases/{id}/messages`, `/assignments` | Add a message to an open/in-progress case or assign it using the current case `version` |
 | `POST`, `GET` | `/api/v1/safety/incidents` | Participant reporting and restricted safety listing |
 | `GET` | `/api/v1/safety/incidents/{id}` | Read an incident as a ride participant or restricted safety staff |
-| `POST` | `/api/v1/safety/incidents/{id}/evidence` | Add external evidence metadata; no bytes or URLs |
+| `POST` | `/api/v1/safety/incidents/{id}/evidence` | Add external evidence metadata using the current incident `version`; no bytes or URLs |
 | `POST` | `/api/v1/safety/incidents/{id}/actions` | Apply audited restricted safety actions |
 | `POST`, `GET`, `PUT`, `DELETE` | `/api/v1/admin/webhook-subscriptions` | Manage tenant outbound webhooks |
 
@@ -261,8 +269,9 @@ subject limit. Signed payment callbacks also receive a separate account-and-IP l
 handling. Tenant operations retain the tenant-and-account limiter. Configure these with
 `RATE_LIMIT_PRE_TENANT_REQUESTS`, `RATE_LIMIT_CALLBACK_REQUESTS`, `RATE_LIMIT_REQUESTS`, and
 `RATE_LIMIT_WINDOW`. Health probes are excluded. JSON requests over `REQUEST_MAX_BYTES` and callback
-bodies over `CALLBACK_REQUEST_MAX_BYTES` return RFC problem status `413` when `Content-Length` is
-present; Tomcat form and swallow limits provide an additional container bound.
+bodies over `CALLBACK_REQUEST_MAX_BYTES` return RFC problem status `413`, including chunked requests
+and requests without `Content-Length`; Tomcat form and swallow limits provide an additional
+container defense.
 
 Tenant-owned requests require `X-Tenant-ID`. The header is only a selector: the backend verifies
 that the authenticated OIDC identity has an active database membership before binding tenant roles
@@ -378,8 +387,8 @@ object keys and bounded metadata, never content or fetchable URLs.
 
 Webhook subscriptions accept HTTPS URLs and `env:NAME` secret references only. Filters use an
 explicit non-sensitive allowlist; payment, live-location, and safety events are excluded by default.
-URL validation rejects non-public addresses, DNS is resolved again before every request, and
-redirects are disabled. Immutable deliveries are HMAC-SHA256 signed over
+URL validation rejects non-public addresses, and each request is pinned to the vetted addresses
+while TLS still verifies the original hostname; redirects are disabled. Immutable deliveries are HMAC-SHA256 signed over
 `<unix-seconds>.<exact-body>` and retry with bounded exponential backoff.
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure

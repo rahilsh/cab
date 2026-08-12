@@ -1,6 +1,8 @@
 package in.rsh.cab.config;
 
+import in.rsh.cab.payment.PaymentProvider;
 import java.net.URI;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -20,10 +22,17 @@ public class ProductionSecurityValidator implements ApplicationRunner {
       JdbcClient jdbc,
       @Value("${spring.datasource.username}") String runtimeUser,
       @Value("${spring.flyway.user}") String migrationUser,
-      @Value("${payments.fake.webhook-secret}") String paymentWebhookSecret,
+      @Value("${payments.provider}") String paymentProvider,
+      List<PaymentProvider> paymentProviders,
       @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
       @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri) {
-    validate(runtimeUser, migrationUser, paymentWebhookSecret, issuer, jwkSetUri);
+    validate(
+        runtimeUser,
+        migrationUser,
+        paymentProvider,
+        paymentProviders.stream().map(PaymentProvider::name).toList(),
+        issuer,
+        jwkSetUri);
     this.jdbc = jdbc;
   }
 
@@ -63,7 +72,8 @@ public class ProductionSecurityValidator implements ApplicationRunner {
   static void validate(
       String runtimeUser,
       String migrationUser,
-      String paymentWebhookSecret,
+      String paymentProvider,
+      List<String> availablePaymentProviders,
       String issuer,
       String jwkSetUri) {
     if (runtimeUser.isBlank()) {
@@ -76,8 +86,12 @@ public class ProductionSecurityValidator implements ApplicationRunner {
       throw new IllegalStateException(
           "Production migration and runtime database users must be different");
     }
-    if (paymentWebhookSecret.isBlank() || "local-development-only".equals(paymentWebhookSecret)) {
-      throw new IllegalStateException("A non-development payment webhook secret is required");
+    if (paymentProvider.isBlank() || "fake".equals(paymentProvider)) {
+      throw new IllegalStateException("Production requires a non-fake payment provider");
+    }
+    if (!availablePaymentProviders.contains(paymentProvider)) {
+      throw new IllegalStateException(
+          "No PaymentProvider bean is available for production provider " + paymentProvider);
     }
     requireHttps("OIDC issuer", issuer);
     requireHttps("OIDC JWK set URI", jwkSetUri);

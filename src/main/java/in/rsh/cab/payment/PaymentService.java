@@ -45,8 +45,8 @@ public class PaymentService {
       PaymentRepository payments, DriverProfileRepository drivers, OutboxService outbox,
       AuditService audit, IdempotencyService idempotency, ObjectMapper json, Clock clock,
       @Value("${payments.provider}") String provider,
-      @Value("${payments.fake.config-reference}") String configReference,
-      @Value("${payments.fake.webhook-secret-reference}") String secretReference) {
+      @Value("${payments.config-reference}") String configReference,
+      @Value("${payments.webhook-secret-reference}") String secretReference) {
     this.payments = payments;
     this.drivers = drivers;
     this.outbox = outbox;
@@ -119,10 +119,11 @@ public class PaymentService {
       throw new ConflictException("Refund exceeds the unrefunded captured amount");
     }
     Instant now = clock.instant();
-    Refund refund = new Refund(UUID.randomUUID(), paymentId, amountMinor, null, null, payment.currency(),
+    Refund requested = new Refund(UUID.randomUUID(), paymentId, amountMinor, null, null, payment.currency(),
         reason, RefundState.PENDING, null, 0, 0, now, now);
+    Refund refund;
     try {
-      payments.insertRefund(context.tenantId(), refund, context.accountId());
+      refund = payments.insertRefund(context.tenantId(), requested, context.accountId());
     } catch (DataIntegrityViolationException exception) {
       throw new ConflictException("Refund exceeds the unrefunded captured amount");
     }
@@ -173,6 +174,26 @@ public class PaymentService {
   public List<SettlementBatch> settlements() {
     TenantContext context = requireAny(TenantRole.FINANCE, TenantRole.TENANT_ADMIN);
     return payments.settlements(context.tenantId());
+  }
+
+  @Transactional
+  public SettlementBatch.Payout releaseFailedPayout(UUID payoutId) {
+    TenantContext context = require(TenantRole.FINANCE);
+    payments.findPayout(context.tenantId(), payoutId)
+        .orElseThrow(() -> new NotFoundException("Payout not found"));
+    Instant now = clock.instant();
+    if (!payments.releaseFailedPayout(context.tenantId(), payoutId, now)) {
+      SettlementBatch.Payout payout = payments.findPayout(context.tenantId(), payoutId)
+          .orElseThrow(() -> new NotFoundException("Payout not found"));
+      if (payout.state() != PayoutState.RELEASED) {
+        throw new ConflictException("Only failed payouts can be released");
+      }
+      return payout;
+    }
+    SettlementBatch.Payout payout = payments.findPayout(context.tenantId(), payoutId).orElseThrow();
+    audit.record(context.tenantId(), context.accountId(), "payout.release_failed", "payout",
+        payoutId, "SUCCESS", json.valueToTree(payout));
+    return payout;
   }
 
   private TenantContext require(TenantRole role) {
