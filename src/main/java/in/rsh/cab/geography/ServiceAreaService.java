@@ -11,7 +11,6 @@ import java.time.ZoneId;
 import java.time.zone.ZoneRulesException;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -27,12 +26,7 @@ public class ServiceAreaService {
   private final ObjectMapper objectMapper;
   private final Clock clock;
 
-  @Autowired
-  public ServiceAreaService(ServiceAreaRepository serviceAreas, ObjectMapper objectMapper) {
-    this(serviceAreas, objectMapper, Clock.systemUTC());
-  }
-
-  ServiceAreaService(ServiceAreaRepository serviceAreas, ObjectMapper objectMapper, Clock clock) {
+  public ServiceAreaService(ServiceAreaRepository serviceAreas, ObjectMapper objectMapper, Clock clock) {
     this.serviceAreas = serviceAreas;
     this.objectMapper = objectMapper;
     this.clock = clock;

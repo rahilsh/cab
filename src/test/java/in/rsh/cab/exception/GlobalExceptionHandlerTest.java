@@ -40,6 +40,11 @@ class GlobalExceptionHandlerTest {
         "cab-unavailable",
         "No cabs available");
     assertProblem(
+        handler.handleConflict(new ConflictException("Version is stale")),
+        HttpStatus.CONFLICT,
+        "resource-conflict",
+        "Version is stale");
+    assertProblem(
         handler.handleBadRequest(new InvalidRequestException("Invalid request")),
         HttpStatus.BAD_REQUEST,
         "invalid-request",

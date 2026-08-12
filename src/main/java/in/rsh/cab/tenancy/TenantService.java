@@ -12,7 +12,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,15 +23,7 @@ public class TenantService {
   private final TenantMembershipRepository memberships;
   private final Clock clock;
 
-  @Autowired
   public TenantService(
-      TenantRepository tenants,
-      UserAccountRepository accounts,
-      TenantMembershipRepository memberships) {
-    this(tenants, accounts, memberships, Clock.systemUTC());
-  }
-
-  TenantService(
       TenantRepository tenants,
       UserAccountRepository accounts,
       TenantMembershipRepository memberships,
@@ -107,6 +98,28 @@ public class TenantService {
             .orElseThrow(() -> new TenantAccessDeniedException("Active tenant membership is required"));
     return new TenantContext(
         tenantId, account.getId(), membership.getId(), membership.getRoles());
+  }
+
+  @Transactional
+  public void grantRoleForActiveAccount(UUID accountId, TenantRole role) {
+    TenantContext context = TenantContext.require();
+    if (!context.roles().contains(TenantRole.TENANT_ADMIN)) {
+      throw new TenantAccessDeniedException("TENANT_ADMIN role is required");
+    }
+    TenantMembershipEntity membership =
+        memberships
+            .findByTenantIdAndUserAccountIdAndStatus(context.tenantId(), accountId, "ACTIVE")
+            .orElseThrow(
+                () -> new InvalidRequestException("Account must have an active tenant membership"));
+    membership.addRole(role, clock.instant());
+  }
+
+  @Transactional
+  public void grantSelfServiceRole(TenantRole role) {
+    if (role != TenantRole.RIDER && role != TenantRole.DRIVER) {
+      throw new InvalidRequestException("Only RIDER or DRIVER can be granted here");
+    }
+    grantRoleForActiveAccount(TenantContext.require().accountId(), role);
   }
 
   private TenantSummary summary(TenantEntity tenant, Set<TenantRole> roles) {

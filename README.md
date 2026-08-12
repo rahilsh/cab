@@ -28,11 +28,12 @@ The current implementation supports:
 - OIDC-protected tenant provisioning and operator memberships
 - Tenant-owned PostGIS service areas
 - OSRM-backed route distance and duration estimates
+- Tenant-scoped rider and driver profiles, driver approval, vehicles, and driver shifts
 
 The production roadmap includes:
 
 - Strict tenant isolation and broader role-based access
-- Rider, driver, vehicle, and compliance management
+- Driver document upload and verification workflows
 - Fare quotes, dispatch offers, and complete trip lifecycle
 - Provider-neutral payments, notifications, refunds, and settlements
 - Auditing, webhooks, ratings, support, and safety workflows
@@ -136,6 +137,16 @@ versioned endpoint is:
 | `POST` | `/api/v1/service-areas` | Create a tenant service area; requires `TENANT_ADMIN` |
 | `GET` | `/api/v1/service-areas` | List the selected tenant's service areas |
 | `POST` | `/api/v1/routes/estimate` | Estimate driving distance and duration through OSRM |
+| `POST`, `GET`, `PUT` | `/api/v1/rider/profile` | Create, read, or update the authenticated rider profile |
+| `POST`, `GET` | `/api/v1/drivers` | Onboard or list drivers; requires `TENANT_ADMIN` |
+| `POST` | `/api/v1/drivers/{id}/approve` | Approve a pending driver; requires `TENANT_ADMIN` |
+| `GET`, `PUT` | `/api/v1/drivers/me` | Read or update the authenticated driver profile |
+| `POST`, `GET` | `/api/v1/vehicles` | Create or list vehicles; requires `TENANT_ADMIN` |
+| `PUT` | `/api/v1/vehicles/{id}` | Versioned vehicle update; requires `TENANT_ADMIN` |
+| `POST`, `GET` | `/api/v1/driver/shifts` | Create or list the authenticated driver's shifts |
+| `POST` | `/api/v1/driver/shifts/{id}/go-online` | Move an `OFFLINE` shift to `AVAILABLE` |
+| `POST` | `/api/v1/driver/shifts/{id}/go-offline` | Move an `AVAILABLE` shift to `OFFLINE` |
+| `POST` | `/api/v1/current-tenant/roles/{role}` | Admin self-grant of `RIDER` or `DRIVER` for operations/testing |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -147,6 +158,13 @@ to the request. Missing, malformed, unknown, and cross-tenant selections are rej
 boundaries accept GeoJSON `Polygon` or `MultiPolygon` values as either JSON objects or JSON strings;
 tenant IDs are never accepted in request bodies. Route coordinates use latitude/longitude decimal
 degrees and responses report meters and seconds.
+
+Driver onboarding accepts an account UUID only after proving that account has an active membership
+in the selected tenant, and grants its persisted membership the `DRIVER` role. Driver and rider
+operations resolve the account from the authenticated tenant context. Vehicle and shift mutations
+use optimistic versions and return stable `409 resource-conflict` errors for stale or invalid
+transitions. Driver document storage is metadata-only; document bytes and raw secrets are never
+stored in the marketplace database.
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather

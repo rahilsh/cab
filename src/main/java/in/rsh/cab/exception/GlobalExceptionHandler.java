@@ -30,6 +30,11 @@ public class GlobalExceptionHandler {
     return problem(HttpStatus.CONFLICT, "Cab unavailable", exception.getMessage(), "cab-unavailable");
   }
 
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ProblemDetail> handleConflict(ConflictException exception) {
+    return problem(HttpStatus.CONFLICT, "Conflict", exception.getMessage(), "resource-conflict");
+  }
+
   @ExceptionHandler({IllegalArgumentException.class, InvalidRequestException.class})
   public ResponseEntity<ProblemDetail> handleBadRequest(RuntimeException exception) {
     return problem(HttpStatus.BAD_REQUEST, "Invalid request", exception.getMessage(), "invalid-request");
