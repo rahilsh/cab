@@ -4,7 +4,6 @@ import in.rsh.cab.audit.AuditService;
 import in.rsh.cab.dispatch.internal.persistence.DispatchRepository;
 import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.exception.NotFoundException;
-import in.rsh.cab.fleet.ShiftStatus;
 import in.rsh.cab.fleet.SupplyCandidate;
 import in.rsh.cab.fleet.internal.persistence.FleetRepository;
 import in.rsh.cab.location.LiveLocationStore;
@@ -20,6 +19,7 @@ import in.rsh.cab.tenancy.TenantRole;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -74,6 +74,15 @@ public class DispatchService {
 
   @Transactional
   public List<DriverOffer> start(UUID rideId, long version) {
+    return start(rideId, version, false);
+  }
+
+  @Transactional
+  public List<DriverOffer> retry(UUID rideId, long version) {
+    return start(rideId, version, true);
+  }
+
+  private List<DriverOffer> start(UUID rideId, long version, boolean retry) {
     TenantContext context = requireAny(TenantRole.TENANT_ADMIN, TenantRole.DISPATCHER);
     Ride current = rides.find(context.tenantId(), rideId)
         .orElseThrow(() -> new NotFoundException("Ride not found"));
@@ -81,7 +90,7 @@ public class DispatchService {
       throw new ConflictException("Ride version is stale");
     }
     Instant now = clock.instant();
-    Ride matching = current.matching(now);
+    Ride matching = retry ? current.retryMatching(now) : current.matching(now);
     if (!rides.update(context.tenantId(), matching, version)) {
       throw new ConflictException("Ride changed concurrently");
     }
@@ -92,7 +101,7 @@ public class DispatchService {
     List<UUID> nearby = locations.nearby(context.tenantId(), matching.pickup(), radiusMeters,
         candidateLimit, now, locationMaxAge);
     List<SupplyCandidate> candidates = fleet.findAvailableCandidates(
-        context.tenantId(), nearby, serviceClass);
+        context.tenantId(), nearby, serviceClass, LocalDate.now(clock));
     UUID attemptId = UUID.randomUUID();
     String attemptStatus = candidates.isEmpty() ? "EXHAUSTED" : "OFFERED";
     dispatch.insertAttempt(context.tenantId(), attemptId, rideId, radiusMeters, candidateLimit,
@@ -129,17 +138,14 @@ public class DispatchService {
     DriverOffer offer = dispatch.lockOwnOffer(context.tenantId(), context.accountId(), offerId)
         .orElseThrow(() -> new NotFoundException("Driver offer not found"));
     if (offer.status() != DriverOfferStatus.PENDING || !offer.expiresAt().isAfter(now)) {
-      if (offer.status() == DriverOfferStatus.PENDING) {
-        dispatch.respond(context.tenantId(), offer.id(), "PENDING", "EXPIRED", now);
-      }
       throw new ConflictException("Driver offer is no longer pending");
     }
     Ride current = rides.find(context.tenantId(), offer.rideId())
         .orElseThrow(() -> new NotFoundException("Ride not found"));
     Ride assigned = current.assign(offer.driverId(), offer.vehicleId(), offer.shiftId(), now);
     try {
-      if (!fleet.transitionShift(context.tenantId(), offer.shiftId(), ShiftStatus.AVAILABLE,
-          ShiftStatus.RESERVED, now)
+      if (!fleet.reserveEligibleShift(context.tenantId(), offer.shiftId(), offer.driverId(),
+          offer.vehicleId(), LocalDate.now(clock), now)
           || !rides.update(context.tenantId(), assigned, current.version())
           || !dispatch.respond(context.tenantId(), offer.id(), "PENDING", "ACCEPTED", now)) {
         throw new ConflictException("Offer lost a concurrent acceptance race");
@@ -165,8 +171,44 @@ public class DispatchService {
         || !dispatch.respond(context.tenantId(), offer.id(), "PENDING", "REJECTED", now)) {
       throw new ConflictException("Driver offer is no longer pending");
     }
+    exhaustIfComplete(context.tenantId(), offer.attemptId(), context.accountId(), now);
     audit.record(context.tenantId(), context.accountId(), "dispatch.offer.reject", "driver_offer",
         offer.id(), "SUCCESS", json.createObjectNode());
+  }
+
+  @Transactional
+  public int sweepExpired(UUID tenantId, int limit) {
+    Instant now = clock.instant();
+    List<UUID> attempts = dispatch.expireDueOffers(tenantId, now, limit);
+    int exhausted = 0;
+    for (UUID attemptId : attempts) {
+      if (exhaustIfComplete(tenantId, attemptId, null, now)) {
+        exhausted++;
+      }
+    }
+    return exhausted;
+  }
+
+  private boolean exhaustIfComplete(UUID tenantId, UUID attemptId, UUID actorAccountId, Instant now) {
+    var rideId = dispatch.exhaustAttemptIfNoPending(tenantId, attemptId, now);
+    if (rideId.isEmpty()) {
+      return false;
+    }
+    Ride matching = rides.find(tenantId, rideId.get())
+        .orElseThrow(() -> new NotFoundException("Ride not found"));
+    if (matching.status() != RideStatus.MATCHING) {
+      return true;
+    }
+    Ride noDriver = matching.noDriver(now);
+    if (!rides.update(tenantId, noDriver, matching.version())) {
+      throw new ConflictException("Ride changed concurrently");
+    }
+    UUID actor = actorAccountId == null ? matching.riderAccountId() : actorAccountId;
+    rides.appendHistory(tenantId, matching.id(), matching.status(), noDriver.status(), actor,
+        "All dispatch offers expired or were rejected", now);
+    TenantContext eventContext = new TenantContext(tenantId, actor, UUID.randomUUID(), Set.of());
+    emit(eventContext, noDriver, "ride.no_driver", "dispatch.exhausted");
+    return true;
   }
 
   private void emit(TenantContext context, Ride ride, String event, String action) {

@@ -3,7 +3,9 @@ package in.rsh.cab.location;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +30,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class DriverLocationServiceTest {
 
@@ -55,10 +58,48 @@ class DriverLocationServiceTest {
   @Test
   void updatesOwnedAvailableShiftAndCheckpoint() {
     when(fleet.findShift(TENANT, SHIFT, ACCOUNT)).thenReturn(Optional.of(shift(ShiftStatus.AVAILABLE)));
-    when(store.update(any(), any())).thenReturn(true);
+    when(checkpoints.insertIfNewer(any(), any(), any())).thenReturn(true);
     DriverLocation location = service.update(SHIFT, new GeoPoint(12.95, 77.6), NOW, 4);
     assertEquals(4, location.sequence());
-    verify(checkpoints).insert(TENANT, location, NOW);
+    verify(checkpoints).insertIfNewer(TENANT, location, NOW);
+    verify(store).update(TENANT, location);
+  }
+
+  @Test
+  void acceptsLocationExactlyAtMaxAgeBoundary() {
+    when(fleet.findShift(TENANT, SHIFT, ACCOUNT)).thenReturn(Optional.of(shift(ShiftStatus.AVAILABLE)));
+    when(checkpoints.insertIfNewer(any(), any(), any())).thenReturn(true);
+
+    assertEquals(NOW.minusSeconds(120),
+        service.update(SHIFT, new GeoPoint(12.95, 77.6), NOW.minusSeconds(120), 1).recordedAt());
+  }
+
+  @Test
+  void retainsAcceptedCheckpointWhenRedisIsUnavailable() {
+    when(fleet.findShift(TENANT, SHIFT, ACCOUNT)).thenReturn(Optional.of(shift(ShiftStatus.AVAILABLE)));
+    when(checkpoints.insertIfNewer(any(), any(), any())).thenReturn(true);
+    when(store.update(any(), any())).thenThrow(new IllegalStateException("redis unavailable"));
+
+    assertEquals(5, service.update(SHIFT, new GeoPoint(12.95, 77.6), NOW, 5).sequence());
+    verify(checkpoints).insertIfNewer(eq(TENANT), any(), eq(NOW));
+  }
+
+  @Test
+  void neverAdvancesRedisBeforeDatabaseCommit() {
+    when(fleet.findShift(TENANT, SHIFT, ACCOUNT)).thenReturn(Optional.of(shift(ShiftStatus.AVAILABLE)));
+    when(checkpoints.insertIfNewer(any(), any(), any())).thenReturn(true);
+    TransactionSynchronizationManager.initSynchronization();
+    try {
+      DriverLocation location = service.update(SHIFT, new GeoPoint(12.95, 77.6), NOW, 6);
+      verify(store, never()).update(any(), any());
+
+      TransactionSynchronizationManager.getSynchronizations().forEach(synchronization ->
+          synchronization.afterCommit());
+
+      verify(store).update(TENANT, location);
+    } finally {
+      TransactionSynchronizationManager.clearSynchronization();
+    }
   }
 
   @Test
@@ -75,9 +116,10 @@ class DriverLocationServiceTest {
     assertThrows(ConflictException.class,
         () -> service.update(SHIFT, new GeoPoint(0, 0), NOW, 1));
     when(fleet.findShift(TENANT, SHIFT, ACCOUNT)).thenReturn(Optional.of(shift(ShiftStatus.AVAILABLE)));
-    when(store.update(any(), any())).thenReturn(false);
+    when(checkpoints.insertIfNewer(any(), any(), any())).thenReturn(false);
     assertThrows(ConflictException.class,
         () -> service.update(SHIFT, new GeoPoint(0, 0), NOW, 1));
+    verify(store, never()).update(any(), any());
     context(TenantRole.RIDER);
     assertThrows(TenantAccessDeniedException.class,
         () -> service.update(SHIFT, new GeoPoint(0, 0), NOW, 1));

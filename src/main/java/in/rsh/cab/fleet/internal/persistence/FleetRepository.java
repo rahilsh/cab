@@ -6,6 +6,8 @@ import in.rsh.cab.fleet.ShiftStatus;
 import in.rsh.cab.fleet.Vehicle;
 import in.rsh.cab.fleet.VehicleStatus;
 import in.rsh.cab.fleet.SupplyCandidate;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,8 +35,11 @@ public interface FleetRepository {
   boolean updateShift(UUID tenantId, DriverShift shift, long expectedVersion);
 
   boolean transitionShift(
-      UUID tenantId, UUID shiftId, ShiftStatus expected, ShiftStatus next, java.time.Instant now);
+      UUID tenantId, UUID shiftId, ShiftStatus expected, ShiftStatus next, Instant now);
+
+  boolean reserveEligibleShift(
+      UUID tenantId, UUID shiftId, UUID driverId, UUID vehicleId, LocalDate currentDate, Instant now);
 
   List<SupplyCandidate> findAvailableCandidates(
-      UUID tenantId, List<UUID> shiftIds, String serviceClass);
+      UUID tenantId, List<UUID> shiftIds, String serviceClass, LocalDate currentDate);
 }

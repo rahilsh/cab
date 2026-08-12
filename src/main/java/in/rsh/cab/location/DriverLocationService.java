@@ -14,13 +14,19 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class DriverLocationService {
 
+  private static final Logger log = LoggerFactory.getLogger(DriverLocationService.class);
   private final FleetRepository fleet;
   private final LiveLocationStore locations;
   private final LocationCheckpointRepository checkpoints;
@@ -57,11 +63,36 @@ public class DriverLocationService {
       throw new ConflictException("Driver shift must be available to update location");
     }
     DriverLocation location = new DriverLocation(shiftId, point, recordedAt, sequence);
-    if (!locations.update(context.tenantId(), location)) {
+    try {
+      if (!checkpoints.insertIfNewer(context.tenantId(), location, now)) {
+        throw new ConflictException("Location update is stale");
+      }
+    } catch (DataIntegrityViolationException exception) {
       throw new ConflictException("Location update is stale");
     }
-    checkpoints.insert(context.tenantId(), location, now);
+    updateIndexAfterCommit(context.tenantId(), location);
     return location;
+  }
+
+  private void updateIndexAfterCommit(UUID tenantId, DriverLocation location) {
+    Runnable update = () -> {
+      try {
+        locations.update(tenantId, location);
+      } catch (RuntimeException exception) {
+        log.warn("Live location index update failed; reconciliation will retry tenant={} shift={}",
+            tenantId, location.shiftId(), exception);
+      }
+    };
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      update.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+      @Override
+      public void afterCommit() {
+        update.run();
+      }
+    });
   }
 
   private TenantContext requireDriver() {

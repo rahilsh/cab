@@ -64,6 +64,12 @@ PostgreSQL is authoritative. Redis stores ephemeral live-location and dispatch i
 side effects are delivered through a transactional outbox. See [ADR 0001](docs/adr/0001-modular-monolith.md)
 and [ADR 0002](docs/adr/0002-shared-schema-tenancy.md).
 
+Driver location writes commit an ordered PostgreSQL checkpoint before updating Redis. A tenant-aware
+maintenance worker repairs Redis from fresh checkpoints after transient failures, removes expired
+dispatch offers, and moves attempts with no pending offers to `EXHAUSTED` and rides to `NO_DRIVER`.
+Only currently approved drivers with an active vehicle, available shift, and verified unexpired
+driving license can be offered or accept. Dispatchers can explicitly retry a `NO_DRIVER` ride.
+
 ## Requirements
 
 - Java 21
@@ -207,11 +213,12 @@ The HTTP API is versioned under `/api/v1`:
 | `POST`, `GET` | `/api/v1/quotes` | Create or list the authenticated rider's immutable fare quotes |
 | `GET` | `/api/v1/quotes/{id}` | Read one fare quote owned by the authenticated rider |
 | `GET` | `/api/v1/admin/audit-events` | List tenant audit events; requires `TENANT_ADMIN` or `SUPPORT` |
-| `PUT` | `/api/v1/driver/location` | Atomically publish a fresh location for the authenticated driver's available shift |
+| `PUT` | `/api/v1/driver/location` | Persist and publish a fresh ordered location for the authenticated driver's available shift |
 | `POST`, `GET` | `/api/v1/rides` | Create a ride from an owned quote or list the authenticated rider's rides |
 | `GET`, `POST` | `/api/v1/rides/{id}` | Read an owned ride or cancel it at `/cancel` |
 | `GET` | `/api/v1/rides/{id}/events` | Stream authorized ride status events with SSE |
 | `POST` | `/api/v1/dispatch/rides/{id}/start` | Search bounded fresh supply and create expiring offers; requires `TENANT_ADMIN` or `DISPATCHER` |
+| `POST` | `/api/v1/dispatch/rides/{id}/retry` | Retry matching a versioned `NO_DRIVER` ride; requires `TENANT_ADMIN` or `DISPATCHER` |
 | `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
 | `POST` | `/api/v1/driver/offers/{id}/accept`, `/reject` | Accept or reject a dispatch offer |
 | `POST` | `/api/v1/driver/rides/{id}/{action}` | Apply `arriving`, `arrive`, `start`, `complete`, or `cancel` lifecycle actions |

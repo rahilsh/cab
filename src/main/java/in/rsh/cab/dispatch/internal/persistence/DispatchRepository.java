@@ -24,5 +24,9 @@ public interface DispatchRepository {
 
   void completeAttempt(UUID tenantId, UUID attemptId, String status, Instant now);
 
+  List<UUID> expireDueOffers(UUID tenantId, Instant now, int limit);
+
+  Optional<UUID> exhaustAttemptIfNoPending(UUID tenantId, UUID attemptId, Instant now);
+
   void cancelRide(UUID tenantId, UUID rideId, Instant now);
 }
