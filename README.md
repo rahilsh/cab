@@ -41,7 +41,7 @@ The production roadmap includes:
 - Driver document upload and verification workflows
 - Production notification and payment-provider adapters
 - Expanded moderation, support automation, and safety escalation workflows
-- OpenAPI, observability, Docker Compose, and a Helm chart
+- Docker Compose and a Helm chart
 
 See [the production roadmap](docs/ROADMAP.md) for sequencing and acceptance criteria.
 
@@ -124,7 +124,9 @@ In another terminal:
 ```
 
 The application reads `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `REDIS_HOST`,
-`REDIS_PORT`, and `OSRM_BASE_URL`. Payment settings use `PAYMENT_PROVIDER`,
+`REDIS_PORT`, and `OSRM_BASE_URL`. API documentation is disabled by default; set
+`API_DOCS_ENABLED=true` and optionally `SWAGGER_UI_ENABLED=true` to expose `/v3/api-docs` and
+`/swagger-ui.html`. Payment settings use `PAYMENT_PROVIDER`,
 `FAKE_PAYMENT_CONFIG_REFERENCE`, `FAKE_PAYMENT_WEBHOOK_SECRET_REFERENCE`,
 `FAKE_PAYMENT_WEBHOOK_SECRET`, and `PAYMENT_WEBHOOK_TOLERANCE`. OSRM defaults to
 `http://localhost:5000`. Defaults are intended
@@ -147,12 +149,14 @@ versioned endpoint is:
 | `POST`, `GET`, `PUT` | `/api/v1/rider/profile` | Create, read, or update the authenticated rider profile |
 | `POST`, `GET` | `/api/v1/drivers` | Onboard or list drivers; requires `TENANT_ADMIN` |
 | `POST` | `/api/v1/drivers/{id}/approve` | Approve a pending driver; requires `TENANT_ADMIN` |
+| `POST` | `/api/v1/drivers/{id}/suspend` | Suspend a driver; requires `TENANT_ADMIN` |
 | `GET`, `PUT` | `/api/v1/drivers/me` | Read or update the authenticated driver profile |
 | `POST`, `GET` | `/api/v1/vehicles` | Create or list vehicles; requires `TENANT_ADMIN` |
 | `PUT` | `/api/v1/vehicles/{id}` | Versioned vehicle update; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/driver/shifts` | Create or list the authenticated driver's shifts |
 | `POST` | `/api/v1/driver/shifts/{id}/go-online` | Move an `OFFLINE` shift to `AVAILABLE` |
 | `POST` | `/api/v1/driver/shifts/{id}/go-offline` | Move an `AVAILABLE` shift to `OFFLINE` |
+| `POST` | `/api/v1/driver/shifts/{id}/close` | Close an offline shift |
 | `POST` | `/api/v1/current-tenant/roles/{role}` | Admin self-grant of `RIDER` or `DRIVER` for operations/testing |
 | `POST`, `GET` | `/api/v1/products` | Create or list service products; requires `TENANT_ADMIN` |
 | `POST`, `GET` | `/api/v1/pricing-rules` | Create or list versioned pricing rules; requires `TENANT_ADMIN` |
@@ -161,12 +165,16 @@ versioned endpoint is:
 | `GET` | `/api/v1/admin/audit-events` | List tenant audit events; requires `TENANT_ADMIN` or `SUPPORT` |
 | `PUT` | `/api/v1/driver/location` | Atomically publish a fresh location for the authenticated driver's available shift |
 | `POST`, `GET` | `/api/v1/rides` | Create a ride from an owned quote or list the authenticated rider's rides |
+| `GET`, `POST` | `/api/v1/rides/{id}` | Read an owned ride or cancel it at `/cancel` |
 | `POST` | `/api/v1/dispatch/rides/{id}/start` | Search bounded fresh supply and create expiring offers; requires `TENANT_ADMIN` or `DISPATCHER` |
 | `GET` | `/api/v1/driver/offers` | List the authenticated driver's pending, unexpired offers |
-| `POST` | `/api/v1/driver/offers/{id}/accept` | Atomically reserve supply and assign exactly one driver |
+| `POST` | `/api/v1/driver/offers/{id}/accept`, `/reject` | Accept or reject a dispatch offer |
 | `POST` | `/api/v1/driver/rides/{id}/{action}` | Apply `arriving`, `arrive`, `start`, `complete`, or `cancel` lifecycle actions |
+| `POST` | `/api/v1/dispatch/rides/{id}/cancel` | Administratively cancel a ride |
+| `GET` | `/api/v1/payments/{id}` | Read payment status by payment ID |
 | `GET` | `/api/v1/rides/{id}/payment` | Read the authenticated rider's payment status |
 | `POST` | `/api/v1/finance/payments/{id}/refunds` | Request a bounded refund; requires `FINANCE` or `TENANT_ADMIN` |
+| `GET` | `/api/v1/finance/refunds/{id}` | Read a refund; requires finance access |
 | `GET` | `/api/v1/driver/earnings` | Read the authenticated driver's ledger balance |
 | `POST`, `GET` | `/api/v1/finance/settlements` | Settle positive driver balances or list batches; creation requires `FINANCE` |
 | `POST` | `/api/v1/payment-providers/{provider}/accounts/{id}/events` | Receive signed provider callbacks |
@@ -174,6 +182,7 @@ versioned endpoint is:
 | `POST` | `/api/v1/rides/{id}/ratings` | Rate the other participant after a completed ride |
 | `POST`, `GET` | `/api/v1/support/cases` | Create an owned case or list visible tenant cases |
 | `POST` | `/api/v1/support/cases/{id}/state` | Triage a case; requires `SUPPORT` or `TENANT_ADMIN` |
+| `POST` | `/api/v1/support/cases/{id}/messages`, `/assignments` | Add a case message or assignment |
 | `POST`, `GET` | `/api/v1/safety/incidents` | Participant reporting and restricted safety listing |
 | `POST` | `/api/v1/safety/incidents/{id}/evidence` | Add external evidence metadata; no bytes or URLs |
 | `POST` | `/api/v1/safety/incidents/{id}/actions` | Apply audited restricted safety actions |
@@ -182,6 +191,19 @@ versioned endpoint is:
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
 header to correlate a request across logs and downstream calls.
+
+Health probes are public. `/actuator/prometheus` and `/actuator/info` require a bearer token with
+the `observability.read` scope. Prometheus includes standard HTTP/JVM metrics and rate-limit outcome
+counters. The `prod` profile emits Logstash-compatible structured JSON with safe MDC fields for the
+correlation ID and authorized tenant/account UUIDs; request bodies, tokens, and idempotency keys are
+never added to MDC.
+
+Authenticated `/api/v1` tenant operations are rate limited by tenant and account using an atomic
+Redis counter. Configure `RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS` (default `120`), and
+`RATE_LIMIT_WINDOW` (default `PT1M`). Rejections use RFC problem JSON, status `429`, and
+`Retry-After`; health probes, tenant provisioning/listing, and signed provider callbacks are not
+included in this tenant limiter. Responses expose `RateLimit-Limit`, `RateLimit-Remaining`, and
+`RateLimit-Reset` headers.
 
 Tenant-owned requests require `X-Tenant-ID`. The header is only a selector: the backend verifies
 that the authenticated OIDC identity has an active database membership before binding tenant roles

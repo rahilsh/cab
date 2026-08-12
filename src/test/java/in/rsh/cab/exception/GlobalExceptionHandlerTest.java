@@ -10,6 +10,7 @@ import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.routing.RouteProviderException;
 import in.rsh.cab.operations.IdempotencyConflictException;
+import in.rsh.cab.ratelimit.RateLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 
 class GlobalExceptionHandlerTest {
 
@@ -84,6 +86,19 @@ class GlobalExceptionHandlerTest {
         HttpStatus.SERVICE_UNAVAILABLE,
         "route-provider-unavailable",
         "Route estimate provider is unavailable");
+    ResponseEntity<ProblemDetail> rateLimit =
+        handler.handleRateLimit(new RateLimitExceededException(12));
+    assertProblem(
+        rateLimit,
+        HttpStatus.TOO_MANY_REQUESTS,
+        "rate-limit-exceeded",
+        "Request rate limit exceeded");
+    assertEquals("12", rateLimit.getHeaders().getFirst("Retry-After"));
+    assertProblem(
+        handler.handleNotAcceptable(new HttpMediaTypeNotAcceptableException("unsupported")),
+        HttpStatus.NOT_ACCEPTABLE,
+        "not-acceptable",
+        "The requested response media type is not supported");
   }
 
   @Test
