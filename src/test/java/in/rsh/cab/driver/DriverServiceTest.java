@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import in.rsh.cab.driver.internal.persistence.DriverProfileRepository;
+import in.rsh.cab.driver.internal.persistence.DriverDocumentRepository;
 import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
@@ -32,13 +33,14 @@ class DriverServiceTest {
   private static final UUID TENANT_ID = UUID.randomUUID();
   private static final UUID ACCOUNT_ID = UUID.randomUUID();
   private final DriverProfileRepository repository = mock(DriverProfileRepository.class);
+  private final DriverDocumentRepository documents = mock(DriverDocumentRepository.class);
   private final TenantService tenants = mock(TenantService.class);
   private DriverService service;
 
   @BeforeEach
   void setUp() {
     service = new DriverService(
-        repository, tenants,
+        repository, documents, tenants,
         Clock.fixed(Instant.parse("2026-08-08T10:00:00Z"), ZoneOffset.UTC));
     admin();
   }
@@ -58,8 +60,20 @@ class DriverServiceTest {
     when(repository.findAllByTenantId(TENANT_ID)).thenReturn(List.of(pending));
     assertEquals(List.of(pending), service.list());
     when(repository.findByTenantIdAndId(TENANT_ID, pending.id())).thenReturn(Optional.of(pending));
+    when(documents.hasVerifiedDrivingLicense(
+        TENANT_ID, pending.id(), java.time.LocalDate.parse("2026-08-08"))).thenReturn(true);
     when(repository.updateStatus(any(), any(), any(), any(), any())).thenReturn(true);
     assertEquals(DriverStatus.APPROVED, service.approve(pending.id()).status());
+  }
+
+  @Test
+  void approvalRequiresVerifiedLicenseThatHasNotExpired() {
+    DriverProfile pending = profile(DriverStatus.PENDING);
+    when(repository.findByTenantIdAndId(TENANT_ID, pending.id())).thenReturn(Optional.of(pending));
+
+    assertThrows(ConflictException.class, () -> service.approve(pending.id()));
+    verify(documents).hasVerifiedDrivingLicense(
+        TENANT_ID, pending.id(), java.time.LocalDate.parse("2026-08-08"));
   }
 
   @Test

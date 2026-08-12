@@ -3,6 +3,7 @@ package in.rsh.cab.driver;
 import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.exception.NotFoundException;
 import in.rsh.cab.driver.internal.persistence.DriverProfileRepository;
+import in.rsh.cab.driver.internal.persistence.DriverDocumentRepository;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.tenancy.TenantContext;
 import in.rsh.cab.tenancy.TenantRole;
@@ -19,11 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class DriverService {
 
   private final DriverProfileRepository drivers;
+  private final DriverDocumentRepository documents;
   private final TenantService tenants;
   private final Clock clock;
 
-  public DriverService(DriverProfileRepository drivers, TenantService tenants, Clock clock) {
+  public DriverService(
+      DriverProfileRepository drivers, DriverDocumentRepository documents,
+      TenantService tenants, Clock clock) {
     this.drivers = drivers;
+    this.documents = documents;
     this.tenants = tenants;
     this.clock = clock;
   }
@@ -54,7 +59,12 @@ public class DriverService {
   public DriverProfile approve(UUID id) {
     TenantContext context = require(TenantRole.TENANT_ADMIN);
     DriverProfile current = find(context.tenantId(), id);
-    DriverProfile approved = current.approve(clock.instant());
+    Instant now = clock.instant();
+    DriverProfile approved = current.approve(now);
+    if (!documents.hasVerifiedDrivingLicense(
+        context.tenantId(), id, now.atZone(clock.getZone()).toLocalDate())) {
+      throw new ConflictException("A verified, non-expired driving license is required");
+    }
     if (!drivers.updateStatus(
         context.tenantId(), id, current.status(), approved.status(), approved.updatedAt())) {
       throw new ConflictException("Driver status changed concurrently");

@@ -11,10 +11,10 @@ import org.slf4j.MDC;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.AsyncHandlerInterceptor;
 
 @Component
-public class RequestContextMdcInterceptor implements HandlerInterceptor {
+public class RequestContextMdcInterceptor implements AsyncHandlerInterceptor {
 
   @Override
   public boolean preHandle(
@@ -36,11 +36,21 @@ public class RequestContextMdcInterceptor implements HandlerInterceptor {
   }
 
   @Override
+  public void afterConcurrentHandlingStarted(
+      HttpServletRequest request, HttpServletResponse response, Object handler) {
+    clear();
+  }
+
+  @Override
   public void afterCompletion(
       HttpServletRequest request,
       HttpServletResponse response,
       Object handler,
       Exception exception) {
+    clear();
+  }
+
+  private void clear() {
     MDC.remove("tenantId");
     MDC.remove("actorId");
   }

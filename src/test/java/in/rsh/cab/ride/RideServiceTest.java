@@ -50,12 +50,13 @@ class RideServiceTest {
   private final OutboxService outbox = mock(OutboxService.class);
   private final AuditService audit = mock(AuditService.class);
   private final PaymentService payments = mock(PaymentService.class);
+  private final RideEventStream eventStream = mock(RideEventStream.class);
   private RideService service;
 
   @BeforeEach
   void setUp() {
     service = new RideService(rides, pricing, dispatch, fleet, idempotency, outbox, audit, payments,
-        new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+        new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC), eventStream);
     context(TenantRole.RIDER);
     when(idempotency.reserve(any(), any(), any(), any(), any())).thenReturn(
         new IdempotencyReservation(IdempotencyReservation.Status.RESERVED,
@@ -82,6 +83,7 @@ class RideServiceTest {
     Ride cancelled = service.cancelOwn(created.id(), 0, "changed plans");
     assertEquals(RideStatus.CANCELLED, cancelled.status());
     verify(dispatch).cancelRide(TENANT, created.id(), NOW);
+    verify(eventStream).afterCommit(TENANT, cancelled);
   }
 
   @Test

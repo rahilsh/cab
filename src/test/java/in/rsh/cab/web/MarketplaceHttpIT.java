@@ -23,10 +23,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -118,6 +120,8 @@ class MarketplaceHttpIT {
     JsonNode paths = openApi.get("paths");
     assertTrue(paths.has("/api/v1/tenants"));
     assertTrue(paths.has("/api/v1/rides"));
+    assertTrue(paths.has("/api/v1/rides/{id}/events"));
+    assertTrue(paths.has("/api/v1/drivers/me/documents"));
     assertTrue(paths.has("/api/v1/payment-providers/{provider}/accounts/{accountId}/events"));
     paths.propertyNames().forEach(path -> assertTrue(path.startsWith("/api/v1/"), path));
     assertTrue(openApi.get("components").get("securitySchemes").has("bearerAuth"));
@@ -198,6 +202,44 @@ class MarketplaceHttpIT {
                 + "\",\"legalName\":\"Admin Driver\",\"phoneNumber\":\"+1 555 0101\"}");
     assertEquals(201, driverCreated.statusCode());
     String driverId = JSON.readTree(driverCreated.body()).get("id").asText();
+    HttpResponse<String> expiredDocument =
+        postWithTenant(
+            "/api/v1/drivers/me/documents",
+            tenantId,
+            "{\"documentType\":\"DRIVING_LICENSE\",\"documentReference\":\"license-42\","
+                + "\"objectKey\":\"drivers/"
+                + driverId
+                + "/expired-license.pdf\",\"expiresOn\":\"2020-08-08\"}");
+    assertEquals(400, expiredDocument.statusCode(), expiredDocument.body());
+    assertEquals(
+        409, postWithTenant("/api/v1/drivers/" + driverId + "/approve", tenantId, "").statusCode());
+    String validExpiry = LocalDate.now().plusYears(2).toString();
+    HttpResponse<String> validDocumentCreated =
+        postWithTenant(
+            "/api/v1/drivers/me/documents",
+            tenantId,
+            "{\"documentType\":\"DRIVING_LICENSE\",\"documentReference\":\"license-43\","
+                + "\"objectKey\":\"drivers/"
+                + driverId
+                + "/license.pdf\",\"expiresOn\":\""
+                + validExpiry
+                + "\"}");
+    assertEquals(201, validDocumentCreated.statusCode(), validDocumentCreated.body());
+    String validDocumentId = JSON.readTree(validDocumentCreated.body()).get("id").asText();
+    assertEquals(
+        1,
+        JSON.readTree(
+                getWithTenant(
+                        "/api/v1/drivers/" + driverId + "/documents", tenantId, "platform-admin")
+                    .body())
+            .size());
+    assertEquals(
+        200,
+        postWithTenant(
+                "/api/v1/drivers/" + driverId + "/documents/" + validDocumentId + "/verify",
+                tenantId,
+                "")
+            .statusCode());
     assertEquals(
         200, postWithTenant("/api/v1/drivers/" + driverId + "/approve", tenantId, "").statusCode());
     assertEquals(
@@ -400,10 +442,49 @@ class MarketplaceHttpIT {
             .body());
     assertEquals(
         1, JSON.readTree(getWithTenant("/api/v1/rides", tenantId, "platform-admin").body()).size());
+    assertEquals(
+        404,
+        httpClient
+            .send(
+                tenantGetRequest(
+                    "/api/v1/rides/" + UUID.randomUUID() + "/events",
+                    tenantId,
+                    "platform-admin",
+                    MediaType.TEXT_EVENT_STREAM_VALUE),
+                HttpResponse.BodyHandlers.ofString())
+            .statusCode());
+    assertEquals(
+        403,
+        httpClient
+            .send(
+                tenantGetRequest(
+                    "/api/v1/rides/" + rideId + "/events",
+                    tenantId,
+                    "unknown-user",
+                    MediaType.TEXT_EVENT_STREAM_VALUE),
+                HttpResponse.BodyHandlers.ofString())
+            .statusCode());
+    HttpRequest eventRequest =
+        HttpRequest.newBuilder(uri("/api/v1/rides/" + rideId + "/events"))
+            .header("Accept", MediaType.TEXT_EVENT_STREAM_VALUE)
+            .header("Authorization", "Bearer platform-admin")
+            .header("X-Tenant-ID", tenantId)
+            .GET()
+            .build();
+    CompletableFuture<HttpResponse<java.util.stream.Stream<String>>> eventResponse =
+        httpClient.sendAsync(eventRequest, HttpResponse.BodyHandlers.ofLines());
+    HttpResponse<java.util.stream.Stream<String>> streamResponse =
+        eventResponse.get(5, TimeUnit.SECONDS);
+    assertEquals(200, streamResponse.statusCode());
 
     HttpResponse<String> offersCreated =
         postWithTenant("/api/v1/dispatch/rides/" + rideId + "/start", tenantId, "{\"version\":0}");
     assertEquals(200, offersCreated.statusCode(), offersCreated.body());
+    String statusEvent =
+        streamResponse.body().filter(line -> line.contains("MATCHING")).findFirst().orElseThrow();
+    assertTrue(statusEvent.contains("rideId"));
+    assertFalse(statusEvent.contains("latitude"));
+    streamResponse.body().close();
     JsonNode offers = JSON.readTree(offersCreated.body());
     assertEquals(1, offers.size());
     String offerId = offers.get(0).get("id").asText();
@@ -591,7 +672,7 @@ class MarketplaceHttpIT {
   @Test
   void databaseRoleEnforcesTransactionLocalTenantIsolation() {
     assertEquals(
-        41,
+        42,
         jdbc.sql(
                 """
                 SELECT count(*)
@@ -851,6 +932,15 @@ class MarketplaceHttpIT {
             .GET()
             .build();
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpRequest tenantGetRequest(String path, String tenantId, String token, String accept) {
+    return HttpRequest.newBuilder(uri(path))
+        .header("Accept", accept)
+        .header("Authorization", "Bearer " + token)
+        .header("X-Tenant-ID", tenantId)
+        .GET()
+        .build();
   }
 
   private URI uri(String path) {
