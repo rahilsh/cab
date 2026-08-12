@@ -25,6 +25,8 @@ public class SecurityConfiguration {
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/v1/tenants")
                     .hasAuthority("SCOPE_platform.admin")
+                    .requestMatchers("/api/v1/payment-providers/*/accounts/*/events")
+                    .permitAll()
                     .requestMatchers(
                         "/api/v1/current-tenant",
                         "/api/v1/service-areas/**",

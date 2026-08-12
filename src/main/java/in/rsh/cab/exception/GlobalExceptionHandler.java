@@ -6,6 +6,7 @@ import java.util.Map;
 import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.routing.RouteProviderException;
 import in.rsh.cab.operations.IdempotencyConflictException;
+import in.rsh.cab.payment.PaymentSignatureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,12 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ProblemDetail> handleTenantAccessDenied(
       TenantAccessDeniedException exception) {
     return problem(HttpStatus.FORBIDDEN, "Tenant access denied", exception.getMessage(), "tenant-access-denied");
+  }
+
+  @ExceptionHandler(PaymentSignatureException.class)
+  public ResponseEntity<ProblemDetail> handlePaymentSignature(PaymentSignatureException exception) {
+    return problem(HttpStatus.UNAUTHORIZED, "Invalid provider signature", exception.getMessage(),
+        "invalid-provider-signature");
   }
 
   @ExceptionHandler(RouteProviderException.class)

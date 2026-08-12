@@ -12,6 +12,10 @@ import com.sun.net.httpserver.HttpServer;
 import in.rsh.cab.operations.InboxService;
 import in.rsh.cab.operations.OutboxEvent;
 import in.rsh.cab.operations.OutboxPoller;
+import in.rsh.cab.payment.FakePaymentProvider;
+import in.rsh.cab.payment.PaymentAccount;
+import in.rsh.cab.payment.PaymentOperationWorker;
+import in.rsh.cab.payment.internal.persistence.PaymentRepository;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -74,6 +78,9 @@ class MarketplaceHttpIT {
   @Autowired private JdbcClient jdbc;
   @Autowired private OutboxPoller outboxPoller;
   @Autowired private InboxService inbox;
+  @Autowired private PaymentOperationWorker paymentWorker;
+  @Autowired private PaymentRepository paymentRepository;
+  @Autowired private FakePaymentProvider fakePaymentProvider;
 
   @DynamicPropertySource
   static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -370,6 +377,65 @@ class MarketplaceHttpIT {
     assertEquals("COMPLETED", completed.get("status").getAsString());
     assertEquals(409, postWithTenant(
         "/api/v1/driver/rides/" + rideId + "/complete", tenantId, "{\"version\":5}").statusCode());
+
+    HttpResponse<String> pendingPaymentResponse = getWithTenant(
+        "/api/v1/rides/" + rideId + "/payment", tenantId, "platform-admin");
+    assertEquals(200, pendingPaymentResponse.statusCode(), pendingPaymentResponse.body());
+    JsonObject pendingPayment = JsonParser.parseString(pendingPaymentResponse.body()).getAsJsonObject();
+    String paymentId = pendingPayment.get("id").getAsString();
+    assertEquals("CAPTURE_PENDING", pendingPayment.get("state").getAsString());
+    assertEquals(809, pendingPayment.get("amountMinor").getAsLong());
+
+    List<OutboxEvent> paymentEvents = outboxPoller.lease(tenantUuid, 100, Duration.ofSeconds(30));
+    OutboxEvent captureRequest = paymentEvents.stream()
+        .filter(event -> event.eventType().equals("payment.capture_requested"))
+        .findFirst().orElseThrow();
+    assertTrue(paymentWorker.process(captureRequest));
+    paymentEvents.forEach(event -> outboxPoller.published(tenantUuid, event.id()));
+
+    PaymentAccount paymentAccount = paymentRepository.findAccountForPayment(
+        tenantUuid, UUID.fromString(paymentId)).orElseThrow();
+    Instant captureTimestamp = Instant.now();
+    String captureBody = "{\"eventId\":\"capture-event-1\",\"type\":\"CAPTURE_SUCCEEDED\","
+        + "\"paymentId\":\"" + paymentId + "\",\"refundId\":null,"
+        + "\"providerObjectId\":\"fake-pay-" + paymentId + "\",\"providerVersion\":1,"
+        + "\"amountMinor\":809,\"currency\":\"USD\",\"failureCode\":null}";
+    HttpResponse<String> captureCallback = providerCallback(
+        paymentAccount.id(), captureTimestamp, captureBody);
+    assertEquals(200, captureCallback.statusCode(), captureCallback.body());
+    assertTrue(JsonParser.parseString(captureCallback.body()).getAsJsonObject().get("applied").getAsBoolean());
+    assertEquals("CAPTURED", JsonParser.parseString(getWithTenant(
+        "/api/v1/payments/" + paymentId, tenantId, "platform-admin").body())
+        .getAsJsonObject().get("state").getAsString());
+    assertEquals(688, JsonParser.parseString(getWithTenant(
+        "/api/v1/driver/earnings", tenantId, "platform-admin").body())
+        .getAsJsonArray().get(0).getAsJsonObject().get("availableMinor").getAsLong());
+
+    HttpResponse<String> refundResponse = postWithTenant(
+        "/api/v1/finance/payments/" + paymentId + "/refunds", tenantId,
+        "{\"amountMinor\":200,\"reason\":\"service adjustment\"}");
+    assertEquals(201, refundResponse.statusCode(), refundResponse.body());
+    String refundId = JsonParser.parseString(refundResponse.body()).getAsJsonObject()
+        .get("id").getAsString();
+    List<OutboxEvent> refundEvents = outboxPoller.lease(tenantUuid, 100, Duration.ofSeconds(30));
+    OutboxEvent refundRequest = refundEvents.stream()
+        .filter(event -> event.eventType().equals("payment.refund_requested"))
+        .findFirst().orElseThrow();
+    assertTrue(paymentWorker.process(refundRequest));
+    refundEvents.forEach(event -> outboxPoller.published(tenantUuid, event.id()));
+
+    Instant refundTimestamp = Instant.now();
+    String refundBody = "{\"eventId\":\"refund-event-1\",\"type\":\"REFUND_SUCCEEDED\","
+        + "\"paymentId\":\"" + paymentId + "\",\"refundId\":\"" + refundId + "\","
+        + "\"providerObjectId\":\"fake-refund-" + refundId + "\",\"providerVersion\":1,"
+        + "\"amountMinor\":200,\"currency\":\"USD\",\"failureCode\":null}";
+    assertEquals(200, providerCallback(paymentAccount.id(), refundTimestamp, refundBody).statusCode());
+    JsonObject refunded = JsonParser.parseString(getWithTenant(
+        "/api/v1/finance/refunds/" + refundId, tenantId, "platform-admin").body()).getAsJsonObject();
+    assertEquals("SUCCEEDED", refunded.get("state").getAsString());
+    assertEquals(518, JsonParser.parseString(getWithTenant(
+        "/api/v1/driver/earnings", tenantId, "platform-admin").body())
+        .getAsJsonArray().get(0).getAsJsonObject().get("availableMinor").getAsLong());
   }
 
   private JsonObject driverRideAction(String tenantId, String rideId, String action, long version)
@@ -442,6 +508,19 @@ class MarketplaceHttpIT {
     }
     HttpRequest request =
         builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> providerCallback(
+      UUID accountId, Instant timestamp, String body) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder(uri(
+            "/api/v1/payment-providers/fake/accounts/" + accountId + "/events"))
+        .header("Accept", MediaType.APPLICATION_JSON_VALUE)
+        .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+        .header("X-Provider-Timestamp", Long.toString(timestamp.getEpochSecond()))
+        .header("X-Provider-Signature", fakePaymentProvider.sign(timestamp, body))
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
     return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
