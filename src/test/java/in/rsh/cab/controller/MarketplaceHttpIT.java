@@ -378,6 +378,43 @@ class MarketplaceHttpIT {
     assertEquals(409, postWithTenant(
         "/api/v1/driver/rides/" + rideId + "/complete", tenantId, "{\"version\":5}").statusCode());
 
+    HttpResponse<String> rating = postWithTenant(
+        "/api/v1/rides/" + rideId + "/ratings", tenantId,
+        "{\"score\":5,\"comment\":\"Safe and professional\"}");
+    assertEquals(201, rating.statusCode(), rating.body());
+    assertEquals(5, JsonParser.parseString(rating.body()).getAsJsonObject().get("score").getAsInt());
+    assertEquals(409, postWithTenant(
+        "/api/v1/rides/" + rideId + "/ratings", tenantId, "{\"score\":4}").statusCode());
+
+    HttpResponse<String> supportCase = postWithTenant(
+        "/api/v1/support/cases", tenantId,
+        "{\"rideId\":\"" + rideId + "\",\"subject\":\"Receipt question\","
+            + "\"message\":\"Please explain the receipt\"}");
+    assertEquals(201, supportCase.statusCode(), supportCase.body());
+    assertEquals(1, JsonParser.parseString(getWithTenant(
+        "/api/v1/support/cases", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpResponse<String> incident = postWithTenant(
+        "/api/v1/safety/incidents", tenantId,
+        "{\"rideId\":\"" + rideId + "\",\"category\":\"UNSAFE_DRIVING\","
+            + "\"description\":\"Hard braking near the destination\"}");
+    assertEquals(201, incident.statusCode(), incident.body());
+    assertEquals(1, JsonParser.parseString(getWithTenant(
+        "/api/v1/safety/incidents", tenantId, "platform-admin").body()).getAsJsonArray().size());
+
+    HttpResponse<String> preference = putWithTenant(
+        "/api/v1/notification-preferences", tenantId,
+        "{\"eventType\":\"rating.created\",\"channel\":\"LOCAL\",\"enabled\":false}");
+    assertEquals(200, preference.statusCode(), preference.body());
+    assertFalse(JsonParser.parseString(preference.body()).getAsJsonObject().get("enabled").getAsBoolean());
+
+    HttpResponse<String> unsafeWebhook = postWithTenant(
+        "/api/v1/admin/webhook-subscriptions", tenantId,
+        "{\"url\":\"https://localhost/hook\",\"secretReference\":\"env:WEBHOOK_SECRET\","
+            + "\"eventFilters\":[\"ride.completed\"],\"enabled\":true,\"version\":0}");
+    assertEquals(400, unsafeWebhook.statusCode(), unsafeWebhook.body());
+    assertTrue(unsafeWebhook.body().contains("non-public"));
+
     HttpResponse<String> pendingPaymentResponse = getWithTenant(
         "/api/v1/rides/" + rideId + "/payment", tenantId, "platform-admin");
     assertEquals(200, pendingPaymentResponse.statusCode(), pendingPaymentResponse.body());

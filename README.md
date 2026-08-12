@@ -33,13 +33,14 @@ The current implementation supports:
 - Tenant-scoped idempotency, transactional outbox/inbox, and append-only audit foundations
 - Tenant-scoped live driver locations, dispatch offers, and the complete ride lifecycle
 - Provider-neutral capture/refund processing, configurable commission, immutable double-entry ledger, earnings, and settlements
+- Provider-neutral local notifications, participant ratings, support/safety workflows, and signed outbound webhooks
 
 The production roadmap includes:
 
 - Strict tenant isolation and broader role-based access
 - Driver document upload and verification workflows
-- Notifications and production payment-provider adapters
-- Auditing, webhooks, ratings, support, and safety workflows
+- Production notification and payment-provider adapters
+- Expanded moderation, support automation, and safety escalation workflows
 - OpenAPI, observability, Docker Compose, and a Helm chart
 
 See [the production roadmap](docs/ROADMAP.md) for sequencing and acceptance criteria.
@@ -169,6 +170,14 @@ versioned endpoint is:
 | `GET` | `/api/v1/driver/earnings` | Read the authenticated driver's ledger balance |
 | `POST`, `GET` | `/api/v1/finance/settlements` | Settle positive driver balances or list batches; creation requires `FINANCE` |
 | `POST` | `/api/v1/payment-providers/{provider}/accounts/{id}/events` | Receive signed provider callbacks |
+| `PUT`, `GET` | `/api/v1/notification-preferences` | Manage rider/driver event and channel preferences |
+| `POST` | `/api/v1/rides/{id}/ratings` | Rate the other participant after a completed ride |
+| `POST`, `GET` | `/api/v1/support/cases` | Create an owned case or list visible tenant cases |
+| `POST` | `/api/v1/support/cases/{id}/state` | Triage a case; requires `SUPPORT` or `TENANT_ADMIN` |
+| `POST`, `GET` | `/api/v1/safety/incidents` | Participant reporting and restricted safety listing |
+| `POST` | `/api/v1/safety/incidents/{id}/evidence` | Add external evidence metadata; no bytes or URLs |
+| `POST` | `/api/v1/safety/incidents/{id}/actions` | Apply audited restricted safety actions |
+| `POST`, `GET`, `PUT`, `DELETE` | `/api/v1/admin/webhook-subscriptions` | Manage tenant outbound webhooks |
 
 Operational probes are available at `/actuator/health/liveness` and
 `/actuator/health/readiness`. API responses include `X-Correlation-ID`; clients may supply this
@@ -239,6 +248,23 @@ must be deliberately minimized by callers. Outbox consumers lease tenant-qualifi
 failures remain inspectable. Inbox receipts deduplicate by tenant, consumer, and event ID. Audit
 events are append-only: the database rejects updates and deletes. The audit list is tenant-scoped,
 newest-first, and limited to 200 rows per request.
+
+Notification preferences are scoped by tenant, recipient, event, and channel. The provider port has
+only a local logging adapter in this release. Delivery snapshots and attempts are durable and unique;
+transactional payment/cancellation and safety notifications bypass user opt-outs. Inbox receipts
+prevent an outbox replay from repeating a completed delivery.
+
+Ratings require a completed ride and resolve both participants from tenant-qualified records. Each
+participant may submit one score from 1 to 5. Support cases are visible to their creator or support
+staff; only `SUPPORT`/`TENANT_ADMIN` can assign or transition them. Safety reports require ride
+participation, while listing and actions require `SAFETY`/`TENANT_ADMIN`. Evidence stores external
+object keys and bounded metadata, never content or fetchable URLs.
+
+Webhook subscriptions accept HTTPS URLs and `env:NAME` secret references only. Filters use an
+explicit non-sensitive allowlist; payment, live-location, and safety events are excluded by default.
+URL validation rejects non-public addresses, DNS is resolved again before every request, and
+redirects are disabled. Immutable deliveries are HMAC-SHA256 signed over
+`<unix-seconds>.<exact-body>` and retry with bounded exponential backoff.
 
 The backend validates OIDC issuer, audience, signature, expiry, and subject. Configure
 `OIDC_ISSUER_URI` and `OIDC_AUDIENCE`; authorization roles are stored in tenant memberships rather
