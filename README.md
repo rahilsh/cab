@@ -225,7 +225,7 @@ The HTTP API is versioned under `/api/v1`:
 | `POST` | `/api/v1/dispatch/rides/{id}/cancel` | Administratively cancel a ride |
 | `GET` | `/api/v1/payments/{id}` | Read payment status by payment ID |
 | `GET` | `/api/v1/rides/{id}/payment` | Read the authenticated rider's payment status |
-| `POST` | `/api/v1/finance/payments/{id}/refunds` | Request a bounded refund; requires `FINANCE` or `TENANT_ADMIN` |
+| `POST` | `/api/v1/finance/payments/{id}/refunds` | Idempotently request a bounded refund; requires `FINANCE` or `TENANT_ADMIN` |
 | `GET` | `/api/v1/finance/refunds/{id}` | Read a refund; requires finance access |
 | `GET` | `/api/v1/driver/earnings` | Read the authenticated driver's ledger balance |
 | `POST`, `GET` | `/api/v1/finance/settlements` | Settle positive driver balances or list batches; creation requires `FINANCE` |
@@ -294,17 +294,27 @@ and connections have per-actor/per-ride bounds and timeouts. The registry is in-
 per application instance. Multi-replica deployments require external pub/sub (or a future outbox
 poller bridge) so every instance can deliver events to its local connections.
 
-Ride completion creates a `CAPTURE_PENDING` payment and transactional
-`payment.capture_requested` outbox event. It never calls a provider inside the ride transaction.
+Ride completion with a positive fare creates a `CAPTURE_PENDING` payment and transactional
+`payment.capture_requested` outbox event. A zero-fare ride completes without a payment row, emits
+`payment.not_required`, and `/api/v1/rides/{id}/payment` consequently returns `404`. Completion never
+calls a provider inside the ride transaction.
 An outbox consumer invokes the callable `PaymentOperationWorker`; provider success is authoritative
 only after a signed callback. The included `FakePaymentProvider` is for local development and tests.
 Callbacks use HMAC-SHA256 over `<unix-seconds>.<raw-body>`, enforce a configurable replay window,
 deduplicate by payment account and provider event ID, and ignore stale provider versions. Callback
 rows retain normalized identifiers and monetary metadata, not raw provider bodies.
 
-Capture posts a balanced ledger transaction from provider receivable to driver payable and platform
-revenue according to `PAYMENTS_PLATFORM_COMMISSION_BASIS_POINTS` (15% by default). Successful
-refunds reverse both shares proportionally, and completed payouts move driver payable to payout clearing. Ledger
+Capture snapshots the configured commission basis points and exact driver/platform shares, then posts
+a balanced ledger transaction using that immutable split. Successful partial refunds allocate from
+the original capture split cumulatively, so the final refund consumes every captured minor unit
+without rounding drift even if configuration changes. Refund creation requires `Idempotency-Key`;
+the same canonical payment/amount/reason replays the original `201` with
+`Idempotent-Replayed: true`, while a changed request returns `409`.
+
+Settlement creation reserves positive driver balances by moving driver payable to payout clearing
+and creates `PENDING` provider payouts. Submission is not payment confirmation: only a signed
+`PAYOUT_SUCCEEDED` callback marks a payout paid and all-paid batch completed. A signed failure marks
+the batch failed and releases that reservation back to driver payable. Ledger
 transactions and entries are append-only, source-idempotent, single-currency, and checked for equal
 debits and credits at commit. Refund reservations and successful refunds cannot exceed capture.
 

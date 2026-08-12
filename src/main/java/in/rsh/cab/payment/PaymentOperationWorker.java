@@ -35,6 +35,9 @@ public class PaymentOperationWorker {
     if ("payment.refund_requested".equals(event.eventType())) {
       return refund(event);
     }
+    if ("payout.requested".equals(event.eventType())) {
+      return payout(event);
+    }
     return false;
   }
 
@@ -79,6 +82,29 @@ public class PaymentOperationWorker {
           event.tenantId(), refund.id(), submitted.providerObjectId(), clock.instant()));
       return true;
     } catch (RuntimeException exception) {
+      throw exception;
+    }
+  }
+
+  private boolean payout(OutboxEvent event) {
+    SettlementBatch.Payout payout = tenantExecution.inTransaction(event.tenantId(),
+        () -> payments.findPayout(event.tenantId(), event.aggregateId()).orElse(null));
+    if (payout == null || !tenantExecution.inTransaction(event.tenantId(),
+        () -> payments.markPayoutProcessing(event.tenantId(), payout.id()))) {
+      return false;
+    }
+    PaymentAccount account = tenantExecution.inTransaction(event.tenantId(),
+        () -> payments.findAccount(payout.paymentAccountId()).orElseThrow());
+    try {
+      PaymentProvider.Submission submitted = provider(account).payout(account, payout.id(),
+          payout.driverId(), payout.amountMinor(), payout.currency(), "payout:" + payout.id());
+      tenantExecution.inTransaction(event.tenantId(), () -> payments.markPayoutSubmitted(
+          event.tenantId(), payout.id(), submitted.providerObjectId(),
+          submitted.providerRequestId(), clock.instant()));
+      return true;
+    } catch (RuntimeException exception) {
+      tenantExecution.inTransaction(event.tenantId(), () -> payments.markPayoutSubmissionRetryable(
+          event.tenantId(), payout.id(), "PROVIDER_UNAVAILABLE"));
       throw exception;
     }
   }

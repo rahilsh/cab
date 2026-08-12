@@ -43,9 +43,12 @@ the timestamp and exact raw body, rejected outside the replay window, account-sc
 and provider-version ordered. Raw callback bodies are not retained.
 
 Provider calls run only from the outbox-driven payment worker, never in ride database transactions.
-Payment identity and monetary snapshots are immutable, captures cannot exceed authorization, and
-refund reservations/successes cannot exceed capture. Financial postings are source-idempotent,
-balanced, single-currency double entries; database triggers reject ledger updates and deletes.
+Payment identity, capture commission splits, and successful refund splits are immutable. Captures
+cannot exceed authorization, and refund reservations/successes cannot exceed capture. Refund POSTs
+require a scoped idempotency key and store only the safe refund response. Payout submission is not
+authoritative: signed, version-ordered callbacks confirm success or release failed reservations.
+Financial postings are source-idempotent, balanced, single-currency double entries; database triggers
+reject ledger updates and deletes. Zero-fare rides do not create zero-value provider payments.
 
 Rating, support, and safety ownership is derived from tenant-qualified records. Only completed-ride
 participants may rate, support roles control triage, and safety reads/actions require `SAFETY` or

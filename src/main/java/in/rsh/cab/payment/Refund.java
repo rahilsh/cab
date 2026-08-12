@@ -7,6 +7,8 @@ public record Refund(
     UUID id,
     UUID paymentId,
     long amountMinor,
+    Long driverShareMinor,
+    Long platformShareMinor,
     String currency,
     String reason,
     RefundState state,

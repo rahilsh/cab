@@ -47,10 +47,14 @@ public class PaymentController {
 
   @PostMapping("/api/v1/finance/payments/{paymentId}/refunds")
   public ResponseEntity<Refund> refund(
-      @PathVariable UUID paymentId, @Valid @RequestBody RefundRequest request) {
-    Refund refund = payments.refund(paymentId, request.amountMinor(), request.reason());
+      @PathVariable UUID paymentId,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody RefundRequest request) {
+    PaymentService.RefundCreation result = payments.refund(
+        idempotencyKey, paymentId, request.amountMinor(), request.reason());
+    Refund refund = result.refund();
     return ResponseEntity.created(URI.create("/api/v1/payments/" + paymentId + "/refunds/"
-        + refund.id())).body(refund);
+        + refund.id())).header("Idempotent-Replayed", Boolean.toString(result.replayed())).body(refund);
   }
 
   @GetMapping("/api/v1/finance/refunds/{refundId}")

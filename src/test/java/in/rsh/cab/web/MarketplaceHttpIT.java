@@ -628,12 +628,31 @@ class MarketplaceHttpIT {
             .asLong());
 
     HttpResponse<String> refundResponse =
-        postWithTenant(
+        postWithTenantAndIdempotency(
             "/api/v1/finance/payments/" + paymentId + "/refunds",
             tenantId,
+            "refund-http-it",
             "{\"amountMinor\":200,\"reason\":\"service adjustment\"}");
     assertEquals(201, refundResponse.statusCode(), refundResponse.body());
+    assertEquals("false", refundResponse.headers().firstValue("Idempotent-Replayed").orElseThrow());
     String refundId = JSON.readTree(refundResponse.body()).get("id").asText();
+    HttpResponse<String> replayedRefund =
+        postWithTenantAndIdempotency(
+            "/api/v1/finance/payments/" + paymentId + "/refunds",
+            tenantId,
+            "refund-http-it",
+            "{\"amountMinor\":200,\"reason\":\"service adjustment\"}");
+    assertEquals(201, replayedRefund.statusCode(), replayedRefund.body());
+    assertEquals(refundResponse.body(), replayedRefund.body());
+    assertEquals("true", replayedRefund.headers().firstValue("Idempotent-Replayed").orElseThrow());
+    assertEquals(
+        409,
+        postWithTenantAndIdempotency(
+                "/api/v1/finance/payments/" + paymentId + "/refunds",
+                tenantId,
+                "refund-http-it",
+                "{\"amountMinor\":201,\"reason\":\"service adjustment\"}")
+            .statusCode());
     List<OutboxEvent> refundEvents = outboxPoller.lease(tenantUuid, 100, Duration.ofSeconds(30));
     OutboxEvent refundRequest =
         refundEvents.stream()
@@ -668,12 +687,53 @@ class MarketplaceHttpIT {
             .get(0)
             .get("availableMinor")
             .asLong());
+
+    jdbc.sql(
+            """
+            INSERT INTO tenant_membership_roles (membership_id, role)
+            SELECT id, 'FINANCE' FROM tenant_memberships
+            WHERE tenant_id = :tenantId AND user_account_id = :accountId
+            ON CONFLICT DO NOTHING
+            """)
+        .param("tenantId", UUID.fromString(tenantId))
+        .param("accountId", UUID.fromString(accountId))
+        .update();
+    HttpResponse<String> settlementResponse =
+        postWithTenant("/api/v1/finance/settlements", tenantId, "{\"currency\":\"USD\"}");
+    assertEquals(201, settlementResponse.statusCode(), settlementResponse.body());
+    JsonNode settlement = JSON.readTree(settlementResponse.body());
+    assertEquals("PROCESSING", settlement.get("state").asText());
+    String payoutId = settlement.get("payouts").get(0).get("id").asText();
+    List<OutboxEvent> payoutEvents = outboxPoller.lease(tenantUuid, 100, Duration.ofSeconds(30));
+    OutboxEvent payoutRequest =
+        payoutEvents.stream()
+            .filter(event -> event.eventType().equals("payout.requested"))
+            .findFirst()
+            .orElseThrow();
+    assertTrue(paymentWorker.process(payoutRequest));
+    payoutEvents.forEach(outboxPoller::published);
+    Instant payoutTimestamp = Instant.now();
+    String payoutBody =
+        "{\"eventId\":\"payout-event-1\",\"type\":\"PAYOUT_SUCCEEDED\","
+            + "\"paymentId\":null,\"refundId\":null,\"payoutId\":\""
+            + payoutId
+            + "\","
+            + "\"providerObjectId\":\"fake-payout-"
+            + payoutId
+            + "\",\"providerVersion\":1,"
+            + "\"amountMinor\":518,\"currency\":\"USD\",\"failureCode\":null}";
+    assertEquals(
+        200, providerCallback(paymentAccount.id(), payoutTimestamp, payoutBody).statusCode());
+    JsonNode settlements =
+        JSON.readTree(
+            getWithTenant("/api/v1/finance/settlements", tenantId, "platform-admin").body());
+    assertEquals("COMPLETED", settlements.get(0).get("state").asText());
   }
 
   @Test
   void databaseRoleEnforcesTransactionLocalTenantIsolation() {
     assertEquals(
-        42,
+        43,
         jdbc.sql(
                 """
                 SELECT count(*)

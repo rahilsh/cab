@@ -4,6 +4,8 @@ import in.rsh.cab.audit.AuditService;
 import in.rsh.cab.driver.internal.persistence.DriverProfileRepository;
 import in.rsh.cab.exception.ConflictException;
 import in.rsh.cab.exception.NotFoundException;
+import in.rsh.cab.operations.IdempotencyReservation;
+import in.rsh.cab.operations.IdempotencyService;
 import in.rsh.cab.operations.OutboxService;
 import in.rsh.cab.payment.internal.persistence.PaymentRepository;
 import in.rsh.cab.ride.Ride;
@@ -12,6 +14,10 @@ import in.rsh.cab.tenancy.TenantContext;
 import in.rsh.cab.tenancy.TenantRole;
 import java.time.Clock;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -28,6 +34,7 @@ public class PaymentService {
   private final DriverProfileRepository drivers;
   private final OutboxService outbox;
   private final AuditService audit;
+  private final IdempotencyService idempotency;
   private final ObjectMapper json;
   private final Clock clock;
   private final String provider;
@@ -36,7 +43,7 @@ public class PaymentService {
 
   public PaymentService(
       PaymentRepository payments, DriverProfileRepository drivers, OutboxService outbox,
-      AuditService audit, ObjectMapper json, Clock clock,
+      AuditService audit, IdempotencyService idempotency, ObjectMapper json, Clock clock,
       @Value("${payments.provider}") String provider,
       @Value("${payments.fake.config-reference}") String configReference,
       @Value("${payments.fake.webhook-secret-reference}") String secretReference) {
@@ -44,6 +51,7 @@ public class PaymentService {
     this.drivers = drivers;
     this.outbox = outbox;
     this.audit = audit;
+    this.idempotency = idempotency;
     this.json = json;
     this.clock = clock;
     this.provider = provider;
@@ -54,10 +62,19 @@ public class PaymentService {
   @Transactional
   public void requestCapture(UUID tenantId, Ride ride) {
     Instant now = clock.instant();
+    if (ride.fareMinor() == 0) {
+      outbox.append(tenantId, "ride", ride.id(), ride.version(), "payment.not_required", 1,
+          json.valueToTree(new PaymentNotRequired(ride.id(), ride.currency())), null);
+      TenantContext context = TenantContext.require();
+      audit.record(tenantId, context.accountId(), "payment.not_required", "ride", ride.id(),
+          "SUCCESS", json.valueToTree(new PaymentNotRequired(ride.id(), ride.currency())));
+      return;
+    }
     PaymentAccount account = payments.activeAccount(
         tenantId, provider, configReference, secretReference, now);
     Payment payment = new Payment(UUID.randomUUID(), ride.id(), ride.riderAccountId(),
-        ride.fareMinor(), ride.fareMinor(), 0, ride.currency(), PaymentState.CAPTURE_PENDING,
+        ride.fareMinor(), ride.fareMinor(), 0, null, null, null,
+        ride.currency(), PaymentState.CAPTURE_PENDING,
         null, 0, 0, null, now, now);
     payments.insertCaptureRequest(tenantId, account.id(), payment, UUID.randomUUID());
     Payment stored = payments.findByRide(tenantId, ride.riderAccountId(), ride.id()).orElseThrow();
@@ -81,8 +98,16 @@ public class PaymentService {
   }
 
   @Transactional
-  public Refund refund(UUID paymentId, long amountMinor, String reason) {
+  public RefundCreation refund(
+      String idempotencyKey, UUID paymentId, long amountMinor, String reason) {
     TenantContext context = requireAny(TenantRole.FINANCE, TenantRole.TENANT_ADMIN);
+    IdempotencyReservation reservation = idempotency.reserve(
+        context.tenantId(), context.accountId(), "payment.refund",
+        idempotencyKey, refundFingerprint(paymentId, amountMinor, reason));
+    if (reservation.status() == IdempotencyReservation.Status.REPLAY) {
+      return new RefundCreation(json.treeToValue(reservation.safeResponse(), Refund.class),
+          reservation.httpStatus(), true);
+    }
     Payment payment = payments.find(context.tenantId(), paymentId)
         .orElseThrow(() -> new NotFoundException("Payment not found"));
     if (payment.state() != PaymentState.CAPTURED) {
@@ -94,7 +119,7 @@ public class PaymentService {
       throw new ConflictException("Refund exceeds the unrefunded captured amount");
     }
     Instant now = clock.instant();
-    Refund refund = new Refund(UUID.randomUUID(), paymentId, amountMinor, payment.currency(),
+    Refund refund = new Refund(UUID.randomUUID(), paymentId, amountMinor, null, null, payment.currency(),
         reason, RefundState.PENDING, null, 0, 0, now, now);
     try {
       payments.insertRefund(context.tenantId(), refund, context.accountId());
@@ -106,7 +131,9 @@ public class PaymentService {
     audit.record(context.tenantId(), context.accountId(), "payment.refund_requested", "refund",
         refund.id(), "SUCCESS", json.valueToTree(new RefundAudit(paymentId, amountMinor,
             payment.currency())));
-    return refund;
+    idempotency.complete(context.tenantId(), context.accountId(), reservation.recordId(),
+        "refund", refund.id(), 201, json.valueToTree(refund));
+    return new RefundCreation(refund, 201, false);
   }
 
   @Transactional(readOnly = true)
@@ -127,10 +154,15 @@ public class PaymentService {
   @Transactional
   public SettlementBatch settle(String currency) {
     TenantContext context = require(TenantRole.FINANCE);
+    Instant now = clock.instant();
+    PaymentAccount account = payments.activeAccount(
+        context.tenantId(), provider, configReference, secretReference, now);
     SettlementBatch batch = payments.createSettlement(
-        context.tenantId(), context.accountId(), currency, clock.instant());
-    outbox.append(context.tenantId(), "settlement", batch.id(), 0, "settlement.completed", 1,
-        json.valueToTree(new SettlementAudit(batch.currency(), batch.totalMinor())), null);
+        context.tenantId(), context.accountId(), account.id(), currency, now);
+    for (SettlementBatch.Payout payout : batch.payouts()) {
+      outbox.append(context.tenantId(), "payout", payout.id(), 0, "payout.requested", 1,
+          json.valueToTree(new PayoutRequested(payout.id())), null);
+    }
     audit.record(context.tenantId(), context.accountId(), "settlement.create", "settlement",
         batch.id(), "SUCCESS", json.valueToTree(new SettlementAudit(
             batch.currency(), batch.totalMinor())));
@@ -157,7 +189,23 @@ public class PaymentService {
 
   public record OperationRequested(UUID paymentId, UUID refundId) {}
 
+  public record RefundCreation(Refund refund, int httpStatus, boolean replayed) {}
+
   private record RefundAudit(UUID paymentId, long amountMinor, String currency) {}
 
   private record SettlementAudit(String currency, long amountMinor) {}
+
+  private record PaymentNotRequired(UUID rideId, String currency) {}
+
+  private record PayoutRequested(UUID payoutId) {}
+
+  private String refundFingerprint(UUID paymentId, long amountMinor, String reason) {
+    String canonical = paymentId + "\n" + amountMinor + "\n" + reason;
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(canonical.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("SHA-256 is unavailable", exception);
+    }
+  }
 }

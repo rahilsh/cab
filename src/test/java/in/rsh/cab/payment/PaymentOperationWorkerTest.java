@@ -74,9 +74,27 @@ class PaymentOperationWorkerTest {
         TENANT, payment.id(), "PROVIDER_UNAVAILABLE");
   }
 
+  @Test
+  void submitsPayoutWithoutMarkingItPaid() {
+    UUID payoutId = UUID.randomUUID();
+    PaymentAccount account = account();
+    SettlementBatch.Payout payout = new SettlementBatch.Payout(
+        payoutId, UUID.randomUUID(), 100, "USD", "PENDING", account.id(), null, 0, null);
+    when(repository.findPayout(TENANT, payoutId)).thenReturn(Optional.of(payout));
+    when(repository.markPayoutProcessing(TENANT, payoutId)).thenReturn(true);
+    when(repository.findAccount(account.id())).thenReturn(Optional.of(account));
+    when(provider.payout(any(), any(), any(), any(Long.class), any(), any()))
+        .thenReturn(new PaymentProvider.Submission("provider-payout", "provider-request"));
+
+    assertTrue(worker.process(event("payout.requested", payoutId)));
+
+    verify(repository).markPayoutSubmitted(
+        TENANT, payoutId, "provider-payout", "provider-request", NOW);
+  }
+
   private Payment payment() {
     return new Payment(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100, 100, 0,
-        "USD", PaymentState.CAPTURE_PENDING, null, 0, 0, null, NOW, NOW);
+        null, null, null, "USD", PaymentState.CAPTURE_PENDING, null, 0, 0, null, NOW, NOW);
   }
 
   private PaymentAccount account() {

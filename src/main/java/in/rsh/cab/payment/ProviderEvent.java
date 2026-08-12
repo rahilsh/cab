@@ -7,6 +7,7 @@ public record ProviderEvent(
     Type type,
     UUID paymentId,
     UUID refundId,
+    UUID payoutId,
     String providerObjectId,
     long providerVersion,
     Long amountMinor,
@@ -17,6 +18,8 @@ public record ProviderEvent(
     CAPTURE_SUCCEEDED,
     CAPTURE_FAILED,
     REFUND_SUCCEEDED,
-    REFUND_FAILED
+    REFUND_FAILED,
+    PAYOUT_SUCCEEDED,
+    PAYOUT_FAILED
   }
 }

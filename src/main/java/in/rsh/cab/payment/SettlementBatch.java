@@ -8,5 +8,7 @@ public record SettlementBatch(
     UUID id, String currency, String state, long totalMinor, Instant createdAt,
     List<Payout> payouts) {
 
-  public record Payout(UUID id, UUID driverId, long amountMinor, String currency, String state) {}
+  public record Payout(
+      UUID id, UUID driverId, long amountMinor, String currency, String state,
+      UUID paymentAccountId, String providerPayoutId, long providerVersion, String failureCode) {}
 }
