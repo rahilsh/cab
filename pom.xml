@@ -21,7 +21,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.6.2</version>
+        <version>3.6.3</version>
         <executions>
           <execution>
             <id>enforce-build-environment</id>
@@ -45,7 +45,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.9.0</version>
         <configuration>
           <java>
             <includes>
@@ -278,7 +278,7 @@
       <artifactId>archunit-junit5</artifactId>
       <groupId>com.tngtech.archunit</groupId>
       <scope>test</scope>
-      <version>1.4.1</version>
+      <version>1.5.0</version>
     </dependency>
   </dependencies>
   <description>Multi-tenant ride-hailing marketplace API</description>
