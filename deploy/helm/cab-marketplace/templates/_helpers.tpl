@@ -31,8 +31,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{- define "cab-marketplace.image" -}}
-{{- if eq .Values.config.springProfilesActive "prod" -}}
-{{- $_ := required "image.digest is required when config.springProfilesActive=prod" .Values.image.digest -}}
+{{- $production := false -}}
+{{- range (splitList "," .Values.config.springProfilesActive) -}}
+{{- if eq (trim .) "prod" -}}
+{{- $production = true -}}
+{{- end -}}
+{{- end -}}
+{{- if $production -}}
+{{- $_ := required "image.digest is required when config.springProfilesActive includes prod" .Values.image.digest -}}
 {{- end -}}
 {{- if .Values.image.digest -}}
 {{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.image.digest) -}}
