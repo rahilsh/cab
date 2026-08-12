@@ -17,6 +17,7 @@ import in.rsh.cab.tenancy.TenantAccessDeniedException;
 import in.rsh.cab.tenancy.TenantContext;
 import in.rsh.cab.tenancy.TenantRole;
 import in.rsh.cab.webhook.internal.persistence.WebhookRepository;
+import java.net.InetAddress;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
@@ -43,10 +44,14 @@ class WebhookServiceTest {
       repository, security, audit, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     TenantContext.set(new TenantContext(
         TENANT, ACCOUNT, UUID.randomUUID(), Set.of(TenantRole.TENANT_ADMIN)));
-    when(security.validate(any())).thenReturn(URI.create("https://example.com/hook"));
+    when(security.validate(any()))
+        .thenReturn(
+            new ValidatedWebhookTarget(
+                URI.create("https://example.com/hook"),
+                List.of(InetAddress.getByAddress(new byte[] {93, (byte) 184, (byte) 216, 34}))));
   }
 
   @AfterEach

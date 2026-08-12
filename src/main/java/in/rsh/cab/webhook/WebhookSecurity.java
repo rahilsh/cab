@@ -15,7 +15,7 @@ public class WebhookSecurity {
     this.resolver = resolver;
   }
 
-  public URI validate(String value) {
+  public ValidatedWebhookTarget validate(String value) {
     URI uri;
     try {
       uri = URI.create(value);
@@ -35,7 +35,7 @@ public class WebhookSecurity {
     if (addresses.isEmpty() || addresses.stream().anyMatch(this::isBlocked)) {
       throw new InvalidRequestException("Webhook host resolves to a non-public address");
     }
-    return uri;
+    return new ValidatedWebhookTarget(uri, addresses);
   }
 
   private boolean isBlocked(InetAddress address) {
