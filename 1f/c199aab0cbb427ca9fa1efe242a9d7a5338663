@@ -1,0 +1,21 @@
+.github/dependabot.yml
+  s_3b8a22f2a617cb::t_839269d7a457b9 35-37
+Dockerfile
+  s_3b8a22f2a617cb::t_3e6835828b8b06 2,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "1fc199aab0cbb427ca9fa1efe242a9d7a5338663",
+  "prompts": {},
+  "sessions": {
+    "s_3b8a22f2a617cb": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "call_OAoqyqqci2m0kOEVDWCVFfcg",
+        "model": "unknown"
+      },
+      "human_author": "Rahil <rahilrshk@gmail.com>"
+    }
+  }
+}
