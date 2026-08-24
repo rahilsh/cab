@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM eclipse-temurin:21.0.11_10-jdk-jammy@sha256:55fb9bf738f5d9b4a6c01b39337e3070d3e27370dd3c478fd1d5d3cd2233c6d8 AS build
+FROM eclipse-temurin:21.0.11_10-jdk-jammy@sha256:dbfd085220ae632a0830166e443747d1ee89e9038d92e3b48c3e5e9d8292b9a7 AS build
 WORKDIR /workspace
 
 RUN apt-get update && \
@@ -14,7 +14,7 @@ COPY src/ src/
 RUN ./mvnw -B -DskipTests package && \
     java -Djarmode=tools -jar target/cab-*.jar extract --layers --destination /workspace/layers
 
-FROM eclipse-temurin:21.0.11_10-jre-jammy@sha256:3097cbbebb7d490494a98aed2301f284b38f79eba158eef098c6fc8c8af11c23
+FROM eclipse-temurin:21.0.11_10-jre-jammy@sha256:8208b3a3733529f42c4b565bfcbf16d914eb628f3ead8488b6b4d6363fcbe7cf
 ARG VERSION=0.0.1-SNAPSHOT
 ARG REVISION=unknown
 ARG CREATED=unknown
