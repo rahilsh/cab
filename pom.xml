@@ -45,7 +45,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>3.10.2</version>
+        <version>3.10.3</version>
         <configuration>
           <java>
             <includes>
@@ -278,7 +278,7 @@
       <artifactId>archunit-junit5</artifactId>
       <groupId>com.tngtech.archunit</groupId>
       <scope>test</scope>
-      <version>1.5.0</version>
+      <version>1.5.1</version>
     </dependency>
   </dependencies>
   <description>Multi-tenant ride-hailing marketplace API</description>
