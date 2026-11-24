@@ -303,7 +303,7 @@
     <artifactId>spring-boot-starter-parent</artifactId>
     <groupId>org.springframework.boot</groupId>
     <relativePath/>
-    <version>4.1.2</version>
+    <version>4.2.0</version>
   </parent>
 
   <properties>
